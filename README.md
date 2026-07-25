@@ -57,7 +57,7 @@ Three roles. Two fixed endpoints. One ceremony.
 | [03 - The Protocol](docs/03-the-protocol/) | HPP at a glance - roles, ceremonies, analogies |
 | [04 - Specification](docs/04-specification/) | Formal message schemas, ceremonies, security |
 | [05 - Use Cases](docs/05-use-cases/) | Real-world scenarios across industries |
-| [06 - Getting Started](docs/06-getting-started/) | Run the demo, integrate HPP, FAQ |
+| [06 - Getting Started](docs/06-getting-started/) | Integration guides, project status, FAQ |
 
 ---
 
