@@ -1,0 +1,90 @@
+# AI-DLC workspace
+/.kiro
+/aidlc-docs
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ----- .NET (Participation Service) -----
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+*.csproj.user
+*.dll
+*.pdb
+*.nupkg
+project.lock.json
+TestResults/
+
+# ----- Flutter / Dart (Client App) -----
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.iml
+.metadata
+pubspec.lock
+
+# ----- Node / TypeScript (SDKs, Mock Apps, AI Agent) -----
+node_modules/
+dist/
+.next/
+.nuxt/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ----- Python (SDK, Mock Apps) -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+*.egg
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# ----- Go (SDK, Mock Apps) -----
+*.exe
+*.exe~
+*.test
+*.out
+vendor/
+
+# ----- Docker -----
+.docker/
+docker-compose.override.yml
+
+# ----- Misc -----
+*.log
+*.tmp
+*.bak
+coverage/
