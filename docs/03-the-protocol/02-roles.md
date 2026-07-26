@@ -7,8 +7,8 @@
 **Examples**: A pizza ordering app, an online bank, a holiday booking site, an HR system, a smart home controller.
 
 **What it does**:
-- Generates registration challenges and presents them as `hpp://` links
-- Serves app metadata at `/.well-known/hpp/app-metadata` (name, icon, callback path)
+- Generates registration challenges and presents them as `ohpp://` links
+- Serves app metadata at `/.well-known/ohpp/app-metadata` (name, icon, callback path)
 - Sends participation requests to the user's Resolver (with Bearer token auth)
 - Receives signed attestations and verifies them
 - Decides what to do based on the attestation (proceed, deny, retry)
@@ -25,12 +25,12 @@
 
 ## Resolver
 
-**What it is**: A participation service that routes requests to users and returns attestations. The "email server" of HPP.
+**What it is**: A participation service that routes requests to users and returns attestations. The "email server" of OHPP.
 
 **Examples**: A company like "ParticipateHQ" or "HumanCheck" running a participation service. Or a self-hosted instance within an enterprise.
 
 **What it does**:
-- Serves discovery metadata at `/.well-known/hpp/metadata` (endpoints, version)
+- Serves discovery metadata at `/.well-known/ohpp/metadata` (endpoints, version)
 - Handles registration (fetches Requester's app-metadata, issues tokens, calls back)
 - Receives participation requests from Requesters
 - Routes requests to the user's registered devices

@@ -1,14 +1,14 @@
 # The protocol: overview
 
-## HPP in one paragraph
+## OHPP in one paragraph
 
-The Human Participation Protocol defines a standard way for any application to request human participation, route that request to the human's device, collect their decision, and return a cryptographically signed proof that participation occurred. It's interoperable (any app works with any provider), transport-agnostic (the protocol defines messages, not wires), and independently verifiable (proof is self-contained).
+The Open Human Participation Protocol defines a standard way for any application to request human participation, route that request to the human's device, collect their decision, and return a cryptographically signed proof that participation occurred. It's interoperable (any app works with any provider), transport-agnostic (the protocol defines messages, not wires), and independently verifiable (proof is self-contained).
 
 ---
 
 ## The three roles
 
-HPP defines three abstract roles:
+OHPP defines three abstract roles:
 
 ### Requester
 
@@ -22,7 +22,7 @@ The service that routes participation requests to the human. Think of it as the 
 
 Users choose their Resolver (their "participation provider") the same way they choose Gmail or Outlook for email. Different providers, same protocol.
 
-Discovery uses the `.well-known` URI pattern established by RFC 8615, the same mechanism used for ACME certificate validation, OpenID Connect discovery, and (increasingly) AI agent skill discovery. A Resolver advertises its endpoints at `/.well-known/hpp/metadata`; a Requester advertises its identity at `/.well-known/hpp/app-metadata`.
+Discovery uses the `.well-known` URI pattern established by RFC 8615, the same mechanism used for ACME certificate validation, OpenID Connect discovery, and (increasingly) AI agent skill discovery. A Resolver advertises its endpoints at `/.well-known/ohpp/metadata`; a Requester advertises its identity at `/.well-known/ohpp/app-metadata`.
 
 ### Attester
 
@@ -34,7 +34,7 @@ The endpoint that collects the human's actual decision. Typically a phone app - 
 
 ### Registration
 
-A one-time linking between a Requester and a user's Resolver. The app presents an `hpp://` link (or QR code encoding the same link). Tapping it opens the user's HPP Client App, which shows "Allow this app?" The user confirms, and the link is established. After registration, the Requester can send participation requests for that user.
+A one-time linking between a Requester and a user's Resolver. The app presents an `ohpp://` link (or QR code encoding the same link). Tapping it opens the user's OHPP Client App, which shows "Allow this app?" The user confirms, and the link is established. After registration, the Requester can send participation requests for that user.
 
 ### Participation
 
@@ -44,7 +44,7 @@ The core flow: Requester sends a request → Resolver routes to device → Human
 
 ## What makes it different
 
-| | Traditional Auth | HPP |
+| | Traditional Auth | OHPP |
 |--|-----------------|-----|
 | **Proves** | Identity | Participation |
 | **When** | At login / session start | At decision points |
@@ -56,9 +56,9 @@ The core flow: Requester sends a request → Resolver routes to device → Human
 
 ## The email analogy
 
-HPP's architecture mirrors email:
+OHPP's architecture mirrors email:
 
-| Email | HPP |
+| Email | OHPP |
 |-------|-----|
 | Sender | Requester (the app needing participation) |
 | Sender's mail server | (not needed - Requester talks directly to Resolver) |
@@ -80,11 +80,11 @@ A company could build both the Resolver and the Attester app (like Gmail builds 
 The registration experience is similar to setting up a 2FA app:
 
 1. You go to an app's security settings
-2. It shows an `hpp://` link (and a QR code as a visual option)
-3. You tap the link (or scan the QR from another device) — your HPP app opens
+2. It shows an `ohpp://` link (and a QR code as a visual option)
+3. You tap the link (or scan the QR from another device) — your OHPP app opens
 4. They're linked. Future requests route to your app.
 
-The difference: instead of generating 6-digit codes, HPP delivers rich participation requests with descriptions, options, and context - and returns signed attestations.
+The difference: instead of generating 6-digit codes, OHPP delivers rich participation requests with descriptions, options, and context - and returns signed attestations.
 
 ---
 

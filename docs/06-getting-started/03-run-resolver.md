@@ -7,10 +7,10 @@ A Resolver is the server-side component that routes participation requests betwe
 ## Who would run a Resolver?
 
 - A company building a participation service product (like building an email provider)
-- An enterprise deploying HPP internally (like running your own mail server)
-- A developer building and testing HPP integrations locally
+- An enterprise deploying OHPP internally (like running your own mail server)
+- A developer building and testing OHPP integrations locally
 
-For most Requesters (apps integrating HPP), you don't need to run a Resolver. Your users choose their own provider, and you interact with it via the standard protocol. This guide is for people building or hosting the infrastructure.
+For most Requesters (apps integrating OHPP), you don't need to run a Resolver. Your users choose their own provider, and you interact with it via the standard protocol. This guide is for people building or hosting the infrastructure.
 
 ---
 
@@ -20,7 +20,7 @@ For most Requesters (apps integrating HPP), you don't need to run a Resolver. Yo
 
 | Endpoint | Purpose |
 |----------|---------|
-| `/.well-known/hpp/metadata` | Discovery (advertise your endpoints and version) |
+| `/.well-known/ohpp/metadata` | Discovery (advertise your endpoints and version) |
 | `endpoints.participate` | Receive participation requests from Requesters |
 | `endpoints.participate_status` | Status polling and cancellation |
 | `endpoints.keys` | Publish JWKS (public keys for attestation verification) |
@@ -42,11 +42,11 @@ For most Requesters (apps integrating HPP), you don't need to run a Resolver. Yo
 
 ## ServiceMetadata format
 
-Your `/.well-known/hpp/metadata` endpoint must return:
+Your `/.well-known/ohpp/metadata` endpoint must return:
 
 ```json
 {
-  "name": "My HPP Resolver",
+  "name": "My OHPP Resolver",
   "protocolVersion": {
     "min": "1.0",
     "max": "1.0"

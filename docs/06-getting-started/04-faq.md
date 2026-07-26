@@ -2,15 +2,15 @@
 
 ## General
 
-### What is HPP?
+### What is OHPP?
 
 An open protocol that lets any application request human participation, route that request to the human's device, collect their decision, and return a cryptographically signed proof that the human was involved.
 
 ### How is this different from 2FA/MFA?
 
-2FA proves identity at login. HPP proves participation at decision points. 2FA happens once at session start. HPP happens whenever an application decides human involvement is needed - during a transaction, before a deployment, when an agent wants to spend money.
+2FA proves identity at login. OHPP proves participation at decision points. 2FA happens once at session start. OHPP happens whenever an application decides human involvement is needed - during a transaction, before a deployment, when an agent wants to spend money.
 
-Also: 2FA typically uses the same channel (SMS, email, authenticator app generating codes). HPP uses a separate physical device with biometric verification, producing a signed attestation rather than a one-time code.
+Also: 2FA typically uses the same channel (SMS, email, authenticator app generating codes). OHPP uses a separate physical device with biometric verification, producing a signed attestation rather than a one-time code.
 
 ### Can't agents just bypass this?
 
@@ -31,8 +31,8 @@ Yes. The protocol specification is open. The reference implementation (Resolver,
 ### How much work is it to integrate?
 
 Five things:
-1. Serve a static JSON file at `/.well-known/hpp/app-metadata` (5 minutes)
-2. Generate registration challenges and show an `hpp://` link (a few hours)
+1. Serve a static JSON file at `/.well-known/ohpp/app-metadata` (5 minutes)
+2. Generate registration challenges and show an `ohpp://` link (a few hours)
 3. Accept registration callbacks and store credentials (a few hours)
 4. Send participation requests at the right moments (depends on your app)
 5. Verify attestation signatures (one function call with the SDK)
@@ -41,7 +41,7 @@ With an SDK, steps 2-5 are mostly handled for you.
 
 ### Do I need to change my auth system?
 
-No. HPP sits alongside your existing auth. It doesn't replace login, sessions, or permissions. It adds a participation layer on top. A user is still authenticated normally. HPP requests go to that user's registered Resolver.
+No. OHPP sits alongside your existing auth. It doesn't replace login, sessions, or permissions. It adds a participation layer on top. A user is still authenticated normally. OHPP requests go to that user's registered Resolver.
 
 ### What happens if the Resolver is down?
 
@@ -98,7 +98,7 @@ Your Resolver is the stable anchor. Devices are registered with the Resolver and
 
 ### Why not just use OAuth/OIDC for this?
 
-OAuth proves who you are. HPP proves you participated. They answer different questions. OAuth can confirm "this token belongs to user X." It cannot confirm "user X was physically present and consciously approved this specific action at this specific time."
+OAuth proves who you are. OHPP proves you participated. They answer different questions. OAuth can confirm "this token belongs to user X." It cannot confirm "user X was physically present and consciously approved this specific action at this specific time."
 
 ### Why a separate device?
 
@@ -106,15 +106,15 @@ Because the agent controls the primary device (browser, desktop). A separate phy
 
 ### Why not blockchain/Web3?
 
-HPP is transport-agnostic and doesn't prescribe storage. Attestations could be stored on-chain if someone wanted to. But the protocol itself doesn't need distributed consensus - it needs cryptographic signatures, which are simpler, faster, and cheaper.
+OHPP is transport-agnostic and doesn't prescribe storage. Attestations could be stored on-chain if someone wanted to. But the protocol itself doesn't need distributed consensus - it needs cryptographic signatures, which are simpler, faster, and cheaper.
 
 ### How does this relate to W3C Verifiable Credentials?
 
-Similar cryptographic foundation (signed claims, public key verification). Different purpose. VCs prove attributes about a subject ("this person has a degree"). HPP attestations prove a participation event ("this person approved this action at this time"). HPP is narrower in scope and optimised for real-time decision flows.
+Similar cryptographic foundation (signed claims, public key verification). Different purpose. VCs prove attributes about a subject ("this person has a degree"). OHPP attestations prove a participation event ("this person approved this action at this time"). OHPP is narrower in scope and optimised for real-time decision flows.
 
 ### What about proof-of-personhood (Worldcoin, BrightID)?
 
-Proof-of-personhood proves "this entity is a unique human" (once, globally). HPP proves "a human participated in this specific decision" (repeatedly, per action). Different layers. A proof-of-personhood system could be one signal a Resolver uses internally to verify its users, but HPP doesn't require or depend on it.
+Proof-of-personhood proves "this entity is a unique human" (once, globally). OHPP proves "a human participated in this specific decision" (repeatedly, per action). Different layers. A proof-of-personhood system could be one signal a Resolver uses internally to verify its users, but OHPP doesn't require or depend on it.
 
 ### Why domain-based appIds?
 
@@ -126,15 +126,15 @@ Domains are globally unique, verifiable via TLS, and don't require a central reg
 
 ### vs 3D Secure (card payments)
 
-3D Secure is the closest existing analogue. It inserts a bank verification step during card payments. HPP generalises this pattern: any app, any action, any provider. 3D Secure only works for card transactions, only through payment networks, and only with the issuing bank as the verifier.
+3D Secure is the closest existing analogue. It inserts a bank verification step during card payments. OHPP generalises this pattern: any app, any action, any provider. 3D Secure only works for card transactions, only through payment networks, and only with the issuing bank as the verifier.
 
 ### vs Apple/Google confirmation prompts
 
-When Google or Apple show "Allow this app to..." prompts, those are proprietary, platform-specific, and only work within their ecosystem. HPP is open, interoperable, and works across any platform, any device manufacturer, any operating system.
+When Google or Apple show "Allow this app to..." prompts, those are proprietary, platform-specific, and only work within their ecosystem. OHPP is open, interoperable, and works across any platform, any device manufacturer, any operating system.
 
 ### vs Email-based approval links
 
-Email approval ("click here to confirm") is phishable, not time-bound (the link sits in your inbox), and doesn't produce cryptographic proof. HPP requests go to a dedicated app, require biometric verification, expire, and produce signed attestations.
+Email approval ("click here to confirm") is phishable, not time-bound (the link sits in your inbox), and doesn't produce cryptographic proof. OHPP requests go to a dedicated app, require biometric verification, expire, and produce signed attestations.
 
 ---
 

@@ -18,7 +18,7 @@ Protocol versions follow MAJOR.MINOR format (e.g., `1.0`, `1.2`, `2.0`).
 
 ### Resolver advertises its range
 
-Every Resolver publishes a supported version range in `/.well-known/hpp/metadata`:
+Every Resolver publishes a supported version range in `/.well-known/ohpp/metadata`:
 
 ```json
 {
@@ -98,7 +98,7 @@ This allows new types to be deployed without requiring all Client Apps to update
 
 ## Practical version strategy
 
-For HPP 1.0:
+For OHPP 1.0:
 - All types defined in this spec (`select`, `multiselect`, `text`, `number`, `date`, `datetime`, `signature`) are part of 1.0
 - Future minor versions (1.1, 1.2) will add new optional fields and types
 - Major version 2.0 will only happen if the ceremony structure or security model needs breaking changes

@@ -12,7 +12,7 @@ Current approach: audit logs that say "Dr. Smith clicked Approve at 14:32." Prob
 
 ## Medication approval
 
-An AI clinical decision support system recommends a medication change for a patient. The hospital system uses HPP to confirm the prescribing clinician actually reviewed it.
+An AI clinical decision support system recommends a medication change for a patient. The hospital system uses OHPP to confirm the prescribing clinician actually reviewed it.
 
 **Request**:
 ```json
@@ -86,9 +86,9 @@ The attestation captures the clinician's reasoning alongside their override deci
 
 ---
 
-## What HPP provides for healthcare
+## What OHPP provides for healthcare
 
-| Need | How HPP addresses it |
+| Need | How OHPP addresses it |
 |------|---------------------|
 | Regulatory compliance (FDA, HIPAA) | Signed, timestamped, verifiable proof of human review |
 | Clinical accountability | Attestation ties a specific clinician to a specific decision |
@@ -100,7 +100,7 @@ The attestation captures the clinician's reasoning alongside their override deci
 
 ## Limitations to acknowledge
 
-HPP proves a human participated. It does not prove they:
+OHPP proves a human participated. It does not prove they:
 - Read the full description carefully
 - Understood the clinical implications
 - Were free from fatigue or cognitive overload

@@ -75,7 +75,7 @@ The transaction groups both requests together in the Client App. The human sees 
 
 ## Compliance evidence
 
-Financial regulations (PSD2/SCA in Europe, MiFID II for investment decisions) require evidence that humans authorised certain actions. HPP attestations serve as that evidence:
+Financial regulations (PSD2/SCA in Europe, MiFID II for investment decisions) require evidence that humans authorised certain actions. OHPP attestations serve as that evidence:
 
 - Cryptographically signed (cannot be forged after the fact)
 - Timestamped (prove when the decision was made)
@@ -88,13 +88,13 @@ A bank's compliance team - or an external auditor - can verify any attestation a
 
 ## Fraud detection signal
 
-If an agent attempts a transfer and the user denies it via HPP, that denial is a signal. The bank now knows:
+If an agent attempts a transfer and the user denies it via OHPP, that denial is a signal. The bank now knows:
 
 - An agent tried to do something the human didn't want
 - The human is actively monitoring (or their auto-rules caught it)
 - This might be a compromised agent, a misconfigured rule, or an attack
 
-Existing fraud systems can incorporate HPP attestation data (approve/deny patterns, timing, delegation usage) into their models.
+Existing fraud systems can incorporate OHPP attestation data (approve/deny patterns, timing, delegation usage) into their models.
 
 ---
 

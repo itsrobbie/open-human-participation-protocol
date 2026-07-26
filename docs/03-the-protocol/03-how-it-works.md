@@ -8,8 +8,8 @@ Before a Requester can request participation from a user, they must be linked. T
 1. Requester generates a challenge
    (just: appId + challengeId + expiry)
 
-2. Challenge is presented as an hpp:// link
-   hpp://register?challenge={base64url-encoded challenge JSON}
+2. Challenge is presented as an ohpp:// link
+   ohpp://register?challenge={base64url-encoded challenge JSON}
    (Also available as QR code for scanning from another device)
 
 3. Client App receives the challenge
@@ -18,7 +18,7 @@ Before a Requester can request participation from a user, they must be linked. T
 4. Client App sends challenge to its Resolver
 
 5. Resolver fetches Requester's metadata
-   GET https://{appId}/.well-known/hpp/app-metadata
+   GET https://{appId}/.well-known/ohpp/app-metadata
    (Verifies domain ownership over TLS - anti-spoofing)
 
 6. Resolver calls back to Requester
@@ -35,27 +35,27 @@ After this, the Requester can send participation requests for that user.
 
 ## Agent-driven registration
 
-Realistically, most people won't visit each of their apps one by one and manually sign up for HPP. The more likely path: you tell your agent "sign me up for HPP across all my apps" and it handles the legwork.
+Realistically, most people won't visit each of their apps one by one and manually sign up for OHPP. The more likely path: you tell your agent "sign me up for OHPP across all my apps" and it handles the legwork.
 
 This is a first-class use case. Here's how it works:
 
 ```
-1. User tells agent: "Register me for HPP on all my accounts"
+1. User tells agent: "Register me for OHPP on all my accounts"
 
-2. Agent navigates to each app's HPP settings page
+2. Agent navigates to each app's OHPP settings page
    (Same way it navigates any web page - using your credentials)
 
-3. App generates a RegistrationChallenge and presents it as an hpp:// link
-   hpp://register?challenge=eyJjaGFsbGVuZ2VJZCI6IjU1MGU4NDAwLi4uIn0
+3. App generates a RegistrationChallenge and presents it as an ohpp:// link
+   ohpp://register?challenge=eyJjaGFsbGVuZ2VJZCI6IjU1MGU4NDAwLi4uIn0
    (Also shows a QR code, but the agent ignores that)
 
-4. Agent reads the hpp:// link from the page DOM
+4. Agent reads the ohpp:// link from the page DOM
 
 5. Agent triggers the link
-   The OS routes hpp:// to the user's installed HPP Client App
+   The OS routes ohpp:// to the user's installed OHPP Client App
 
 6. Client App receives the challenge
-   Shows: "Pizza Palace wants to register for HPP. Allow?"
+   Shows: "Pizza Palace wants to register for OHPP. Allow?"
 
 7. User confirms on their device
    (This is the one human moment - the agent can't do this part)
@@ -64,11 +64,11 @@ This is a first-class use case. Here's how it works:
    Client App → Resolver → callback to app → done
 ```
 
-The agent does the boring part (navigating to 15 different apps, finding the HPP registration page, triggering the link). The human does the meaningful part (confirming "yes, link this app" on their phone). One tap per app. No hunting through settings menus.
+The agent does the boring part (navigating to 15 different apps, finding the OHPP registration page, triggering the link). The human does the meaningful part (confirming "yes, link this app" on their phone). One tap per app. No hunting through settings menus.
 
-**What Requesters must do**: When presenting a registration challenge, always include an `hpp://` link on the page. The link contains the full base64url-encoded challenge payload. QR codes are a visual convenience for cross-device registration — the `hpp://` link is the machine-readable path that agents (and accessibility tools) depend on.
+**What Requesters must do**: When presenting a registration challenge, always include an `ohpp://` link on the page. The link contains the full base64url-encoded challenge payload. QR codes are a visual convenience for cross-device registration — the `ohpp://` link is the machine-readable path that agents (and accessibility tools) depend on.
 
-**What this looks like for "your mum"**: She tells her agent "set up HPP for me." Her phone buzzes a few times over the next minute. Each buzz says "[App name] wants to connect. Allow?" She taps Allow on each one. Done. She didn't need to know what a Resolver is, what a challenge payload looks like, or where the settings page lives.
+**What this looks like for "your mum"**: She tells her agent "set up OHPP for me." Her phone buzzes a few times over the next minute. Each buzz says "[App name] wants to connect. Allow?" She taps Allow on each one. Done. She didn't need to know what a Resolver is, what a challenge payload looks like, or where the settings page lives.
 
 ---
 
@@ -122,7 +122,7 @@ Anyone holding an attestation can verify it independently:
    (From the Requester's records, an audit trail, a compliance report)
 
 2. Get the Resolver's public keys
-   GET {resolverBaseUrl}/.well-known/hpp/metadata → endpoints.keys
+   GET {resolverBaseUrl}/.well-known/ohpp/metadata → endpoints.keys
 
 3. Find the matching key
    Match attestation.signature.keyId to keys[].kid

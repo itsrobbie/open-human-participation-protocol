@@ -127,17 +127,17 @@ An HR AI agent processes sensitive employee changes. Some actions require explic
 
 ---
 
-## What makes HPP different from existing enterprise approval systems
+## What makes OHPP different from existing enterprise approval systems
 
 Most enterprise tools (ServiceNow, Jira, etc.) already have approval workflows. The difference:
 
-| Existing approvals | HPP |
+| Existing approvals | OHPP |
 |-------------------|-----|
 | Approval lives inside the tool | Attestation is portable and verifiable externally |
 | Agent can click "Approve" in the tool's UI | Agent cannot authenticate on the phone |
 | Proof is "user X was logged in when the button was clicked" | Proof is "a human biometrically verified on a separate device" |
 | Auditor must trust the tool's integrity | Auditor verifies independently using public keys |
-| Locked to one vendor's ecosystem | Interoperable across any tool that speaks HPP |
+| Locked to one vendor's ecosystem | Interoperable across any tool that speaks OHPP |
 
 ---
 

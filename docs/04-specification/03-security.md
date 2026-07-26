@@ -38,7 +38,7 @@ This prevents a compromised token from being used to impersonate a different use
 The registration ceremony includes a built-in anti-spoofing mechanism:
 
 1. The RegistrationChallenge contains only `requesterAppId` (a domain)
-2. The Resolver fetches `https://{requesterAppId}/.well-known/hpp/app-metadata` over TLS
+2. The Resolver fetches `https://{requesterAppId}/.well-known/ohpp/app-metadata` over TLS
 3. Only the real domain owner can serve content at that URL
 4. The callback path is read from this metadata and appended to the appId domain
 5. The callback URL is always `https://{requesterAppId}{callbackPath}` - it cannot be redirected
@@ -77,7 +77,7 @@ No live connection to the signing device is needed. No service calls beyond the 
 
 ### Key publication
 
-Resolvers publish their public keys at the URL specified in `endpoints.keys` (from `/.well-known/hpp/metadata`). Keys are in JWKS format (RFC 7517).
+Resolvers publish their public keys at the URL specified in `endpoints.keys` (from `/.well-known/ohpp/metadata`). Keys are in JWKS format (RFC 7517).
 
 ### Key rotation
 

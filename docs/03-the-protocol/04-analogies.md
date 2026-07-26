@@ -1,35 +1,35 @@
 # Analogies
 
-These comparisons explain HPP by mapping it to systems people already understand.
+These comparisons explain OHPP by mapping it to systems people already understand.
 
 ---
 
 ## The email analogy
 
-HPP's architecture mirrors email at every level.
+OHPP's architecture mirrors email at every level.
 
-| Email | HPP |
+| Email | OHPP |
 |-------|-----|
 | Email address (you@gmail.com) | userId on your Resolver |
 | Your mail server (Gmail) | Your Resolver (Participation Service) |
 | Your email client (Gmail app) | Your Attester (Client App on phone) |
 | Someone sending you an email | A Requester sending a participation request |
-| SMTP protocol | HPP protocol |
+| SMTP protocol | OHPP protocol |
 | You reading and replying | You reviewing and approving |
 
 **Key parallels:**
-- You choose your provider (Gmail, Outlook, self-hosted) - same with HPP
-- Any sender can reach you regardless of provider - same with HPP
-- You can switch providers without telling every sender - same with HPP
-- You can use any email client with any mail server - same with HPP
-- A provider can build both server and client (Gmail does) - same with HPP
+- You choose your provider (Gmail, Outlook, self-hosted) - same with OHPP
+- Any sender can reach you regardless of provider - same with OHPP
+- You can switch providers without telling every sender - same with OHPP
+- You can use any email client with any mail server - same with OHPP
+- A provider can build both server and client (Gmail does) - same with OHPP
 
 **The Gmail example:**
 - Google builds both Gmail's mail server AND the Gmail app
 - But you can use the Gmail app with a non-Google mail server
 - And you can use a third-party app (Spark, Outlook) with Gmail's server
 
-Same model for HPP. A company might build both the Participation Service and the Client App. But a user could use any compatible client with any compatible service, and any app can send requests to any service.
+Same model for OHPP. A company might build both the Participation Service and the Client App. But a user could use any compatible client with any compatible service, and any app can send requests to any service.
 
 ---
 
@@ -37,14 +37,14 @@ Same model for HPP. A company might build both the Participation Service and the
 
 The registration ceremony is like setting up a 2FA app.
 
-| Google Authenticator | HPP Registration |
+| Google Authenticator | OHPP Registration |
 |---------------------|------------------|
-| Go to app's security settings | Go to app's HPP settings |
-| App shows a QR code | App presents an `hpp://` link (and optionally a QR code) |
-| Scan with Authenticator | Tap the link — HPP Client App opens |
+| Go to app's security settings | Go to app's OHPP settings |
+| App shows a QR code | App presents an `ohpp://` link (and optionally a QR code) |
+| Scan with Authenticator | Tap the link — OHPP Client App opens |
 | Linked - codes now generate | Linked - participation requests now route |
 
-The difference: Authenticator generates time-based codes. HPP delivers rich requests with descriptions and options, and returns cryptographically signed attestations with full resolution metadata.
+The difference: Authenticator generates time-based codes. OHPP delivers rich requests with descriptions and options, and returns cryptographically signed attestations with full resolution metadata.
 
 ---
 
@@ -52,7 +52,7 @@ The difference: Authenticator generates time-based codes. HPP delivers rich requ
 
 Think of a school permission slip - but digital, instant, and cryptographically signed.
 
-| Permission Slip | HPP |
+| Permission Slip | OHPP |
 |----------------|-----|
 | School sends slip home | App sends participation request to phone |
 | Parent reads what the trip involves | Human reads the action summary and description |
@@ -66,7 +66,7 @@ The key difference: you can forge a paper signature. You can't forge a cryptogra
 
 ## The banking push notification (but standardised)
 
-Banks already do something similar, and it's the closest existing pattern to HPP:
+Banks already do something similar, and it's the closest existing pattern to OHPP:
 
 1. You make a large transfer online
 2. Your phone buzzes: "Approve $5,000 to John Smith?"
@@ -75,13 +75,13 @@ Banks already do something similar, and it's the closest existing pattern to HPP
 
 This is formalised as **3D Secure 2.x** in the payments industry: a protocol that adds real-time identity verification between cardholder, issuing bank, and merchant. It transmits up to 150 data points and frictionlessly approves 80–85% of transactions, challenging only higher-risk payments with biometric verification or one-time codes. The EU and UK mandate it via Strong Customer Authentication (SCA) rules. It works.
 
-HPP is this idea, but generalised as an open, interoperable standard for *any* application, *any* decision, not just payments. Every bank does this differently today. 3D Secure only covers card transactions. With HPP, the same protocol works for pizza orders, contract signatures, home alarm systems, expense approvals, and anything else that matters. Any client app works. The proof is standardised and independently verifiable.
+OHPP is this idea, but generalised as an open, interoperable standard for *any* application, *any* decision, not just payments. Every bank does this differently today. 3D Secure only covers card transactions. With OHPP, the same protocol works for pizza orders, contract signatures, home alarm systems, expense approvals, and anything else that matters. Any client app works. The proof is standardised and independently verifiable.
 
 ---
 
 ## The delegation example
 
-A user is on ProviderA for HPP. Their spouse uses ProviderB.
+A user is on ProviderA for OHPP. Their spouse uses ProviderB.
 
 The user sets a rule on their Resolver: "Delegate pizza orders to my spouse."
 

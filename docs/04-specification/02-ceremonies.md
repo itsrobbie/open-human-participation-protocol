@@ -1,6 +1,6 @@
 # Ceremonies
 
-HPP defines four ceremonies. Two are core (Registration, Participation), one enables verification after the fact, and one enables cross-provider delegation.
+OHPP defines four ceremonies. Two are core (Registration, Participation), one enables verification after the fact, and one enables cross-provider delegation.
 
 ---
 
@@ -15,17 +15,17 @@ Requester                     Client App                    Resolver
     │                              │                           │
     │── 1. Generate challenge ─────│                           │
     │                              │                           │
-    │── 2. Present hpp:// link ───>│                           │
+    │── 2. Present ohpp:// link ───>│                           │
     │                              │                           │
     │                              │── 3. Forward challenge ──>│
     │                              │                           │
     │                              │                   4. Fetch app-metadata
-    │                              │                      GET https://{appId}/.well-known/hpp/app-metadata
+    │                              │                      GET https://{appId}/.well-known/ohpp/app-metadata
     │                              │                           │
     │<───── 5. POST RegistrationResponse to callback ─────────│
     │                              │                           │
     │── 6. Discover endpoints ────────────────────────────────>│
-    │      GET {resolverBaseUrl}/.well-known/hpp/metadata      │
+    │      GET {resolverBaseUrl}/.well-known/ohpp/metadata      │
     │                              │                           │
     │── 7. Store credentials ──────│                           │
     │      (resolverBaseUrl, userId, accessToken)              │
@@ -35,15 +35,15 @@ Requester                     Client App                    Resolver
 
 **Step 1** - Requester generates a RegistrationChallenge containing only: `challengeId`, `requesterAppId`, `expiresAt`, `createdAt`. No Resolver URL is needed at this point.
 
-**Step 2** - The challenge is base64url-encoded into an `hpp://` URI and presented as a clickable link. The OS routes it to the user's installed Client App. QR codes are an optional visual convenience encoding the same URI.
+**Step 2** - The challenge is base64url-encoded into an `ohpp://` URI and presented as a clickable link. The OS routes it to the user's installed Client App. QR codes are an optional visual convenience encoding the same URI.
 
 **Step 3** - The Client App receives the challenge and forwards it to its own Resolver. This is an internal call (provider-specific, not protocol-standardised).
 
-**Step 4** - The Resolver fetches `https://{requesterAppId}/.well-known/hpp/app-metadata` over TLS. This is the anti-spoofing check: only the real domain owner can serve content at that URL. The Resolver reads the app name, icon, and callback path from this metadata.
+**Step 4** - The Resolver fetches `https://{requesterAppId}/.well-known/ohpp/app-metadata` over TLS. This is the anti-spoofing check: only the real domain owner can serve content at that URL. The Resolver reads the app name, icon, and callback path from this metadata.
 
 **Step 5** - The Resolver constructs the callback URL as `https://{requesterAppId}{registrationCallback}` and POSTs a RegistrationResponse containing: `challengeId`, `resolverBaseUrl`, `userId`, `accessToken`, `registrationId`, `createdAt`.
 
-**Step 6** - The Requester now knows the Resolver URL for the first time. It fetches `/.well-known/hpp/metadata` to discover all endpoints.
+**Step 6** - The Requester now knows the Resolver URL for the first time. It fetches `/.well-known/ohpp/metadata` to discover all endpoints.
 
 **Step 7** - The Requester stores three values for this user: `resolverBaseUrl`, `userId`, `accessToken`. Registration is complete.
 
@@ -153,7 +153,7 @@ Verifier                          Resolver (JWKS endpoint only)
     │                                │
     │── 1. Obtain attestation ───────│  (from Requester records, audit trail, etc.)
     │                                │
-    │── 2. GET /.well-known/hpp/metadata ──>│
+    │── 2. GET /.well-known/ohpp/metadata ──>│
     │<── endpoints.keys URL ─────────│
     │                                │
     │── 3. GET {endpoints.keys} ────>│

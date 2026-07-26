@@ -2,9 +2,9 @@
 
 ## What's in this repository
 
-This repository contains the complete HPP protocol specification: the problem it solves, the concepts behind it, the formal message schemas, ceremony definitions, security model, and real-world use cases.
+This repository contains the complete OHPP protocol specification: the problem it solves, the concepts behind it, the formal message schemas, ceremony definitions, security model, and real-world use cases.
 
-If you're evaluating HPP, start here:
+If you're evaluating OHPP, start here:
 
 | If you want to... | Read |
 |-------------------|------|
@@ -25,7 +25,7 @@ The protocol specification is complete. The following are in active development:
 | Protocol specification (this repo, `/docs/`) | Complete |
 | Participation Service (Resolver, .NET 10) | Planned |
 | Client App (Flutter, iOS/Android) | Planned |
-| HPP SDKs (TypeScript, Python, Go) | Planned |
+| OHPP SDKs (TypeScript, Python, Go) | Planned |
 | Demo simulation (Docker Compose) | Planned |
 | Mock apps (10 apps, mixed tech stacks) | Planned |
 | Mock AI Agent | Planned |
@@ -34,20 +34,20 @@ The protocol specification is complete. The following are in active development:
 
 ## What's coming: the demo simulation
 
-Once built, the demo will be a local simulation of the entire HPP ecosystem. One `docker compose up` command will start:
+Once built, the demo will be a local simulation of the entire OHPP ecosystem. One `docker compose up` command will start:
 
 - A Resolver (Participation Service)
 - A Client App simulator (web-based stand-in for the phone app)
 - An AI Agent interface (preset actions, not free-form chat)
 - 10 mock Requester apps written in different tech stacks (Express, Next.js, Flask, Django, FastAPI, Gin, Fiber)
 
-The point of the demo: show that HPP works across different technologies, and let people experience the difference between "agent with HPP" and "agent without HPP" firsthand.
+The point of the demo: show that OHPP works across different technologies, and let people experience the difference between "agent with OHPP" and "agent without OHPP" firsthand.
 
 ---
 
-## Want to implement HPP now?
+## Want to implement OHPP now?
 
-The protocol specification in [section 04](../04-specification/01-message-schemas.md) is complete enough to build against. If you want to integrate HPP into an application today:
+The protocol specification in [section 04](../04-specification/01-message-schemas.md) is complete enough to build against. If you want to integrate OHPP into an application today:
 
 1. Read [Integrate as a Requester](02-integrate-requester.md) for the step-by-step protocol flow
 2. Implement the five pieces: app-metadata endpoint, challenge generation, registration callback, participation requests, attestation verification

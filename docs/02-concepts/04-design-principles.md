@@ -1,6 +1,6 @@
 # Design principles
 
-Any solution to the Human Participation Problem must satisfy these principles. They are non-negotiable constraints that guided HPP's design.
+Any solution to the Human Participation Problem must satisfy these principles. They are non-negotiable constraints that guided OHPP's design.
 
 ---
 
@@ -24,13 +24,13 @@ Where the protocol has no interoperability requirement — between a Resolver an
 
 ## 3. Protocol doesn't block agents
 
-This is not an anti-agent protocol. Agents are valuable. They should handle routine tasks autonomously, and HPP exists to help them thrive, not hold them back.
+This is not an anti-agent protocol. Agents are valuable. They should handle routine tasks autonomously, and OHPP exists to help them thrive, not hold them back.
 
-Right now, people are trying to restrain agents by limiting their access or forcing controls. Where agents really excel is when you let them run freely, using your credentials to do what they do best. HPP encourages that end state. It adds human controls only where the provider or the human deems it necessary, not by limiting agent access across the board.
+Right now, people are trying to restrain agents by limiting their access or forcing controls. Where agents really excel is when you let them run freely, using your credentials to do what they do best. OHPP encourages that end state. It adds human controls only where the provider or the human deems it necessary, not by limiting agent access across the board.
 
-HPP is a win for agents too. If an agent orders 100 pizzas autonomously without a check, most people would blame the agent provider and never use them again. HPP gives that last verification back to the human, protecting the agent provider's reputation. The agent can point to the attestation: the human confirmed it.
+OHPP is a win for agents too. If an agent orders 100 pizzas autonomously without a check, most people would blame the agent provider and never use them again. OHPP gives that last verification back to the human, protecting the agent provider's reputation. The agent can point to the attestation: the human confirmed it.
 
-HPP adds a "hook out" for moments that matter. The goal is not to stop automation. It's to identify when a human should be involved and give them the choice.
+OHPP adds a "hook out" for moments that matter. The goal is not to stop automation. It's to identify when a human should be involved and give them the choice.
 
 ---
 
@@ -60,7 +60,7 @@ Participation attestations must be independently verifiable without contacting a
 
 Given an attestation and publicly available keys, any party - years later, offline, in a different jurisdiction - can verify that participation genuinely occurred. The proof doesn't depend on a service being available.
 
-This follows the model established by W3C Verifiable Credentials (published as a W3C Recommendation in May 2025), which provides "a mechanism to express digital credentials that are cryptographically secure, privacy respecting, and machine-verifiable." HPP attestations use the same pattern: signed with ES256 or EdDSA, verifiable via JWKS endpoints, no live service contact required.
+This follows the model established by W3C Verifiable Credentials (published as a W3C Recommendation in May 2025), which provides "a mechanism to express digital credentials that are cryptographically secure, privacy respecting, and machine-verifiable." OHPP attestations use the same pattern: signed with ES256 or EdDSA, verifiable via JWKS endpoints, no live service contact required.
 
 ---
 
@@ -92,11 +92,11 @@ The point is: the choice exists. The human decides how much friction sits betwee
 
 ## 10. Don't reinvent identity
 
-The world has spent 40 years building identity, authentication, and authorisation infrastructure. HPP doesn't replace any of it.
+The world has spent 40 years building identity, authentication, and authorisation infrastructure. OHPP doesn't replace any of it.
 
-HPP adds a new question to the stack: beyond "who are you?" and "what can you do?" - it asks "is a human actually here, right now, for this specific decision?"
+OHPP adds a new question to the stack: beyond "who are you?" and "what can you do?" - it asks "is a human actually here, right now, for this specific decision?"
 
-This is also what distinguishes HPP from "proof of personhood" projects like Worldcoin, BrightID, and Gitcoin Passport. Those projects answer: "Is this a unique human?" Once, at identity level. HPP answers: "Did a human participate in THIS specific decision, at THIS moment?" Per-action, every time it matters. They solve different problems at different granularities.
+This is also what distinguishes OHPP from "proof of personhood" projects like Worldcoin, BrightID, and Gitcoin Passport. Those projects answer: "Is this a unique human?" Once, at identity level. OHPP answers: "Did a human participate in THIS specific decision, at THIS moment?" Per-action, every time it matters. They solve different problems at different granularities.
 
 ---
 

@@ -83,7 +83,7 @@ A world where:
 - Any application can trigger this, without implementing a custom solution
 - The mechanism is standardised, interoperable, and open
 
-This is the Human Participation Protocol.
+This is the Open Human Participation Protocol.
 
 ---
 

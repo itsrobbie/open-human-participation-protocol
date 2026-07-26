@@ -1,10 +1,10 @@
-# Human Participation Protocol
+# Open Human Participation Protocol
 
 **The internet was built assuming humans are at the keyboard. That assumption is no longer true.**
 
 AI agents now operate autonomously, using legitimate credentials, navigating applications, approving workflows, and completing tasks - all without a human touching a button. Existing security infrastructure (OAuth, passkeys, FIDO2) can prove *who* performed an action. None of it can prove a human *actually participated*.
 
-The Human Participation Protocol (HPP) is an open protocol that enables any application to request - and cryptographically verify - that a human was meaningfully involved in a decision.
+The Open Human Participation Protocol (OHPP) is an open protocol that enables any application to request - and cryptographically verify - that a human was meaningfully involved in a decision.
 
 ---
 
@@ -24,7 +24,7 @@ As agents become the primary operators of software, verifying genuine human invo
 
 What if applications could "hook out" to a human when participation is required? Not by reinventing identity or auth, but by adding a new layer: a standardised way to request human participation, collect a decision, and prove it happened.
 
-Like email - where any client works with any server - HPP defines an interoperable protocol where:
+Like email - where any client works with any server - OHPP defines an interoperable protocol where:
 - Any application can request human participation
 - Any participation service can route it to the human
 - Any client app can collect the response
@@ -54,7 +54,7 @@ Three roles. Two fixed endpoints. One ceremony.
 |---------|-------------|
 | [01 - The Problem](docs/01-the-problem/) | Why this matters - the Human Participation Problem |
 | [02 - Concepts](docs/02-concepts/) | Participation vs intent, the agentic world, design principles |
-| [03 - The Protocol](docs/03-the-protocol/) | HPP at a glance - roles, ceremonies, analogies |
+| [03 - The Protocol](docs/03-the-protocol/) | OHPP at a glance - roles, ceremonies, analogies |
 | [04 - Specification](docs/04-specification/) | Formal message schemas, ceremonies, security |
 | [05 - Use Cases](docs/05-use-cases/) | Real-world scenarios across industries |
 | [06 - Getting Started](docs/06-getting-started/) | Integration guides, project status, FAQ |

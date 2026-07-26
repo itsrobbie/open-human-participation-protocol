@@ -1,6 +1,6 @@
-# Background research: Human Participation Protocol
+# Background research: Open Human Participation Protocol
 
-This document collects sourced research backing the core claims of the Human Participation Protocol (HPP). It covers AI agent adoption, the identity-participation gap, regulatory drivers, cryptographic precedents, analogous architectures, and market signals.
+This document collects sourced research backing the core claims of the Open Human Participation Protocol (OHPP). It covers AI agent adoption, the identity-participation gap, regulatory drivers, cryptographic precedents, analogous architectures, and market signals.
 
 ---
 
@@ -21,7 +21,7 @@ This document collects sourced research backing the core claims of the Human Par
 - **Google Gemini Agent on Android**: Can orchestrate multi-step tasks on user's behalf across apps including managing calendar events, ordering food, booking rides using screen automation. Operates 24/7 in background, even when phone is off. ([source](https://support.google.com/gemini/answer/16596215), [source](https://gemini.google/overview/agent/spark/))
 - **Apple Intelligence (2024–2026)**: Siri can take action in apps, with on-device foundational models. Developers can access on-device LLM to build intelligent features. Actions include in-app operations across the Apple ecosystem. ([source](https://www.apple.com/newsroom/2024/06/introducing-apple-intelligence-for-iphone-ipad-and-mac/))
 
-**What this means for HPP**: These agents use the human's existing authenticated sessions. From the server's perspective, the agent IS the user. There is no separate identity to issue. The agent controls the same browser, same cookies, same device.
+**What this means for OHPP**: These agents use the human's existing authenticated sessions. From the server's perspective, the agent IS the user. There is no separate identity to issue. The agent controls the same browser, same cookies, same device.
 
 ---
 
@@ -33,7 +33,7 @@ This document collects sourced research backing the core claims of the Human Par
 - **Microsoft Entra FIDO2**: "Every sign-in attempt requires that you're present to unlock the passkey on the device that you use for sign in." But presence is only verified at login, not per-action. ([source](https://docs.microsoft.com/en-us/entra/identity/authentication/concept-authentication-passkeys-fido2))
 - **USENIX Security 2024 (Lassak et al.)**: "Why Aren't We Using Passkeys?"  - 28 interviews with CISOs revealing deployment barriers. The paper confirms passkeys solve authentication but does not address post-login participation. ([source](https://www.usenix.org/system/files/sec24summer-prepub-618-lassak.pdf))
 
-**What this means for HPP**: Passkeys prove "a human was here at login." They do not prove "a human approved this specific action 3 hours later." The session the passkey unlocked can be used by an agent indefinitely.
+**What this means for OHPP**: Passkeys prove "a human was here at login." They do not prove "a human approved this specific action 3 hours later." The session the passkey unlocked can be used by an agent indefinitely.
 
 ### The non-human identity explosion
 
@@ -43,7 +43,7 @@ This document collects sourced research backing the core claims of the Human Par
 - **SpyCloud 2026 Identity Exposure Report**: 18.1 million exposed API keys and tokens recaptured in 2025, spanning payment platforms, cloud infrastructure, AI services. ([source](https://www.prnewswire.com/news-releases/spyclouds-2026-identity-exposure-report-reveals-explosion-of-non-human-identity-theft-302717811.html))
 - **NHI Market**: Hit $11.3 billion in 2025, projected $38.8 billion by 2036. Two-thirds of enterprises have suffered a breach involving a compromised NHI. ([source](https://axis-intelligence.com/non-human-identity-statistics/))
 
-**What this means for HPP**: The industry is drowning in machine identities but still can't answer "was a human involved in this decision?" More identities don't equal more human oversight.
+**What this means for OHPP**: The industry is drowning in machine identities but still can't answer "was a human involved in this decision?" More identities don't equal more human oversight.
 
 ---
 
@@ -72,7 +72,7 @@ This document collects sourced research backing the core claims of the Human Par
 - **MiFID II (EU)**: Requires suitability assessments for investment advice and portfolio management. Firms must make "suitable investment decisions on behalf of their clients," implying human judgement in recommendations. Algorithmic trading requires governance frameworks, testing controls, and risk measurement (RTS 6). ([source](https://www.esma.europa.eu/publications-and-data/interactive-single-rulebook/mifid-ii/article-17-algorithmic-trading))
 - **ESMA/EBA (February 2026)**: Joint consultation on revised suitability assessment requirements for banks and investment firms, updating for the AI era. ([source](https://www.mfsa.mt/wp-content/uploads/2026/03/Circular-on-Markets-in-Financial-Instruments-Directive-MiFID-II-and-Markets-in-Financial-Instruments-Regulation-MiFIR.pdf))
 
-**What this means for HPP**: Regulators are mandating human oversight, but no protocol exists to prove it happened. HPP provides cryptographic evidence of human participation at the decision point.
+**What this means for OHPP**: Regulators are mandating human oversight, but no protocol exists to prove it happened. OHPP provides cryptographic evidence of human participation at the decision point.
 
 ---
 
@@ -84,7 +84,7 @@ This document collects sourced research backing the core claims of the Human Par
 - **Microsoft Entra Suite**: $12/user/month. Effectively free for orgs already on M365 E3/E5 as identity is bundled. ([source](https://azure.microsoft.com/en-us/pricing/details/multi-factor-authentication/))
 - **General market**: Workforce IAM tools run $1.80–$9/user/month for SSO + MFA; CIAM bills per monthly active user. ([source](https://hideez.com/blogs/news/identity-service-pricing-comparison))
 
-**What this means for HPP**: If every agent needs its own identity seat, costs multiply dramatically. With NHI ratios of 45:1 to 144:1, the economics are prohibitive. HPP doesn't require new identities; it verifies participation through a separate channel.
+**What this means for OHPP**: If every agent needs its own identity seat, costs multiply dramatically. With NHI ratios of 45:1 to 144:1, the economics are prohibitive. OHPP doesn't require new identities; it verifies participation through a separate channel.
 
 ### Agent identity in emerging protocols
 
@@ -92,7 +92,7 @@ This document collects sourced research backing the core claims of the Human Par
 - **Anthropic MCP (Model Context Protocol)**: Introduced late 2024 as open protocol for AI agents to communicate with servers. Has no native identity or authorization layer. "A server receiving an MCP request cannot determine which agent sent it, who authorized the call, or what permissions the caller holds." A scan of ~2,000 MCP servers found all lacked authentication. ([source](https://arxiv.org/abs/2603.24775), [source](https://www.vouched.id/learn/blog/model-context-protocol-mcp-i-security-guide))
 - **Cloud Security Alliance (2026)**: "Agentic AI, MCP, and the Identity Explosion"  - identifies the challenge of AI agents interfacing with external systems at scale without proper identity governance. ([source](https://cloudsecurityalliance.org/articles/agentic-ai-mcp-and-the-identity-explosion-you-can-t-ignore))
 
-**What this means for HPP**: Even the latest agent protocols (A2A, MCP) don't solve human participation. They handle agent-to-agent communication and tool access, but cannot verify a human was involved in a specific decision. HPP operates at a different layer.
+**What this means for OHPP**: Even the latest agent protocols (A2A, MCP) don't solve human participation. They handle agent-to-agent communication and tool access, but cannot verify a human was involved in a specific decision. OHPP operates at a different layer.
 
 ---
 
@@ -102,9 +102,9 @@ This document collects sourced research backing the core claims of the Human Par
 
 - **Verifiable Credentials Data Model v2.0**: Published as W3C Recommendation (May 2025). Provides a mechanism to express digital credentials that are "cryptographically secure, privacy respecting, and machine-verifiable." Seven specifications published simultaneously covering data integrity, JSON Web Token proofs, and status lists. ([source](https://www.w3.org/press-releases/2025/verifiable-credentials-2-0/))
 - **VC Data Integrity 1.0**: Describes mechanisms for ensuring authenticity and integrity using digital signatures and mathematical proofs. ([source](https://www.w3.org/TR/vc-data-integrity/))
-- **VC Use Cases (W3C)**: Covers identity credentials, university credentials, employment verification. Establishes the pattern of issuer-holder-verifier that HPP's Requester-Resolver-Attester mirrors. ([source](https://www.w3.org/TR/vc-use-cases/))
+- **VC Use Cases (W3C)**: Covers identity credentials, university credentials, employment verification. Establishes the pattern of issuer-holder-verifier that OHPP's Requester-Resolver-Attester mirrors. ([source](https://www.w3.org/TR/vc-use-cases/))
 
-**What this means for HPP**: W3C VCs establish the precedent for cryptographically signed, independently verifiable claims. HPP attestations follow the same pattern: signed by the Resolver, verifiable via JWKS without contacting any live service.
+**What this means for OHPP**: W3C VCs establish the precedent for cryptographically signed, independently verifiable claims. OHPP attestations follow the same pattern: signed by the Resolver, verifiable via JWKS without contacting any live service.
 
 ### Proof-of-personhood projects
 
@@ -112,9 +112,9 @@ This document collects sourced research backing the core claims of the Human Par
 - **Gitcoin Passport / BrightID / Proof of Humanity**: Various approaches to Sybil resistance, proving account uniqueness for quadratic voting and UBI distribution. ([source](https://miniapp.gate.com/learn/articles/what-do-i-think-about-biometric-proof-of-personhood/1894))
 - **Worldcoin on purpose**: "Proof of personhood provides natural rate limiting through account verification, essentially eliminating sybil attacks at any notable scale." ([source](https://worldcoin.org/blog/worldcoin/proof-of-personhood-what-it-is-why-its-needed))
 
-**How HPP differs**: Proof-of-personhood proves "you are a unique human." Once. HPP proves "a human participated in THIS specific decision at THIS moment." Worldcoin answers "are you human?" HPP answers "did a human approve this $50,000 transfer at 3:14pm?" They operate at different granularities:
+**How OHPP differs**: Proof-of-personhood proves "you are a unique human." Once. OHPP proves "a human participated in THIS specific decision at THIS moment." Worldcoin answers "are you human?" OHPP answers "did a human approve this $50,000 transfer at 3:14pm?" They operate at different granularities:
 
-| | Proof of Personhood | HPP |
+| | Proof of Personhood | OHPP |
 |---|---|---|
 | Question answered | "Is this a unique human?" | "Did a human participate in this decision?" |
 | Frequency | Once (or periodically) | Per-decision |
@@ -131,7 +131,7 @@ This document collects sourced research backing the core claims of the Human Par
 - **RFC 8615 (May 2019)**: Defines the `/.well-known/` path prefix for well-known locations in URI schemes. Obsoletes RFC 5785. Provides a predictable, standardised location for service discovery. ([source](https://datatracker.ietf.org/doc/html/rfc8615))
 - **Cloudflare Agent Skills Discovery RFC (2025)**: Proposes using `.well-known` for AI agent skill discovery, showing the pattern's continued relevance in the agentic era. ([source](https://github.com/cloudflare/agent-skills-discovery-rfc))
 
-**What this means for HPP**: HPP uses `/.well-known/hpp/metadata` (Resolver) and `/.well-known/hpp/app-metadata` (Requester) following this established internet pattern for service discovery.
+**What this means for OHPP**: OHPP uses `/.well-known/ohpp/metadata` (Resolver) and `/.well-known/ohpp/app-metadata` (Requester) following this established internet pattern for service discovery.
 
 ### ActivityPub and federation
 
@@ -139,7 +139,7 @@ This document collects sourced research backing the core claims of the Human Par
 - **Federation challenges (arxiv, 2024)**: Research suggests the Fediverse "will face significant challenges in fulfilling its decentralization promises," particularly around power concentration in large instances. ([source](https://arxiv.org/html/2408.15383))
 - **Threads federation (Meta, 2024)**: Meta joined ActivityPub, sharing posts to other compliant servers. This shows that major platforms can participate in federated protocols. ([source](https://engineering.fb.com/2024/03/21/networking-traffic/threads-has-entered-the-fediverse/))
 
-**What this means for HPP**: ActivityPub proves federated protocols can achieve critical mass, but also shows the challenge of maintaining true decentralisation. HPP's simpler scope (request → decision → attestation) reduces the complexity that plagues social federation.
+**What this means for OHPP**: ActivityPub proves federated protocols can achieve critical mass, but also shows the challenge of maintaining true decentralisation. OHPP's simpler scope (request → decision → attestation) reduces the complexity that plagues social federation.
 
 ### Email as the model
 
@@ -149,7 +149,7 @@ Email remains the canonical example of a federated, interoperable protocol:
 - Providers compete on features, not lock-in
 - The protocol is standardised; implementations vary
 
-HPP explicitly follows this model: any client app works with any Resolver, via any Requester. The interop boundary is rigid at the protocol level; implementation details are flexible within providers.
+OHPP explicitly follows this model: any client app works with any Resolver, via any Requester. The interop boundary is rigid at the protocol level; implementation details are flexible within providers.
 
 ---
 
@@ -170,7 +170,7 @@ HPP explicitly follows this model: any client app works with any Resolver, via a
 - **Springer (2026)  - "Designing meaningful human oversight in AI"**: "Current approaches risk either collapsing agentic AI into mere automation... or reducing human agency to a rubber stamp." ([source](https://link.springer.com/10.1007/s43681-026-01147-7))
 - **EDPS TechDispatch (2025)**: European Data Protection Supervisor's formal analysis of human oversight in automated decision-making, acknowledging risks of "opacity, bias, and discrimination." ([source](https://www.edps.europa.eu/data-protection/our-work/publications/techdispatch/2025-09-23-techdispatch-22025-human-oversight-automated-making))
 
-**What this means for HPP**: The research is clear. Human oversight without structural guarantees degrades into rubber-stamping. HPP provides that guarantee: the human must actively engage with a physical device, using biometrics, to make a specific decision. The attestation records what they decided, when, and how.
+**What this means for OHPP**: The research is clear. Human oversight without structural guarantees degrades into rubber-stamping. OHPP provides that guarantee: the human must actively engage with a physical device, using biometrics, to make a specific decision. The attestation records what they decided, when, and how.
 
 ---
 
@@ -181,7 +181,7 @@ HPP explicitly follows this model: any client app works with any Resolver, via a
 - **3D Secure 2.x**: Payment authentication protocol adding real-time identity verification between cardholder, issuing bank, and merchant. Prompts biometric verification or one-time code for higher-risk transactions. Transmits up to 150 data points; ~80-85% of transactions approved frictionlessly, with challenges only for higher-risk payments. ([source](https://stripe.com/us/resources/more/3d-secure-101), [source](https://www.pci-proxy.com/blog-posts/blog-3d-secure-authentication-guide))
 - **Strong Customer Authentication (SCA)**: EU/UK mandate. The US remains the largest single market where stepped-up authentication remains optional. ([source](https://glenbrook.com/payments_on_fire/episode-249-3-d-secure-strong-customer-authentication-stripe-entersekt/))
 
-**How HPP relates**: 3DS is the closest existing pattern to HPP: an out-of-band verification that a human approves a specific transaction. But 3DS is payments-only, proprietary, and controlled by card networks. HPP generalises this pattern to any application, any decision, with an open protocol.
+**How OHPP relates**: 3DS is the closest existing pattern to OHPP: an out-of-band verification that a human approves a specific transaction. But 3DS is payments-only, proprietary, and controlled by card networks. OHPP generalises this pattern to any application, any decision, with an open protocol.
 
 ### Gartner on AI governance
 
@@ -194,11 +194,11 @@ HPP explicitly follows this model: any client app works with any Resolver, via a
 
 - **Google (2025)  - "Building Gemini Intelligence on a Foundation of Security & Privacy"**: "Gemini can only access the apps you allow it to work in, and not the rest of your device. Gemini is designed to require user confirmation before making purchases on your behalf." ([source](https://blog.google/security/android-gemini-intelligence-security-privacy/))
 
-**What this means**: Even Google recognises that agents need human confirmation for consequential actions. But their solution is proprietary, device-specific, and non-interoperable. HPP standardises this pattern across all applications and providers.
+**What this means**: Even Google recognises that agents need human confirmation for consequential actions. But their solution is proprietary, device-specific, and non-interoperable. OHPP standardises this pattern across all applications and providers.
 
 ---
 
-## 9. Summary: the gap HPP fills
+## 9. Summary: the gap OHPP fills
 
 | Layer | What exists | What it proves | What it doesn't prove |
 |-------|-------------|---------------|----------------------|
@@ -207,9 +207,9 @@ HPP explicitly follows this model: any client app works with any Resolver, via a
 | Agent identity | A2A, MCP, NHI registries | Which agent acted | That a human approved the action |
 | Proof of personhood | Worldcoin, BrightID | You're human (once) | That you participated in THIS decision |
 | Transaction auth | 3D Secure, SCA | Human approved THIS payment | Anything beyond payments |
-| **HPP** | ** -** | **A human participated in THIS specific decision, at THIS time, verified by biometrics on a physical device** | ** -** |
+| **OHPP** | ** -** | **A human participated in THIS specific decision, at THIS time, verified by biometrics on a physical device** | ** -** |
 
-HPP sits above the identity layer and below the application layer. It answers a question no existing protocol answers at internet scale: "Did a human meaningfully participate in this specific action?"
+OHPP sits above the identity layer and below the application layer. It answers a question no existing protocol answers at internet scale: "Did a human meaningfully participate in this specific action?"
 
 ---
 
@@ -219,7 +219,7 @@ HPP sits above the identity layer and below the application layer. It answers a 
 - Statistics from analyst firms (Gartner, McKinsey, PwC) reflect 2025-2026 surveys
 - The automation bias literature is well-established (decades of research in aviation and medicine); its application to AI oversight is emerging but increasingly consensus
 - The EU AI Act text is final (Regulation 2024/1689, effective August 2024); interpretation for agentic AI is actively developing
-- Proof-of-personhood space is contested (privacy concerns, centralisation risks with Worldcoin); HPP's per-decision model sidesteps these debates
+- Proof-of-personhood space is contested (privacy concerns, centralisation risks with Worldcoin); OHPP's per-decision model sidesteps these debates
 
 ---
 

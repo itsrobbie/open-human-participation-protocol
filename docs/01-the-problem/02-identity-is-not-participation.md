@@ -58,7 +58,7 @@ Not replacing authentication. Not rebuilding authorisation. Adding a new layer o
 
 > Given that agents can authenticate and act autonomously, how do specific actions get escalated back to a human for genuine participation?
 
-This is the question the Human Participation Protocol answers.
+This is the question the Open Human Participation Protocol answers.
 
 ---
 

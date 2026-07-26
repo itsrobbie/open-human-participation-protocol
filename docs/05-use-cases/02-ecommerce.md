@@ -8,13 +8,13 @@ The question for the platform: when should the human be in the loop?
 
 The answer is not "always." If a user orders the same coffee every week, asking them to confirm every time is just friction. But when the agent picks a $300 hotel upgrade, or orders from a new vendor, or applies a coupon that changes the total - those are moments where participation adds value.
 
-HPP gives platforms a standardised way to insert those moments without building a proprietary notification system.
+OHPP gives platforms a standardised way to insert those moments without building a proprietary notification system.
 
 ---
 
 ## Pizza ordering (the running example)
 
-A pizza app integrated with HPP. The user's agent says "order my usual."
+A pizza app integrated with OHPP. The user's agent says "order my usual."
 
 The app knows the "usual" is a large pepperoni, thin crust, from the saved address. No participation needed for that. But the agent adds garlic bread (upsell opportunity), and the total is higher than last time.
 
@@ -86,13 +86,13 @@ Agents managing subscriptions on your behalf - upgrading plans, adding seats, ch
 }
 ```
 
-The platform uses HPP not just for security, but as a way to present upgrade options directly to the human - bypassing the agent's interpretation of what the user wants.
+The platform uses OHPP not just for security, but as a way to present upgrade options directly to the human - bypassing the agent's interpretation of what the user wants.
 
 ---
 
 ## What platforms gain
 
-For e-commerce platforms, HPP is less about security and more about maintaining a direct relationship with the customer:
+For e-commerce platforms, OHPP is less about security and more about maintaining a direct relationship with the customer:
 
 1. **Upsell visibility** - the human sees add-ons and upgrades, not just the agent's filtered view
 2. **Trust signal** - "This purchase was human-approved" in order confirmations

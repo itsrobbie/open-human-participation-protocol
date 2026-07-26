@@ -81,7 +81,7 @@ If you position it as "Human Participation Infrastructure," the conversation bec
 - How can we prove it?
 - What evidence exists?
 
-That's a tractable standards problem. And it aligns with how regulators already frame their requirements. The EU AI Act (Article 14) requires "effective oversight by natural persons during the period in which they are in use." The NIST AI RMF asks whether "a human remains accountable for every AI-assisted output." Neither demands proof of intent. They demand evidence of participation. HPP speaks the language regulators are already using.
+That's a tractable standards problem. And it aligns with how regulators already frame their requirements. The EU AI Act (Article 14) requires "effective oversight by natural persons during the period in which they are in use." The NIST AI RMF asks whether "a human remains accountable for every AI-assisted output." Neither demands proof of intent. They demand evidence of participation. OHPP speaks the language regulators are already using.
 
 ---
 

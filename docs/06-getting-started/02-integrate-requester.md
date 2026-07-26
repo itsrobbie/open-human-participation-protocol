@@ -1,13 +1,13 @@
 # Integrate as a Requester
 
-This guide covers adding HPP to an existing application. Your app becomes a Requester: it can request human participation and receive signed attestations.
+This guide covers adding OHPP to an existing application. Your app becomes a Requester: it can request human participation and receive signed attestations.
 
 ---
 
 ## What you need to implement
 
-1. Serve app-metadata at `/.well-known/hpp/app-metadata`
-2. Generate registration challenges and present them as `hpp://` links
+1. Serve app-metadata at `/.well-known/ohpp/app-metadata`
+2. Generate registration challenges and present them as `ohpp://` links
 3. Accept registration callbacks (receive Resolver credentials)
 4. Send participation requests (when your app needs human input)
 5. Verify attestation signatures
@@ -16,7 +16,7 @@ This guide covers adding HPP to an existing application. Your app becomes a Requ
 
 ## Step 1: Serve app-metadata
 
-Create a JSON endpoint at `/.well-known/hpp/app-metadata` on your domain:
+Create a JSON endpoint at `/.well-known/ohpp/app-metadata` on your domain:
 
 ```json
 {
@@ -24,7 +24,7 @@ Create a JSON endpoint at `/.well-known/hpp/app-metadata` on your domain:
   "name": "Pizza Palace",
   "icon": "https://pizza.example.com/icon.png",
   "endpoints": {
-    "registrationCallback": "/hpp/registration-callback"
+    "registrationCallback": "/ohpp/registration-callback"
   },
   "version": "1.0"
 }
@@ -39,7 +39,7 @@ Rules:
 
 ## Step 2: Generate registration challenges
 
-When a user wants to connect their HPP account, generate a RegistrationChallenge:
+When a user wants to connect their OHPP account, generate a RegistrationChallenge:
 
 ```json
 {
@@ -53,12 +53,12 @@ When a user wants to connect their HPP account, generate a RegistrationChallenge
 Base64url-encode it and present as a link:
 
 ```html
-<a href="hpp://register?challenge=eyJjaGFsbGVuZ2VJZCI6IjU1MGU4NDAwLi4uIn0">
-  Connect HPP
+<a href="ohpp://register?challenge=eyJjaGFsbGVuZ2VJZCI6IjU1MGU4NDAwLi4uIn0">
+  Connect OHPP
 </a>
 ```
 
-Also show a QR code encoding the same `hpp://` URI for cross-device scanning.
+Also show a QR code encoding the same `ohpp://` URI for cross-device scanning.
 
 Store the `challengeId` so you can match the incoming callback.
 
@@ -87,7 +87,7 @@ Store per user:
 Then discover the Resolver's endpoints:
 
 ```
-GET https://participate.example.net/.well-known/hpp/metadata
+GET https://participate.example.net/.well-known/ohpp/metadata
 ```
 
 Cache the response. You'll need `endpoints.participate` and `endpoints.keys`.
@@ -157,14 +157,14 @@ The protocol doesn't mandate when to ask. Your app decides based on business log
 
 ### Graceful fallback
 
-Not all users will have HPP set up. Handle both paths:
+Not all users will have OHPP set up. Handle both paths:
 
 ```
-IF user has HPP registration → send participation request, wait for attestation
+IF user has OHPP registration → send participation request, wait for attestation
 ELSE → use existing flow (whatever you do today)
 ```
 
-HPP is additive. It doesn't break existing flows.
+OHPP is additive. It doesn't break existing flows.
 
 ### Timeout handling
 
@@ -182,7 +182,7 @@ Your business logic decides.
 
 ## SDK support (planned)
 
-HPP SDKs will handle the protocol mechanics (challenge generation, signature verification, endpoint discovery) so integrators can focus on business logic. Planned SDKs:
+OHPP SDKs will handle the protocol mechanics (challenge generation, signature verification, endpoint discovery) so integrators can focus on business logic. Planned SDKs:
 
 - **.NET** (reference implementation)
 - **TypeScript/Node**

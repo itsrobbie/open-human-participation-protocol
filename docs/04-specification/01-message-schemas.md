@@ -197,19 +197,19 @@ All fields are required.
 
 ### Delivery
 
-The challenge is encoded as a base64url JSON string and delivered via an `hpp://` URI:
+The challenge is encoded as a base64url JSON string and delivered via an `ohpp://` URI:
 
 ```
-hpp://register?challenge={base64url-encoded challenge JSON}
+ohpp://register?challenge={base64url-encoded challenge JSON}
 ```
 
-This URI must be presented as a tappable/clickable link. The user's OS routes it to their installed HPP Client App. Additional delivery methods (QR code, NFC, copyable text) encode the same URI.
+This URI must be presented as a tappable/clickable link. The user's OS routes it to their installed OHPP Client App. Additional delivery methods (QR code, NFC, copyable text) encode the same URI.
 
 ---
 
 ## RequesterAppMetadata
 
-Published by every Requester at `https://{appId}/.well-known/hpp/app-metadata`.
+Published by every Requester at `https://{appId}/.well-known/ohpp/app-metadata`.
 
 ```json
 {
@@ -217,7 +217,7 @@ Published by every Requester at `https://{appId}/.well-known/hpp/app-metadata`.
   "name": "string (human-readable app name)",
   "icon": "string | null (URL to app icon)",
   "endpoints": {
-    "registrationCallback": "string (relative path, e.g. '/hpp/callback')"
+    "registrationCallback": "string (relative path, e.g. '/ohpp/callback')"
   },
   "version": "string (protocol version supported)"
 }
@@ -225,7 +225,7 @@ Published by every Requester at `https://{appId}/.well-known/hpp/app-metadata`.
 
 ### Rules
 
-- Must be served over HTTPS at exactly `/.well-known/hpp/app-metadata`
+- Must be served over HTTPS at exactly `/.well-known/ohpp/app-metadata`
 - `appId` must match the serving domain (prevents hosting someone else's metadata)
 - `registrationCallback` is a relative path - the Resolver constructs `https://{appId}{registrationCallback}`
 - Resolvers should cache with appropriate TTL (recommended 24 hours)
@@ -255,7 +255,7 @@ After receiving this, the Requester stores `resolverBaseUrl`, `userId`, and `acc
 
 ## ServiceMetadata
 
-Published by every Resolver at `/.well-known/hpp/metadata`. This is one of the two fixed endpoints in the protocol.
+Published by every Resolver at `/.well-known/ohpp/metadata`. This is one of the two fixed endpoints in the protocol.
 
 ```json
 {
@@ -275,7 +275,7 @@ Published by every Resolver at `/.well-known/hpp/metadata`. This is one of the t
 
 ### Rules
 
-- `/.well-known/hpp/metadata` is fixed - all other URLs come from this document
+- `/.well-known/ohpp/metadata` is fixed - all other URLs come from this document
 - Requesters must perform discovery before any operation
 - Requesters should cache with appropriate TTL
 - `protocolVersion` defines the supported range - Requesters pick a version within it

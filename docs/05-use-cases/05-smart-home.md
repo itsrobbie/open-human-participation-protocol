@@ -10,7 +10,7 @@ Most of these actions are fine without human involvement. But some have physical
 
 ## Door lock control
 
-A home AI agent decides to unlock the front door because a delivery is expected. The smart lock system uses HPP for physical access decisions.
+A home AI agent decides to unlock the front door because a delivery is expected. The smart lock system uses OHPP for physical access decisions.
 
 **Request**:
 ```json
@@ -118,7 +118,7 @@ When auto-approve fires, the attestation records `resolution.method: "auto-appro
 
 ## IoT device registration
 
-New IoT devices joining the network is a security-sensitive action. An agent that manages device onboarding can use HPP for the approval step.
+New IoT devices joining the network is a security-sensitive action. An agent that manages device onboarding can use OHPP for the approval step.
 
 **Request**:
 ```json

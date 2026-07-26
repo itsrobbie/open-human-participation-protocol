@@ -1,6 +1,6 @@
 # Positioning decisions
 
-Raw reasoning behind HPP's position on common objections. These will be distilled into public-facing documentation later.
+Raw reasoning behind OHPP's position on common objections. These will be distilled into public-facing documentation later.
 
 ---
 
@@ -30,32 +30,32 @@ Those confirmations are built into the agents. That's the entire problem. The ow
 
 If my pizza place wants to prompt me and ask "do you want to add garlic bread for an extra $3?"  - that's the platform's choice. It makes me, the consumer, aware they're trying to upsell me, which may affect my future choice of provider. The relationship is between me and the platform, not me and whatever agent I happen to be using.
 
-This protocol elevates the relationship between software providers and humans. It moves away from agents abstracting the internet away from us. When the agent decides what to confirm and what to just do  - the agent is in control of the human's experience. HPP puts that control back with the provider and the human.
+This protocol elevates the relationship between software providers and humans. It moves away from agents abstracting the internet away from us. When the agent decides what to confirm and what to just do  - the agent is in control of the human's experience. OHPP puts that control back with the provider and the human.
 
-Google's confirmation is Google deciding what's consequential. HPP is the pizza shop deciding what's consequential for their service, and the human deciding what they personally care about.
+Google's confirmation is Google deciding what's consequential. OHPP is the pizza shop deciding what's consequential for their service, and the human deciding what they personally care about.
 
 ---
 
-## 3. "A2A is adding SCA and multi-transaction approval. Will HPP be absorbed?"
+## 3. "A2A is adding SCA and multi-transaction approval. Will OHPP be absorbed?"
 
-**The concern**: Researchers are proposing human authentication extensions to agent-to-agent protocols. If A2A absorbs this natively, HPP may be redundant.
+**The concern**: Researchers are proposing human authentication extensions to agent-to-agent protocols. If A2A absorbs this natively, OHPP may be redundant.
 
 **Our position**:
 
-A2A is an agent protocol. HPP is not an agent protocol. This is proof that a human participated  - not in the agent's workflow, but inside the provider's workflow.
+A2A is an agent protocol. OHPP is not an agent protocol. This is proof that a human participated  - not in the agent's workflow, but inside the provider's workflow.
 
-A2A adding SCA means the agent pauses to confirm. HPP means the provider independently verifies human involvement through a channel the agent doesn't control. These are fundamentally different trust models:
+A2A adding SCA means the agent pauses to confirm. OHPP means the provider independently verifies human involvement through a channel the agent doesn't control. These are fundamentally different trust models:
 
 - A2A SCA: "The agent asked the human and says they confirmed" (trust the agent's claim)
-- HPP: "The provider independently received cryptographic proof from the human's device" (trust the attestation)
+- OHPP: "The provider independently received cryptographic proof from the human's device" (trust the attestation)
 
-HPP works regardless of whether an agent is involved. A human using a browser directly could trigger an HPP request too. It's not about agents  - it's about human participation in any workflow.
+OHPP works regardless of whether an agent is involved. A human using a browser directly could trigger an OHPP request too. It's not about agents  - it's about human participation in any workflow.
 
 ---
 
 ## 4. "Federation tends toward centralisation (a few big Resolvers will dominate)"
 
-**The concern**: ActivityPub research shows federated protocols concentrate around a few large instances. Won't the same happen with HPP Resolvers?
+**The concern**: ActivityPub research shows federated protocols concentrate around a few large instances. Won't the same happen with OHPP Resolvers?
 
 **Our position**:
 
@@ -67,37 +67,37 @@ The key is: switching providers doesn't break anything. If Resolver A becomes ba
 
 ---
 
-## 5. "HPP is positioned in the NHI/identity space and could be absorbed by that narrative"
+## 5. "OHPP is positioned in the NHI/identity space and could be absorbed by that narrative"
 
-**The concern**: The non-human identity market is massive and well-funded. HPP could be miscategorised as "identity adjacent" and lost in that conversation.
+**The concern**: The non-human identity market is massive and well-funded. OHPP could be miscategorised as "identity adjacent" and lost in that conversation.
 
 **Our position**:
 
-To be clear  - we love agents. We want them used to their utmost potential. HPP is a way to help push agents forward, not hold them back.
+To be clear  - we love agents. We want them used to their utmost potential. OHPP is a way to help push agents forward, not hold them back.
 
 Right now, people are trying to restrain agents by limiting their access or forcing controls. Where agents really thrive is when you let them run and take over. They SHOULD just use your credentials and do what they do best. This protocol encourages that end state, and adds human controls only where the provider or the human deems it necessary  - not by limiting agent access.
 
-HPP is a win-win-win across all three parties:
+OHPP is a win-win-win across all three parties:
 
 1. **The human**  - gets ownership of any decisions they should be a part of. Gets visibility into what's happening on their behalf. Gets to choose their level of involvement.
 
-2. **The software providers**  - get to take ownership back of their platforms, and gain a better relationship with their customers. Right now, they're losing that relationship as agents abstract them away from their users. With HPP, the provider has a direct channel to the human for moments that matter.
+2. **The software providers**  - get to take ownership back of their platforms, and gain a better relationship with their customers. Right now, they're losing that relationship as agents abstract them away from their users. With OHPP, the provider has a direct channel to the human for moments that matter.
 
-3. **The agent providers**  - get protection. If an agent orders 100 pizzas for someone autonomously, most people would blame the agent and never use that provider again. HPP gives that last check back to the human, which protects the agent provider's reputation. The agent can say "I tried, but the human confirmed it"  - or the human catches the mistake before it happens.
+3. **The agent providers**  - get protection. If an agent orders 100 pizzas for someone autonomously, most people would blame the agent and never use that provider again. OHPP gives that last check back to the human, which protects the agent provider's reputation. The agent can say "I tried, but the human confirmed it"  - or the human catches the mistake before it happens.
 
-The framing is: NHI governance asks "which machine did this?" HPP asks "did a human approve it?" They're complementary layers, not competitors. HPP sits above identity entirely.
+The framing is: NHI governance asks "which machine did this?" OHPP asks "did a human approve it?" They're complementary layers, not competitors. OHPP sits above identity entirely.
 
 ---
 
 ## Summary of positioning
 
-HPP is not:
+OHPP is not:
 - An anti-agent protocol
 - An identity protocol
 - An agent communication protocol
 - A replacement for existing auth
 
-HPP is:
+OHPP is:
 - A provider-to-human protocol
 - A way for platforms to maintain direct relationships with users in an agent-mediated world
 - A way for humans to stay in control without limiting agent capability
