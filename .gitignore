@@ -83,7 +83,7 @@ vendor/
 .docker/
 docker-compose.override.yml
 
-# ----- Misc -----
+# ----- Misc ----- 
 *.log
 *.tmp
 *.bak
