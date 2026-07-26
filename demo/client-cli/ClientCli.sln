@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{73612C6D-B10B-4BD0-86D4-BE5D4D094892}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Cli.Domain", "src\OHPP.Cli.Domain\OHPP.Cli.Domain.csproj", "{DD8D899F-3D22-4642-9F26-1B9697759674}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Cli.Services", "src\OHPP.Cli.Services\OHPP.Cli.Services.csproj", "{DFD5B0E3-3001-4484-80AA-3F059DC0C54D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Cli.Infrastructure", "src\OHPP.Cli.Infrastructure\OHPP.Cli.Infrastructure.csproj", "{AF8E3F3D-D007-4733-AD81-148A28363F26}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Cli.Presentation", "src\OHPP.Cli.Presentation\OHPP.Cli.Presentation.csproj", "{0AF10C55-B859-4678-8174-8F78D009BFC9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{A6DABE4C-729F-46AC-BCD6-71506E20A9BE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Cli.Tests.Unit", "tests\OHPP.Cli.Tests.Unit\OHPP.Cli.Tests.Unit.csproj", "{D16E4DC7-64F3-412A-8A5E-943F6442406B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DD8D899F-3D22-4642-9F26-1B9697759674}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD8D899F-3D22-4642-9F26-1B9697759674}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD8D899F-3D22-4642-9F26-1B9697759674}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD8D899F-3D22-4642-9F26-1B9697759674}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DFD5B0E3-3001-4484-80AA-3F059DC0C54D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFD5B0E3-3001-4484-80AA-3F059DC0C54D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFD5B0E3-3001-4484-80AA-3F059DC0C54D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFD5B0E3-3001-4484-80AA-3F059DC0C54D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF8E3F3D-D007-4733-AD81-148A28363F26}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF8E3F3D-D007-4733-AD81-148A28363F26}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF8E3F3D-D007-4733-AD81-148A28363F26}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF8E3F3D-D007-4733-AD81-148A28363F26}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0AF10C55-B859-4678-8174-8F78D009BFC9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0AF10C55-B859-4678-8174-8F78D009BFC9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0AF10C55-B859-4678-8174-8F78D009BFC9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0AF10C55-B859-4678-8174-8F78D009BFC9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D16E4DC7-64F3-412A-8A5E-943F6442406B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D16E4DC7-64F3-412A-8A5E-943F6442406B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D16E4DC7-64F3-412A-8A5E-943F6442406B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D16E4DC7-64F3-412A-8A5E-943F6442406B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DD8D899F-3D22-4642-9F26-1B9697759674} = {73612C6D-B10B-4BD0-86D4-BE5D4D094892}
+		{DFD5B0E3-3001-4484-80AA-3F059DC0C54D} = {73612C6D-B10B-4BD0-86D4-BE5D4D094892}
+		{AF8E3F3D-D007-4733-AD81-148A28363F26} = {73612C6D-B10B-4BD0-86D4-BE5D4D094892}
+		{0AF10C55-B859-4678-8174-8F78D009BFC9} = {73612C6D-B10B-4BD0-86D4-BE5D4D094892}
+		{D16E4DC7-64F3-412A-8A5E-943F6442406B} = {A6DABE4C-729F-46AC-BCD6-71506E20A9BE}
+	EndGlobalSection
+EndGlobal

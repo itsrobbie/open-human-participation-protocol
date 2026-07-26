@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OHPP.Domain.Attestation\OHPP.Domain.Attestation.csproj" />
+    <ProjectReference Include="..\OHPP.Domain.Shared\OHPP.Domain.Shared.csproj" />
+    <ProjectReference Include="..\OHPP.Services.Shared\OHPP.Services.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

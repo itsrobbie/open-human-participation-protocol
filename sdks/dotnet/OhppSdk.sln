@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C49E9C4F-C7DE-420D-AA21-4B4F74595CCA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Protocol", "src\OHPP.Protocol\OHPP.Protocol.csproj", "{30B639D9-12C0-4B59-89A6-0FF62701E92D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Sdk", "src\OHPP.Sdk\OHPP.Sdk.csproj", "{A2DE16E1-7BBF-41F5-AB71-BDF55D089254}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Sdk.Server", "src\OHPP.Sdk.Server\OHPP.Sdk.Server.csproj", "{0B9F9652-D6A9-4074-B477-6A054BBAC07F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{CA6B8496-F6EB-4ECC-BE5D-76704D69C876}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Protocol.Tests.Unit", "tests\OHPP.Protocol.Tests.Unit\OHPP.Protocol.Tests.Unit.csproj", "{B2EFEBC9-A21A-41D9-9F3C-17872F6DD803}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Sdk.Tests.Unit", "tests\OHPP.Sdk.Tests.Unit\OHPP.Sdk.Tests.Unit.csproj", "{130A2368-4740-4DAC-AB3C-40C184D1C4EF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Sdk.Server.Tests.Unit", "tests\OHPP.Sdk.Server.Tests.Unit\OHPP.Sdk.Server.Tests.Unit.csproj", "{520B11E3-E16C-4E4F-B384-A601F88EC259}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{30B639D9-12C0-4B59-89A6-0FF62701E92D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{30B639D9-12C0-4B59-89A6-0FF62701E92D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{30B639D9-12C0-4B59-89A6-0FF62701E92D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{30B639D9-12C0-4B59-89A6-0FF62701E92D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2DE16E1-7BBF-41F5-AB71-BDF55D089254}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2DE16E1-7BBF-41F5-AB71-BDF55D089254}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2DE16E1-7BBF-41F5-AB71-BDF55D089254}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2DE16E1-7BBF-41F5-AB71-BDF55D089254}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0B9F9652-D6A9-4074-B477-6A054BBAC07F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0B9F9652-D6A9-4074-B477-6A054BBAC07F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0B9F9652-D6A9-4074-B477-6A054BBAC07F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0B9F9652-D6A9-4074-B477-6A054BBAC07F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2EFEBC9-A21A-41D9-9F3C-17872F6DD803}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2EFEBC9-A21A-41D9-9F3C-17872F6DD803}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2EFEBC9-A21A-41D9-9F3C-17872F6DD803}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2EFEBC9-A21A-41D9-9F3C-17872F6DD803}.Release|Any CPU.Build.0 = Release|Any CPU
+		{130A2368-4740-4DAC-AB3C-40C184D1C4EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{130A2368-4740-4DAC-AB3C-40C184D1C4EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{130A2368-4740-4DAC-AB3C-40C184D1C4EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{130A2368-4740-4DAC-AB3C-40C184D1C4EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{520B11E3-E16C-4E4F-B384-A601F88EC259}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{520B11E3-E16C-4E4F-B384-A601F88EC259}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{520B11E3-E16C-4E4F-B384-A601F88EC259}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{520B11E3-E16C-4E4F-B384-A601F88EC259}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{30B639D9-12C0-4B59-89A6-0FF62701E92D} = {C49E9C4F-C7DE-420D-AA21-4B4F74595CCA}
+		{A2DE16E1-7BBF-41F5-AB71-BDF55D089254} = {C49E9C4F-C7DE-420D-AA21-4B4F74595CCA}
+		{0B9F9652-D6A9-4074-B477-6A054BBAC07F} = {C49E9C4F-C7DE-420D-AA21-4B4F74595CCA}
+		{B2EFEBC9-A21A-41D9-9F3C-17872F6DD803} = {CA6B8496-F6EB-4ECC-BE5D-76704D69C876}
+		{130A2368-4740-4DAC-AB3C-40C184D1C4EF} = {CA6B8496-F6EB-4ECC-BE5D-76704D69C876}
+		{520B11E3-E16C-4E4F-B384-A601F88EC259} = {CA6B8496-F6EB-4ECC-BE5D-76704D69C876}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>OHPP.Protocol</RootNamespace>
+    <Description>Shared protocol models, serialisation, and validation for the Open Human Participation Protocol (OHPP)</Description>
+    <PackageId>OHPP.Protocol</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>

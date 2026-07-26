@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ohpp
+      POSTGRES_PASSWORD: ohpp_dev_password
+      POSTGRES_DB: ohpp
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ohpp"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  resolver:
+    build:
+      context: .
+      dockerfile: platform/resolver/Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=ohpp;Username=ohpp;Password=ohpp_dev_password
+      - Ohpp__Resolver__BaseUrl=http://localhost:5000
+      - Ohpp__Resolver__DevMode=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  portal:
+    build:
+      context: platform/portal
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      resolver:
+        condition: service_healthy
+
+  bank:
+    build:
+      context: .
+      dockerfile: demo/mock-apps/dotnet/bank/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - Ohpp__Sdk__ResolverUrl=http://resolver:8080
+      - Ohpp__Sdk__AppId=bank.test
+      - Ohpp__Resolver__AppIdOverrides__bank.test=http://bank:8080
+    depends_on:
+      resolver:
+        condition: service_healthy
+
+  cli:
+    build:
+      context: .
+      dockerfile: demo/client-cli/Dockerfile
+    environment:
+      - Ohpp__Cli__ResolverUrl=http://resolver:8080
+    depends_on:
+      resolver:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+volumes:
+  postgres_data:

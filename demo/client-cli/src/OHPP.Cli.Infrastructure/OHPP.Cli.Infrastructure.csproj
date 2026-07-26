@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OHPP.Cli.Domain\OHPP.Cli.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

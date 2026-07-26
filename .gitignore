@@ -88,3 +88,14 @@ docker-compose.override.yml
 *.tmp
 *.bak
 coverage/
+
+# .NET (additional)
+.vs/
+*.DotSettings.user
+*.trx
+
+# Node (additional)
+.vite/
+
+# Docker
+postgres_data/

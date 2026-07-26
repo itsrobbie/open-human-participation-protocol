@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OHPP.Domain.Participation\OHPP.Domain.Participation.csproj" />
+    <ProjectReference Include="..\OHPP.Domain.Shared\OHPP.Domain.Shared.csproj" />
+    <ProjectReference Include="..\OHPP.Services.Shared\OHPP.Services.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.9.0" />
+  </ItemGroup>
+
+</Project>
