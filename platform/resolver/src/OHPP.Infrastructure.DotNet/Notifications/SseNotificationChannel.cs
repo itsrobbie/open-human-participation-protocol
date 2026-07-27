@@ -53,6 +53,35 @@ public sealed class SseNotificationChannel : INotificationChannel
             _connections.TryUpdate(userId, remaining, bag);
         }
     }
+
+    /// <summary>
+    /// Sends a heartbeat comment to all connected clients to keep connections alive
+    /// through proxies and load balancers that kill idle SSE streams.
+    /// </summary>
+    public void BroadcastHeartbeat()
+    {
+        foreach (var (userId, connections) in _connections)
+        {
+            var deadConnections = new List<SseConnection>();
+
+            foreach (var connection in connections)
+            {
+                try
+                {
+                    connection.WriteComment("ping");
+                }
+                catch (Exception)
+                {
+                    deadConnections.Add(connection);
+                }
+            }
+
+            foreach (var dead in deadConnections)
+            {
+                RemoveConnection(userId, dead);
+            }
+        }
+    }
 }
 
 public sealed class SseConnection
@@ -75,6 +104,20 @@ public sealed class SseConnection
             var writer = new StreamWriter(_stream, leaveOpen: true);
             writer.Write($"event: {eventType}\n");
             writer.Write($"data: {data}\n\n");
+            writer.Flush();
+        }
+    }
+
+    /// <summary>
+    /// Writes an SSE comment line (: comment\n\n). Used for heartbeats.
+    /// Comments are ignored by SSE clients but keep the connection alive.
+    /// </summary>
+    public void WriteComment(string comment)
+    {
+        lock (_lock)
+        {
+            var writer = new StreamWriter(_stream, leaveOpen: true);
+            writer.Write($": {comment}\n\n");
             writer.Flush();
         }
     }
