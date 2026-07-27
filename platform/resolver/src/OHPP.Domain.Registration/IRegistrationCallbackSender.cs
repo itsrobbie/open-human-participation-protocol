@@ -4,5 +4,9 @@ namespace OHPP.Domain.Registration;
 
 public interface IRegistrationCallbackSender
 {
-    Task<bool> SendAsync(string callbackUrl, RegistrationResponse response, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Sends the registration response to the Requester's callback endpoint.
+    /// The implementation resolves appId to a base URL (e.g., via dev override map or https://{appId} in production).
+    /// </summary>
+    Task<bool> SendAsync(string appId, string callbackPath, RegistrationResponse response, CancellationToken cancellationToken = default);
 }
