@@ -2,7 +2,7 @@ using FluentAssertions;
 using FsCheck;
 using FsCheck.Xunit;
 using OHPP.Domain.Auth;
-using OHPP.Protocol;
+using OHPP.Domain.Shared;
 using OHPP.Services.Auth;
 
 namespace OHPP.Tests.Unit.Auth;
@@ -28,14 +28,14 @@ public class TokenDiscriminationPropertyTests
     [Property]
     public bool PBT_TokenDiscrimination_DevicePrefixedTokens_ReturnDeviceType(NonEmptyString suffix)
     {
-        var token = ProtocolConstants.DeviceTokenPrefix + suffix.Get.Replace(".", "");
+        var token = TokenConstants.DeviceTokenPrefix + suffix.Get.Replace(".", "");
         return _sut.DetermineTokenType(token) == TokenType.Device;
     }
 
     [Property]
     public bool PBT_TokenDiscrimination_AppPrefixedTokens_ReturnAppAccessType(NonEmptyString suffix)
     {
-        var token = ProtocolConstants.AppTokenPrefix + suffix.Get.Replace(".", "");
+        var token = TokenConstants.AppTokenPrefix + suffix.Get.Replace(".", "");
         return _sut.DetermineTokenType(token) == TokenType.AppAccess;
     }
 }

@@ -1,8 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using OHPP.Domain.Registration;
+using OHPP.Domain.Registration.Models;
 using OHPP.Domain.Shared;
-using OHPP.Protocol.Models;
 
 namespace OHPP.Services.Registration;
 
@@ -15,9 +15,9 @@ public class ChallengeValidator : IChallengeValidator
         _clock = clock;
     }
 
-    public Result<RegistrationChallenge> ValidateAndDecode(string challengePayloadBase64)
+    public Result<ChallengeData> ValidateAndDecode(string challengePayloadBase64)
     {
-        RegistrationChallenge? challenge;
+        ChallengeData? challenge;
         try
         {
             var paddedBase64 = challengePayloadBase64.Replace('-', '+').Replace('_', '/');
@@ -28,7 +28,7 @@ public class ChallengeValidator : IChallengeValidator
             }
             var bytes = Convert.FromBase64String(paddedBase64);
             var json = Encoding.UTF8.GetString(bytes);
-            challenge = JsonSerializer.Deserialize<RegistrationChallenge>(json, new JsonSerializerOptions
+            challenge = JsonSerializer.Deserialize<ChallengeData>(json, new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             });

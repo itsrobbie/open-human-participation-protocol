@@ -16,6 +16,7 @@
     <ProjectReference Include="..\OHPP.Infrastructure.DotNet\OHPP.Infrastructure.DotNet.csproj" />
     <ProjectReference Include="..\OHPP.Infrastructure.Serilog\OHPP.Infrastructure.Serilog.csproj" />
     <ProjectReference Include="..\OHPP.Infrastructure.OpenTelemetry\OHPP.Infrastructure.OpenTelemetry.csproj" />
+    <ProjectReference Include="..\OHPP.Infrastructure.Protocol.Local\OHPP.Infrastructure.Protocol.Local.csproj" />
     <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Sdk.Server\OHPP.Sdk.Server.csproj" />
     <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Protocol\OHPP.Protocol.csproj" />
   </ItemGroup>

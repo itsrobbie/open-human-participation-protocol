@@ -3,8 +3,8 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using OHPP.Domain.Participation;
 using OHPP.Domain.Registration;
+using OHPP.Domain.Registration.Models;
 using OHPP.Domain.Shared;
-using OHPP.Protocol.Models;
 using OHPP.Services.Registration;
 using Xunit;
 
@@ -41,12 +41,12 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_ValidChallenge_FetchesMetadataAndCreatesRegistration()
     {
         var userId = Guid.NewGuid();
-        var challenge = new RegistrationChallenge { ChallengeId = Guid.NewGuid().ToString(), RequesterAppId = "bank.test", ExpiresAt = _clock.UtcNow.AddMinutes(5), CreatedAt = _clock.UtcNow };
-        _challengeValidator.ValidateAndDecode(Arg.Any<string>()).Returns(Result<RegistrationChallenge>.Success(challenge));
-        var metadata = new RequesterAppMetadata { AppId = "bank.test", Name = "Bank App", Icon = null, Endpoints = new AppEndpoints { RegistrationCallback = "/ohpp/callback" }, Version = "1.0" };
+        var challenge = new ChallengeData { ChallengeId = Guid.NewGuid().ToString(), RequesterAppId = "bank.test", ExpiresAt = _clock.UtcNow.AddMinutes(5), CreatedAt = _clock.UtcNow };
+        _challengeValidator.ValidateAndDecode(Arg.Any<string>()).Returns(Result<ChallengeData>.Success(challenge));
+        var metadata = new AppMetadataData { AppId = "bank.test", Name = "Bank App", Icon = null, RegistrationCallbackPath = "/ohpp/callback", Version = "1.0" };
         _metadataFetcher.FetchAsync("bank.test", Arg.Any<CancellationToken>()).Returns(metadata);
         _metadataValidator.Validate(metadata, "bank.test").Returns(Result<bool>.Success(true));
-        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponse>(), Arg.Any<CancellationToken>()).Returns(true);
+        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponseData>(), Arg.Any<CancellationToken>()).Returns(true);
         _registrationRepo.CreateAsync(Arg.Any<AppRegistration>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<AppRegistration>());
 
@@ -61,7 +61,7 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_ExpiredChallenge_ReturnsError()
     {
         _challengeValidator.ValidateAndDecode(Arg.Any<string>())
-            .Returns(Result<RegistrationChallenge>.Failure(Error.Validation("Challenge expired", Array.Empty<ValidationFailure>())));
+            .Returns(Result<ChallengeData>.Failure(Error.Validation("Challenge expired", Array.Empty<ValidationFailure>())));
 
         var result = await _sut.ProcessChallengeAsync(Guid.NewGuid(), "expiredPayload");
 
@@ -85,7 +85,7 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_MetadataFetchFails_404_ReturnsError()
     {
         SetupValidChallenge();
-        _metadataFetcher.FetchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((RequesterAppMetadata?)null);
+        _metadataFetcher.FetchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((AppMetadataData?)null);
 
         var result = await _sut.ProcessChallengeAsync(Guid.NewGuid(), "validPayload");
 
@@ -110,7 +110,7 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_MetadataFetchFails_MissingRequiredFields_ReturnsError()
     {
         SetupValidChallenge();
-        var incompleteMetadata = new RequesterAppMetadata { AppId = "bank.test", Name = "", Endpoints = new AppEndpoints { RegistrationCallback = "" }, Version = "1.0" };
+        var incompleteMetadata = new AppMetadataData { AppId = "bank.test", Name = "", RegistrationCallbackPath = "", Version = "1.0" };
         _metadataFetcher.FetchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(incompleteMetadata);
         _metadataValidator.Validate(incompleteMetadata, "bank.test")
             .Returns(Result<bool>.Failure(Error.Validation("Missing required fields", Array.Empty<ValidationFailure>())));
@@ -124,7 +124,7 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_MetadataAppIdMismatch_ReturnsError()
     {
         SetupValidChallenge();
-        var metadata = new RequesterAppMetadata { AppId = "other.test", Name = "Other", Endpoints = new AppEndpoints { RegistrationCallback = "/cb" }, Version = "1.0" };
+        var metadata = new AppMetadataData { AppId = "other.test", Name = "Other", RegistrationCallbackPath = "/cb", Version = "1.0" };
         _metadataFetcher.FetchAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(metadata);
         _metadataValidator.Validate(metadata, "bank.test")
             .Returns(Result<bool>.Failure(Error.Validation("AppId mismatch", Array.Empty<ValidationFailure>())));
@@ -138,7 +138,7 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_CallbackFails_NetworkError_AbortsRegistration()
     {
         SetupValidChallengeAndMetadata();
-        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponse>(), Arg.Any<CancellationToken>()).Returns(false);
+        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponseData>(), Arg.Any<CancellationToken>()).Returns(false);
 
         var result = await _sut.ProcessChallengeAsync(Guid.NewGuid(), "validPayload");
 
@@ -151,7 +151,7 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_CallbackFails_Timeout_AbortsRegistration()
     {
         SetupValidChallengeAndMetadata();
-        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponse>(), Arg.Any<CancellationToken>())
+        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponseData>(), Arg.Any<CancellationToken>())
             .ThrowsAsync(new TaskCanceledException("Request timed out"));
 
         var result = await _sut.ProcessChallengeAsync(Guid.NewGuid(), "validPayload");
@@ -164,7 +164,7 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_CallbackFails_Non2xx_AbortsRegistration()
     {
         SetupValidChallengeAndMetadata();
-        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponse>(), Arg.Any<CancellationToken>()).Returns(false);
+        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponseData>(), Arg.Any<CancellationToken>()).Returns(false);
 
         var result = await _sut.ProcessChallengeAsync(Guid.NewGuid(), "validPayload");
 
@@ -179,7 +179,7 @@ public class RegistrationCeremonyOrchestratorTests
         var existingReg = new AppRegistration { Id = Guid.NewGuid(), UserId = userId, AppId = "bank.test", AppName = "Old", AccessToken = "old_token", ResolverBaseUrl = "http://old", RegisteredAt = _clock.UtcNow.AddDays(-30) };
         _registrationRepo.GetActiveByUserAndAppIdAsync(userId, "bank.test", Arg.Any<CancellationToken>()).Returns(existingReg);
         SetupValidChallengeAndMetadata();
-        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponse>(), Arg.Any<CancellationToken>()).Returns(true);
+        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponseData>(), Arg.Any<CancellationToken>()).Returns(true);
         _registrationRepo.CreateAsync(Arg.Any<AppRegistration>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<AppRegistration>());
 
@@ -193,7 +193,7 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_GeneratesUniqueAccessToken()
     {
         SetupValidChallengeAndMetadata();
-        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponse>(), Arg.Any<CancellationToken>()).Returns(true);
+        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponseData>(), Arg.Any<CancellationToken>()).Returns(true);
         _registrationRepo.CreateAsync(Arg.Any<AppRegistration>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<AppRegistration>());
 
@@ -206,7 +206,7 @@ public class RegistrationCeremonyOrchestratorTests
     public async Task ProcessChallenge_StoresAppNameAndIcon()
     {
         SetupValidChallengeAndMetadata(appName: "My Bank", appIcon: "https://bank.test/icon.png");
-        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponse>(), Arg.Any<CancellationToken>()).Returns(true);
+        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponseData>(), Arg.Any<CancellationToken>()).Returns(true);
         _registrationRepo.CreateAsync(Arg.Any<AppRegistration>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<AppRegistration>());
 
@@ -280,14 +280,14 @@ public class RegistrationCeremonyOrchestratorTests
 
     private void SetupValidChallenge()
     {
-        var challenge = new RegistrationChallenge { ChallengeId = Guid.NewGuid().ToString(), RequesterAppId = "bank.test", ExpiresAt = _clock.UtcNow.AddMinutes(5), CreatedAt = _clock.UtcNow };
-        _challengeValidator.ValidateAndDecode(Arg.Any<string>()).Returns(Result<RegistrationChallenge>.Success(challenge));
+        var challenge = new ChallengeData { ChallengeId = Guid.NewGuid().ToString(), RequesterAppId = "bank.test", ExpiresAt = _clock.UtcNow.AddMinutes(5), CreatedAt = _clock.UtcNow };
+        _challengeValidator.ValidateAndDecode(Arg.Any<string>()).Returns(Result<ChallengeData>.Success(challenge));
     }
 
     private void SetupValidChallengeAndMetadata(string appName = "Bank App", string? appIcon = null)
     {
         SetupValidChallenge();
-        var metadata = new RequesterAppMetadata { AppId = "bank.test", Name = appName, Icon = appIcon, Endpoints = new AppEndpoints { RegistrationCallback = "/ohpp/callback" }, Version = "1.0" };
+        var metadata = new AppMetadataData { AppId = "bank.test", Name = appName, Icon = appIcon, RegistrationCallbackPath = "/ohpp/callback", Version = "1.0" };
         _metadataFetcher.FetchAsync("bank.test", Arg.Any<CancellationToken>()).Returns(metadata);
         _metadataValidator.Validate(metadata, "bank.test").Returns(Result<bool>.Success(true));
     }

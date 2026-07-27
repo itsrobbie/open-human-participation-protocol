@@ -53,6 +53,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Tests.Integration.Regi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Tests.Integration.Participation", "tests\OHPP.Tests.Integration.Participation\OHPP.Tests.Integration.Participation.csproj", "{BC287226-0F71-4F66-BB96-80FC705F58A3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OHPP.Infrastructure.Protocol.Local", "src\OHPP.Infrastructure.Protocol.Local\OHPP.Infrastructure.Protocol.Local.csproj", "{FEB8B8F2-2F5D-409E-AB55-E3456EF44BCA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -154,6 +156,10 @@ Global
 		{BC287226-0F71-4F66-BB96-80FC705F58A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BC287226-0F71-4F66-BB96-80FC705F58A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BC287226-0F71-4F66-BB96-80FC705F58A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FEB8B8F2-2F5D-409E-AB55-E3456EF44BCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FEB8B8F2-2F5D-409E-AB55-E3456EF44BCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FEB8B8F2-2F5D-409E-AB55-E3456EF44BCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FEB8B8F2-2F5D-409E-AB55-E3456EF44BCA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{50BBE464-67C9-4941-89B5-8E30BDBD10CB} = {89A993FB-8EBF-4BA3-B514-73374F9A2235}
@@ -179,5 +185,6 @@ Global
 		{D85E4C79-47FF-4076-831D-08AB4EFA44AD} = {43CAE18C-7C56-42EF-A8DF-359ABB97DA4D}
 		{0B028F6E-7ADE-4E8D-A7BD-EF3D0E4876F4} = {43CAE18C-7C56-42EF-A8DF-359ABB97DA4D}
 		{BC287226-0F71-4F66-BB96-80FC705F58A3} = {43CAE18C-7C56-42EF-A8DF-359ABB97DA4D}
+		{FEB8B8F2-2F5D-409E-AB55-E3456EF44BCA} = {89A993FB-8EBF-4BA3-B514-73374F9A2235}
 	EndGlobalSection
 EndGlobal

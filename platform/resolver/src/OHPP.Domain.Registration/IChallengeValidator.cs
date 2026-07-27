@@ -1,9 +1,9 @@
+using OHPP.Domain.Registration.Models;
 using OHPP.Domain.Shared;
-using OHPP.Protocol.Models;
 
 namespace OHPP.Domain.Registration;
 
 public interface IChallengeValidator
 {
-    Result<RegistrationChallenge> ValidateAndDecode(string challengePayloadBase64);
+    Result<ChallengeData> ValidateAndDecode(string challengePayloadBase64);
 }

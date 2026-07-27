@@ -1,12 +1,12 @@
 using OHPP.Domain.Registration;
+using OHPP.Domain.Registration.Models;
 using OHPP.Domain.Shared;
-using OHPP.Protocol.Models;
 
 namespace OHPP.Services.Registration;
 
 public class AppMetadataValidator : IAppMetadataValidator
 {
-    public Result<bool> Validate(RequesterAppMetadata metadata, string expectedAppId)
+    public Result<bool> Validate(AppMetadataData metadata, string expectedAppId)
     {
         if (string.IsNullOrWhiteSpace(metadata.AppId))
             return Error.Validation("App metadata missing appId", Array.Empty<ValidationFailure>());
@@ -17,8 +17,8 @@ public class AppMetadataValidator : IAppMetadataValidator
         if (string.IsNullOrWhiteSpace(metadata.Name))
             return Error.Validation("App metadata missing name", Array.Empty<ValidationFailure>());
 
-        if (string.IsNullOrWhiteSpace(metadata.Endpoints?.RegistrationCallback))
-            return Error.Validation("App metadata missing endpoints.registrationCallback", Array.Empty<ValidationFailure>());
+        if (string.IsNullOrWhiteSpace(metadata.RegistrationCallbackPath))
+            return Error.Validation("App metadata missing registrationCallbackPath", Array.Empty<ValidationFailure>());
 
         return true;
     }

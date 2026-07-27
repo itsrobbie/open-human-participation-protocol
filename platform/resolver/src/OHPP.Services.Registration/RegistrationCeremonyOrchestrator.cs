@@ -1,7 +1,7 @@
 using OHPP.Domain.Participation;
 using OHPP.Domain.Registration;
+using OHPP.Domain.Registration.Models;
 using OHPP.Domain.Shared;
-using OHPP.Protocol.Models;
 
 namespace OHPP.Services.Registration;
 
@@ -60,7 +60,7 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
         var challenge = challengeResult.Value!;
 
         // Fetch app metadata
-        RequesterAppMetadata? metadata;
+        AppMetadataData? metadata;
         try
         {
             metadata = await _metadataFetcher.FetchAsync(challenge.RequesterAppId, cancellationToken);
@@ -90,7 +90,7 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
         var accessToken = _tokenGenerator.GenerateAppAccessToken();
 
         // Build registration response
-        var response = new RegistrationResponse
+        var response = new RegistrationResponseData
         {
             ChallengeId = challenge.ChallengeId,
             ResolverBaseUrl = _resolverConfig.BaseUrl,
@@ -104,7 +104,7 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
         bool callbackSuccess;
         try
         {
-            callbackSuccess = await _callbackSender.SendAsync(challenge.RequesterAppId, metadata.Endpoints.RegistrationCallback, response, cancellationToken);
+            callbackSuccess = await _callbackSender.SendAsync(challenge.RequesterAppId, metadata.RegistrationCallbackPath, response, cancellationToken);
         }
         catch (Exception)
         {

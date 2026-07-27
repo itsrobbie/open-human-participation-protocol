@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\OHPP.Services.Participation\OHPP.Services.Participation.csproj" />
+    <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Protocol\OHPP.Protocol.csproj" />
   </ItemGroup>
 
   <ItemGroup>

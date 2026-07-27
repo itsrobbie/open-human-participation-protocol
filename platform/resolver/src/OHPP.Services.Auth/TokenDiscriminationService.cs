@@ -1,5 +1,5 @@
 using OHPP.Domain.Auth;
-using OHPP.Protocol;
+using OHPP.Domain.Shared;
 
 namespace OHPP.Services.Auth;
 
@@ -10,10 +10,10 @@ public class TokenDiscriminationService : ITokenDiscriminationService
         if (string.IsNullOrEmpty(token))
             return TokenType.Unknown;
 
-        if (token.StartsWith(ProtocolConstants.DeviceTokenPrefix))
+        if (token.StartsWith(TokenConstants.DeviceTokenPrefix))
             return TokenType.Device;
 
-        if (token.StartsWith(ProtocolConstants.AppTokenPrefix))
+        if (token.StartsWith(TokenConstants.AppTokenPrefix))
             return TokenType.AppAccess;
 
         if (IsJwtFormat(token))
