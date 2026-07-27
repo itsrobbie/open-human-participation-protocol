@@ -4,6 +4,7 @@
     <ProjectReference Include="..\OHPP.Domain.Auth\OHPP.Domain.Auth.csproj" />
     <ProjectReference Include="..\OHPP.Domain.Shared\OHPP.Domain.Shared.csproj" />
     <ProjectReference Include="..\OHPP.Services.Shared\OHPP.Services.Shared.csproj" />
+    <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Protocol\OHPP.Protocol.csproj" />
   </ItemGroup>
 
 </Project>

@@ -4,7 +4,7 @@ namespace OHPP.Protocol.Validation;
 
 public static class ParticipationRequestValidator
 {
-    public static IReadOnlyList<string> Validate(ParticipationRequest request)
+    public static IReadOnlyList<string> Validate(ParticipationRequest request, DateTimeOffset? currentTime = null)
     {
         var errors = new List<string>();
 
@@ -23,7 +23,7 @@ public static class ParticipationRequestValidator
         ValidateAction(request.Action, errors);
         ValidateType(request.Type, request.Options, errors);
         ValidateOptions(request.Type, request.Options, errors);
-        ValidateExpiry(request.Expiry, errors);
+        ValidateExpiry(request.Expiry, currentTime ?? DateTimeOffset.UtcNow, errors);
 
         return errors;
     }
@@ -82,9 +82,9 @@ public static class ParticipationRequestValidator
         }
     }
 
-    private static void ValidateExpiry(DateTimeOffset? expiry, List<string> errors)
+    private static void ValidateExpiry(DateTimeOffset? expiry, DateTimeOffset now, List<string> errors)
     {
-        if (expiry.HasValue && expiry.Value <= DateTimeOffset.UtcNow)
+        if (expiry.HasValue && expiry.Value <= now)
             errors.Add("expiry must be in the future");
     }
 }

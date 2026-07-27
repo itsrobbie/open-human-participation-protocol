@@ -20,7 +20,9 @@ public static class OhppJsonSerialiser
 
     /// <summary>
     /// Produces deterministic JSON output suitable for signing.
-    /// Keys are sorted, no extra whitespace, consistent encoding.
+    /// Minified, camelCase, null-omitted, relaxed encoding.
+    /// Note: System.Text.Json does not sort keys — signing uses the serialized bytes as-is.
+    /// Both parties must use this same serialiser to produce matching payloads.
     /// </summary>
     public static string SerialiseCanonical<T>(T value)
     {
