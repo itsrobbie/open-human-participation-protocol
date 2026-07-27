@@ -2,6 +2,7 @@ namespace OHPP.Domain.Auth;
 
 public interface IDeviceTokenRepository
 {
+    Task<Device?> GetByIdAsync(Guid deviceId, CancellationToken cancellationToken = default);
     Task<Device?> GetByTokenAsync(string deviceToken, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Device>> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<Device> CreateAsync(Device device, CancellationToken cancellationToken = default);

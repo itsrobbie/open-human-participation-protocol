@@ -7,6 +7,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\OHPP.Services.Attestation\OHPP.Services.Attestation.csproj" />
+    <ProjectReference Include="..\..\src\OHPP.Domain.Attestation\OHPP.Domain.Attestation.csproj" />
+    <ProjectReference Include="..\..\src\OHPP.Domain.Auth\OHPP.Domain.Auth.csproj" />
+    <ProjectReference Include="..\..\src\OHPP.Domain.Participation\OHPP.Domain.Participation.csproj" />
+    <ProjectReference Include="..\..\src\OHPP.Domain.Shared\OHPP.Domain.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
