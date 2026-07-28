@@ -1,3 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Protocol\OHPP.Protocol.csproj" />
+  </ItemGroup>
+
 </Project>

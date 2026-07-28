@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\OHPP.Cli.Domain\OHPP.Cli.Domain.csproj" />
     <ProjectReference Include="..\..\src\OHPP.Cli.Services\OHPP.Cli.Services.csproj" />
   </ItemGroup>
 

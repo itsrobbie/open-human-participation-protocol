@@ -4,4 +4,8 @@
     <ProjectReference Include="..\OHPP.Cli.Domain\OHPP.Cli.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.0" />
+  </ItemGroup>
+
 </Project>

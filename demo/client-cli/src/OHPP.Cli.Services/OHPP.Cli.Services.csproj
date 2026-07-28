@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OHPP.Cli.Domain\OHPP.Cli.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Sdk\OHPP.Sdk.csproj" />
   </ItemGroup>
 
 </Project>
