@@ -2,6 +2,9 @@
 /.kiro
 /aidlc-docs
 
+# Local tools (installed via dotnet tool install --tool-path)
+.tools/
+
 # OS
 .DS_Store
 Thumbs.db

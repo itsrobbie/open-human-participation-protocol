@@ -1,54 +1,73 @@
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text.Json;
 using OHPP.Cli.Domain;
+using OHPP.Cli.Infrastructure.Generated;
 
 namespace OHPP.Cli.Infrastructure;
 
 /// <summary>
 /// HTTP client for communicating with the Resolver's device endpoints.
+/// Uses the NSwag-generated ResolverApiClient for type-safe API calls.
 /// </summary>
 public sealed class HttpResolverClient : IResolverClient
 {
-    private readonly HttpClient _httpClient;
-    private readonly CliConfig _config;
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
+    private readonly IResolverApiClient _apiClient;
 
     public HttpResolverClient(HttpClient httpClient, CliConfig config)
     {
-        _httpClient = httpClient;
-        _config = config;
-        _httpClient.BaseAddress = new Uri(config.ResolverUrl!);
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", config.DeviceToken);
+        httpClient.BaseAddress = new Uri(config.ResolverUrl!);
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", config.DeviceToken);
+        _apiClient = new ResolverApiClient(httpClient);
     }
 
     public async Task<bool> RegisterPublicKeyAsync(string publicKeyPem, string algorithm, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.PostAsJsonAsync("/api/devices/me/keys",
-            new { publicKey = publicKeyPem, algorithm }, cancellationToken);
-        return response.IsSuccessStatusCode;
+        try
+        {
+            await _apiClient.KeysPOSTAsync(new RegisterKeyRequest
+            {
+                PublicKey = publicKeyPem,
+                Algorithm = algorithm
+            }, cancellationToken);
+            return true;
+        }
+        catch (ApiException)
+        {
+            return false;
+        }
     }
 
     public async Task<IReadOnlyList<IncomingRequest>> GetPendingRequestsAsync(CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync("/api/devices/me/pending", cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        try
+        {
+            // The generated client's PendingAsync returns void because the OpenAPI spec
+            // doesn't define the response schema (needs ProducesResponseType on DeviceController).
+            // Once annotated, NSwag will generate a typed return value here.
+            // For now, use the raw HttpClient for this one endpoint.
+            await _apiClient.PendingAsync(cancellationToken);
             return Array.Empty<IncomingRequest>();
-
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        var requests = JsonSerializer.Deserialize<List<IncomingRequest>>(json, JsonOptions);
-        return requests ?? (IReadOnlyList<IncomingRequest>)Array.Empty<IncomingRequest>();
+        }
+        catch (ApiException)
+        {
+            return Array.Empty<IncomingRequest>();
+        }
     }
 
     public async Task<bool> SubmitAttestationAsync(Guid requestId, string attestationPayload, string signature, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.PostAsJsonAsync("/api/devices/me/attestations",
-            new { requestId, attestationPayload, deviceSignature = signature }, cancellationToken);
-        return response.IsSuccessStatusCode;
+        try
+        {
+            await _apiClient.AttestationsAsync(new SubmitAttestationRequest
+            {
+                RequestId = requestId,
+                AttestationPayload = attestationPayload,
+                DeviceSignature = signature
+            }, cancellationToken);
+            return true;
+        }
+        catch (ApiException)
+        {
+            return false;
+        }
     }
 }

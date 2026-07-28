@@ -21,4 +21,16 @@
     <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Protocol\OHPP.Protocol.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
+
+  <!-- Auto-generate swagger.json after build -->
+  <Target Name="GenerateSwagger" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <PropertyGroup>
+      <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../../..'))</RepoRoot>
+    </PropertyGroup>
+    <Exec Command="&quot;$(RepoRoot)/.tools/swagger&quot; tofile --output &quot;$(RepoRoot)/platform/resolver/swagger.json&quot; &quot;$(TargetPath)&quot; v1" ContinueOnError="true" />
+  </Target>
+
 </Project>

@@ -21,6 +21,39 @@ builder.Services.AddOhppOpenTelemetry();
 
 // --- Controllers ---
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "OHPP Resolver API",
+        Version = "v1",
+        Description = "Open Human Participation Protocol — Resolver API for portal management, device operations, and app registration."
+    });
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT or OHPP token",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Enter your token (Identity JWT for Portal, device token for Device endpoints, app token for Participate endpoints)"
+    });
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // --- Infrastructure ---
 builder.Services.AddOhppPostgreSQL(builder.Configuration.GetConnectionString("PostgreSQL")!);
@@ -48,6 +81,14 @@ builder.Services.AddHostedService<ExpiryEnforcementBackgroundService>();
 builder.Services.AddHostedService<SseHeartbeatService>();
 
 var app = builder.Build();
+
+// --- Swagger ---
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "OHPP Resolver API v1");
+    options.RoutePrefix = "swagger";
+});
 
 // --- Middleware Pipeline ---
 app.UseMiddleware<CorrelationIdMiddleware>();

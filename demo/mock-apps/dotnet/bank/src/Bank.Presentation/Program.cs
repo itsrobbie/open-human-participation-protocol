@@ -5,6 +5,18 @@ using OHPP.Sdk;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- Swagger ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Demo Bank API",
+        Version = "v1",
+        Description = "OHPP-enabled mock bank application for demonstrating the Open Human Participation Protocol."
+    });
+});
+
 // --- DI ---
 builder.Services.AddSingleton<IAccountStore, InMemoryAccountStore>();
 builder.Services.AddScoped<AccountService>();
@@ -32,6 +44,14 @@ builder.Services.AddScoped<IParticipationClient>(sp =>
 builder.Services.AddSingleton<IRegistrationStore, InMemoryRegistrationStore>();
 
 var app = builder.Build();
+
+// --- Swagger UI ---
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// --- Static files (HTML UI) ---
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 // --- Health ---
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", app = "Demo Bank" }));

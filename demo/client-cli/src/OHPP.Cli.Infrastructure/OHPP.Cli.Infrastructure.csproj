@@ -5,7 +5,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Text.Json" Version="9.0.0" />
   </ItemGroup>
+
+  <!-- Auto-generate typed Resolver API client from swagger.json before build -->
+  <Target Name="GenerateResolverClient" BeforeTargets="CoreCompile" Condition="'$(Configuration)' == 'Debug'">
+    <PropertyGroup>
+      <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../../..'))</RepoRoot>
+    </PropertyGroup>
+    <Exec Command="&quot;$(RepoRoot)/.tools/nswag&quot; openapi2csclient /input:&quot;$(RepoRoot)/platform/resolver/swagger.json&quot; /classname:ResolverApiClient /namespace:OHPP.Cli.Infrastructure.Generated /output:&quot;$(MSBuildThisFileDirectory)Generated/ResolverApiClient.cs&quot; /generateClientInterfaces:true /useBaseUrl:false /injectHttpClient:true" ContinueOnError="true" />
+  </Target>
 
 </Project>

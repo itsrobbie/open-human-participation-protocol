@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Bank</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; }
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        h2 { font-size: 1.2rem; margin: 1.5rem 0 0.75rem; color: #333; }
+        .subtitle { color: #666; margin-bottom: 2rem; }
+        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .balance { font-size: 2rem; font-weight: 700; color: #16a34a; }
+        .payee-list { list-style: none; }
+        .payee-list li { padding: 0.75rem 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .payee-list li:last-child { border-bottom: none; }
+        button { background: #2563eb; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+        button:hover { background: #1d4ed8; }
+        button.danger { background: #dc2626; }
+        button.danger:hover { background: #b91c1c; }
+        button.secondary { background: #6b7280; }
+        input, select { padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; width: 100%; margin-bottom: 0.5rem; }
+        .form-row { margin-bottom: 0.75rem; }
+        label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
+        .status { padding: 0.5rem 1rem; border-radius: 4px; margin-top: 1rem; }
+        .status.success { background: #dcfce7; color: #166534; }
+        .status.pending { background: #fef3c7; color: #92400e; }
+        .status.error { background: #fee2e2; color: #991b1b; }
+        .ohpp-badge { display: inline-block; background: #dbeafe; color: #1e40af; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .nav a { color: #2563eb; text-decoration: none; font-weight: 500; }
+        .nav a:hover { text-decoration: underline; }
+        #transfer-result { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Demo Bank</h1>
+        <p class="subtitle">OHPP-enabled banking demo</p>
+
+        <nav class="nav">
+            <a href="#account">Account</a>
+            <a href="#transfer">Transfer</a>
+            <a href="#ohpp">OHPP Settings</a>
+        </nav>
+
+        <!-- Account Section -->
+        <section id="account">
+            <div class="card">
+                <h2>Account Balance</h2>
+                <p class="balance" id="balance">Loading...</p>
+                <p id="ohpp-status"></p>
+            </div>
+
+            <div class="card">
+                <h2>Payees</h2>
+                <ul class="payee-list" id="payee-list"></ul>
+            </div>
+        </section>
+
+        <!-- Transfer Section -->
+        <section id="transfer">
+            <div class="card">
+                <h2>Make a Transfer</h2>
+                <form id="transfer-form">
+                    <div class="form-row">
+                        <label for="payee-select">To</label>
+                        <select id="payee-select"></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="amount">Amount (£)</label>
+                        <input type="number" id="amount" step="0.01" min="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-row">
+                        <label for="reference">Reference (optional)</label>
+                        <input type="text" id="reference" placeholder="e.g. Rent July">
+                    </div>
+                    <button type="submit">Send Transfer</button>
+                </form>
+                <div id="transfer-result"></div>
+            </div>
+        </section>
+
+        <!-- OHPP Settings -->
+        <section id="ohpp">
+            <div class="card">
+                <h2>OHPP Settings</h2>
+                <p style="margin-bottom:1rem; color:#666;">Connect your participation service to require approval for transfers.</p>
+                <form id="ohpp-form">
+                    <div class="form-row">
+                        <label for="resolver-url">Resolver URL</label>
+                        <input type="text" id="resolver-url" placeholder="http://localhost:5000">
+                    </div>
+                    <div class="form-row">
+                        <label for="access-token">Access Token</label>
+                        <input type="text" id="access-token" placeholder="ohpp_app_...">
+                    </div>
+                    <div class="form-row">
+                        <label for="user-id">User ID</label>
+                        <input type="text" id="user-id" placeholder="Your user ID from the Resolver">
+                    </div>
+                    <button type="submit">Connect OHPP</button>
+                </form>
+                <div id="ohpp-result"></div>
+            </div>
+        </section>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+</body>
+</html>
