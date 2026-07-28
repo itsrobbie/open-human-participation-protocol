@@ -1,38 +1,46 @@
 services:
+  # --- Backing services ---
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ohpp
-      POSTGRES_PASSWORD: ohpp_dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ohpp_dev_password}
       POSTGRES_DB: ohpp
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ohpp"]
       interval: 5s
       timeout: 3s
       retries: 5
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ohpp
 
+  # --- Platform ---
   resolver:
     build:
       context: .
       dockerfile: platform/resolver/Dockerfile
     ports:
-      - "5000:8080"
+      - "5050:8080"
     environment:
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=ohpp;Username=ohpp;Password=ohpp_dev_password
-      - Ohpp__Resolver__BaseUrl=http://localhost:5000
-      - Ohpp__Resolver__DevMode=true
+      ConnectionStrings__PostgreSQL: "Host=postgres;Database=ohpp;Username=ohpp;Password=${POSTGRES_PASSWORD:-ohpp_dev_password}"
+      Resolver__BaseUrl: "http://localhost:5050"
+      Resolver__Name: "OHPP Demo Resolver"
+      Resolver__EncryptionKey: ${RESOLVER_ENCRYPTION_KEY:-dev-encryption-key-min-32-chars!!}
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 5
+      start_period: 20s
+    networks:
+      - ohpp
 
   portal:
     build:
@@ -43,32 +51,44 @@ services:
     depends_on:
       resolver:
         condition: service_healthy
+    networks:
+      - ohpp
 
+  # --- Demo apps ---
   bank:
     build:
       context: .
       dockerfile: demo/mock-apps/dotnet/bank/Dockerfile
     ports:
-      - "8080:8080"
+      - "5010:5010"
     environment:
-      - Ohpp__Sdk__ResolverUrl=http://resolver:8080
-      - Ohpp__Sdk__AppId=bank.test
-      - Ohpp__Resolver__AppIdOverrides__bank.test=http://bank:8080
+      Bank__AppId: "bank.demo.test"
+      Bank__BaseUrl: "http://localhost:5010"
     depends_on:
       resolver:
         condition: service_healthy
+    networks:
+      - ohpp
 
+  # --- CLI (interactive) ---
   cli:
     build:
       context: .
       dockerfile: demo/client-cli/Dockerfile
-    environment:
-      - Ohpp__Cli__ResolverUrl=http://resolver:8080
+    stdin_open: true
+    tty: true
+    volumes:
+      - cli_config:/root/.ohpp
     depends_on:
       resolver:
         condition: service_healthy
-    stdin_open: true
-    tty: true
+    networks:
+      - ohpp
 
 volumes:
   postgres_data:
+  cli_config:
+
+networks:
+  ohpp:
+    driver: bridge

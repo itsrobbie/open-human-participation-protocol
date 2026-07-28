@@ -33,10 +33,11 @@ RUN dotnet restore ./platform/resolver/src/OHPP.Presentation.Api/OHPP.Presentati
 # Copy all source and build
 COPY . .
 WORKDIR /src/platform/resolver
-RUN dotnet publish src/OHPP.Presentation.Api/OHPP.Presentation.Api.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish src/OHPP.Presentation.Api/OHPP.Presentation.Api.csproj -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:8080
 ENTRYPOINT ["dotnet", "OHPP.Presentation.Api.dll"]

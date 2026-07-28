@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using OHPP.Infrastructure.DotNet;
 using OHPP.Infrastructure.Firebase;
 using OHPP.Infrastructure.OpenTelemetry;
@@ -81,6 +82,13 @@ builder.Services.AddHostedService<ExpiryEnforcementBackgroundService>();
 builder.Services.AddHostedService<SseHeartbeatService>();
 
 var app = builder.Build();
+
+// --- Auto-migrate database ---
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<OHPP.Infrastructure.PostgreSQL.AppDbContext>();
+    db.Database.Migrate();
+}
 
 // --- Swagger ---
 app.UseSwagger();
