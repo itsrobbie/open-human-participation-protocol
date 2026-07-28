@@ -16,8 +16,18 @@ public static class ServiceCollectionExtensions
     /// Registers core .NET infrastructure services: clock, token generation, cryptography,
     /// notifications (SSE), rate limiting, and HTTP clients for metadata/callback.
     /// </summary>
-    public static IServiceCollection AddOhppInfrastructure(this IServiceCollection services)
+    /// <param name="services">Service collection</param>
+    /// <param name="resolverBaseUrl">Base URL of the Resolver (for registration callbacks)</param>
+    /// <param name="encryptionKey">AES encryption key for signing key storage</param>
+    public static IServiceCollection AddOhppInfrastructure(
+        this IServiceCollection services,
+        string resolverBaseUrl,
+        string encryptionKey)
     {
+        // Configuration
+        services.AddSingleton<IResolverConfiguration>(new ResolverConfigurationRecord(resolverBaseUrl));
+        services.AddSingleton<IKeyEncryptionConfiguration>(new KeyEncryptionConfigurationRecord(encryptionKey));
+
         // Shared
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<ITokenGenerator, CryptoTokenGenerator>();
@@ -37,9 +47,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IKeyEncryptor, AesKeyEncryptor>();
 
         // HTTP clients
-        services.AddHttpClient<IAppMetadataFetcher, HttpAppMetadataFetcher>();
-        services.AddHttpClient<IRegistrationCallbackSender, HttpRegistrationCallbackSender>();
+        services.AddHttpClient("AppMetadata");
+        services.AddHttpClient("RegistrationCallback");
+        services.AddScoped<IAppMetadataFetcher, HttpAppMetadataFetcher>();
+        services.AddScoped<IRegistrationCallbackSender, HttpRegistrationCallbackSender>();
+
+        // App ID resolution (maps domain-based appId to base URL)
+        services.AddSingleton<IAppIdResolver>(new DevModeAppIdResolver(new Dictionary<string, string>()));
 
         return services;
     }
 }
+
+internal sealed record ResolverConfigurationRecord(string BaseUrl) : IResolverConfiguration;
+internal sealed record KeyEncryptionConfigurationRecord(string EncryptionKey) : IKeyEncryptionConfiguration;

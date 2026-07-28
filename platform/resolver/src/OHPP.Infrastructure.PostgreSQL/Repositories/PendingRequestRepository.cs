@@ -26,14 +26,14 @@ public sealed class PendingRequestRepository : IPendingRequestRepository
     public async Task<IReadOnlyList<PendingRequest>> GetPendingByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _db.PendingRequests
-            .Where(r => r.UserId == userId && r.Status == "pending")
+            .Where(r => r.UserId == userId && r.Status == "Pending")
             .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<PendingRequest>> GetExpiredPendingAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         return await _db.PendingRequests
-            .Where(r => r.Status == "pending" && r.ExpiresAt != null && r.ExpiresAt < now)
+            .Where(r => r.Status == "Pending" && r.ExpiresAt != null && r.ExpiresAt < now)
             .ToListAsync(cancellationToken);
     }
 
@@ -58,12 +58,12 @@ public sealed class PendingRequestRepository : IPendingRequestRepository
     public async Task CancelAllForAppRegistrationAsync(Guid appRegistrationId, CancellationToken cancellationToken = default)
     {
         var pending = await _db.PendingRequests
-            .Where(r => r.AppRegistrationId == appRegistrationId && r.Status == "pending")
+            .Where(r => r.AppRegistrationId == appRegistrationId && r.Status == "Pending")
             .ToListAsync(cancellationToken);
 
         foreach (var request in pending)
         {
-            request.Status = "cancelled";
+            request.Status = "Cancelled";
         }
 
         await _db.SaveChangesAsync(cancellationToken);
@@ -72,6 +72,6 @@ public sealed class PendingRequestRepository : IPendingRequestRepository
     public async Task<int> CountPendingByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _db.PendingRequests
-            .CountAsync(r => r.UserId == userId && r.Status == "pending", cancellationToken);
+            .CountAsync(r => r.UserId == userId && r.Status == "Pending", cancellationToken);
     }
 }

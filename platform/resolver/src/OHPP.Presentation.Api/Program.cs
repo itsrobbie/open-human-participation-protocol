@@ -23,7 +23,9 @@ builder.Services.AddControllers();
 // --- Infrastructure ---
 builder.Services.AddOhppPostgreSQL(builder.Configuration.GetConnectionString("PostgreSQL")!);
 builder.Services.AddOhppFirebaseAuth();
-builder.Services.AddOhppInfrastructure();
+builder.Services.AddOhppInfrastructure(
+    resolverBaseUrl: builder.Configuration["Resolver:BaseUrl"] ?? "http://localhost:5000",
+    encryptionKey: builder.Configuration["Resolver:EncryptionKey"] ?? "");
 builder.Services.AddOhppProtocolValidation();
 
 // --- Services ---

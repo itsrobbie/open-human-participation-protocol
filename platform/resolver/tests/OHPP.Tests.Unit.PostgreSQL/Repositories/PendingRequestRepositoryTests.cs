@@ -10,7 +10,7 @@ public sealed class PendingRequestRepositoryTests
         Guid? id = null,
         Guid? userId = null,
         Guid? appRegId = null,
-        string status = "pending",
+        string status = "Pending",
         DateTimeOffset? expiresAt = null)
     {
         return new PendingRequest
@@ -111,17 +111,17 @@ public sealed class PendingRequestRepositoryTests
 
         var userId = Guid.NewGuid();
         ctx.PendingRequests.AddRange(
-            CreateRequest(userId: userId, status: "pending"),
-            CreateRequest(userId: userId, status: "resolved"),
-            CreateRequest(userId: userId, status: "pending"),
-            CreateRequest(userId: Guid.NewGuid(), status: "pending")
+            CreateRequest(userId: userId, status: "Pending"),
+            CreateRequest(userId: userId, status: "Resolved"),
+            CreateRequest(userId: userId, status: "Pending"),
+            CreateRequest(userId: Guid.NewGuid(), status: "Pending")
         );
         await ctx.SaveChangesAsync();
 
         var result = await sut.GetPendingByUserIdAsync(userId);
 
         result.Should().HaveCount(2);
-        result.Should().OnlyContain(r => r.UserId == userId && r.Status == "pending");
+        result.Should().OnlyContain(r => r.UserId == userId && r.Status == "Pending");
     }
 
     [Fact]
@@ -132,17 +132,17 @@ public sealed class PendingRequestRepositoryTests
 
         var now = DateTimeOffset.UtcNow;
         ctx.PendingRequests.AddRange(
-            CreateRequest(status: "pending", expiresAt: now.AddMinutes(-5)),
-            CreateRequest(status: "pending", expiresAt: now.AddMinutes(5)),
-            CreateRequest(status: "resolved", expiresAt: now.AddMinutes(-5)),
-            CreateRequest(status: "pending", expiresAt: null)
+            CreateRequest(status: "Pending", expiresAt: now.AddMinutes(-5)),
+            CreateRequest(status: "Pending", expiresAt: now.AddMinutes(5)),
+            CreateRequest(status: "Resolved", expiresAt: now.AddMinutes(-5)),
+            CreateRequest(status: "Pending", expiresAt: null)
         );
         await ctx.SaveChangesAsync();
 
         var result = await sut.GetExpiredPendingAsync(now);
 
         result.Should().HaveCount(1);
-        result[0].Status.Should().Be("pending");
+        result[0].Status.Should().Be("Pending");
         result[0].ExpiresAt.Should().BeBefore(now);
     }
 
@@ -152,7 +152,7 @@ public sealed class PendingRequestRepositoryTests
         using var ctx = TestDbContextFactory.Create();
         var sut = new PendingRequestRepository(ctx);
 
-        var request = CreateRequest(status: "pending");
+        var request = CreateRequest(status: "Pending");
         ctx.PendingRequests.Add(request);
         await ctx.SaveChangesAsync();
 
@@ -172,22 +172,22 @@ public sealed class PendingRequestRepositoryTests
 
         var appRegId = Guid.NewGuid();
         ctx.PendingRequests.AddRange(
-            CreateRequest(appRegId: appRegId, status: "pending"),
-            CreateRequest(appRegId: appRegId, status: "pending"),
-            CreateRequest(appRegId: appRegId, status: "resolved"),
-            CreateRequest(appRegId: Guid.NewGuid(), status: "pending")
+            CreateRequest(appRegId: appRegId, status: "Pending"),
+            CreateRequest(appRegId: appRegId, status: "Pending"),
+            CreateRequest(appRegId: appRegId, status: "Resolved"),
+            CreateRequest(appRegId: Guid.NewGuid(), status: "Pending")
         );
         await ctx.SaveChangesAsync();
 
         await sut.CancelAllForAppRegistrationAsync(appRegId);
 
         var remaining = ctx.PendingRequests
-            .Where(r => r.AppRegistrationId == appRegId && r.Status == "pending")
+            .Where(r => r.AppRegistrationId == appRegId && r.Status == "Pending")
             .ToList();
         remaining.Should().BeEmpty();
 
         var cancelled = ctx.PendingRequests
-            .Where(r => r.AppRegistrationId == appRegId && r.Status == "cancelled")
+            .Where(r => r.AppRegistrationId == appRegId && r.Status == "Cancelled")
             .ToList();
         cancelled.Should().HaveCount(2);
     }
@@ -200,10 +200,10 @@ public sealed class PendingRequestRepositoryTests
 
         var userId = Guid.NewGuid();
         ctx.PendingRequests.AddRange(
-            CreateRequest(userId: userId, status: "pending"),
-            CreateRequest(userId: userId, status: "pending"),
-            CreateRequest(userId: userId, status: "resolved"),
-            CreateRequest(userId: Guid.NewGuid(), status: "pending")
+            CreateRequest(userId: userId, status: "Pending"),
+            CreateRequest(userId: userId, status: "Pending"),
+            CreateRequest(userId: userId, status: "Resolved"),
+            CreateRequest(userId: Guid.NewGuid(), status: "Pending")
         );
         await ctx.SaveChangesAsync();
 

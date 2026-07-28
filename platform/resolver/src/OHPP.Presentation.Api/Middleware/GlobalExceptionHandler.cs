@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 
 namespace OHPP.Presentation.Api.Middleware;
 
@@ -31,14 +32,12 @@ public sealed class GlobalExceptionHandler
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
-        var response = new
-        {
-            error = new
-            {
-                code = "INTERNAL_ERROR",
-                message = "An unexpected error occurred."
-            }
-        };
+        var env = context.RequestServices?.GetService<IWebHostEnvironment>();
+        var isDev = env?.EnvironmentName == "Development";
+
+        var response = isDev
+            ? new { error = new { code = "INTERNAL_ERROR", message = exception.Message, detail = exception.ToString() } }
+            : (object)new { error = new { code = "INTERNAL_ERROR", message = "An unexpected error occurred." } };
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }

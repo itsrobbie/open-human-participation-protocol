@@ -11,6 +11,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddOhppProtocolValidation(this IServiceCollection services)
     {
         services.AddSingleton<IRequestValidator, ProtocolRequestValidator>();
+        services.AddSingleton<IRequestDeserialiser, ProtocolRequestDeserialiser>();
 
         return services;
     }
