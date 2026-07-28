@@ -59,7 +59,7 @@ public sealed class ExpiryAndConcurrencyTests : IntegrationTestBase
         var statusResponse = await appClient.GetAsync($"/api/participate/{requestId}/status");
         statusResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var statusBody = await statusResponse.Content.ReadAsStringAsync();
-        statusBody.Should().Contain("Expired");
+        statusBody.Should().Contain("expired");
     }
 
     [Fact]

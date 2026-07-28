@@ -70,7 +70,7 @@ public sealed class ParticipationTests : IntegrationTestBase
 
         var response = await appClient.PostAsJsonAsync("/api/participate", new { payload });
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class ParticipationTests : IntegrationTestBase
 
         statusResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var statusBody = await statusResponse.Content.ReadAsStringAsync();
-        statusBody.Should().Contain("Pending");
+        statusBody.Should().Contain("pending");
     }
 
     [Fact]

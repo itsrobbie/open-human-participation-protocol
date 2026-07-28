@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\OHPP.Presentation.Api\OHPP.Presentation.Api.csproj" />
+    <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Sdk\OHPP.Sdk.csproj" />
   </ItemGroup>
 
   <ItemGroup>

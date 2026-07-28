@@ -86,7 +86,7 @@ public sealed class FullCeremonyTests : IntegrationTestBase
         var statusResponse = await appClient.GetAsync($"/api/participate/{requestId}/status");
         statusResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var statusBody = await statusResponse.Content.ReadAsStringAsync();
-        statusBody.Should().Contain("Resolved");
+        statusBody.Should().Contain("resolved");
     }
 
     [Fact]

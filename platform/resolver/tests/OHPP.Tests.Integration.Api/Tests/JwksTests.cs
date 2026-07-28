@@ -66,7 +66,7 @@ public sealed class JwksTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("protocolVersion");
-        body.Should().Contain("resolverName");
+        body.Should().Contain("\"name\"");
         body.Should().Contain("endpoints");
     }
 }
