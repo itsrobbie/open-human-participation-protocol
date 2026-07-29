@@ -12,7 +12,7 @@ namespace OHPP.Presentation.Api.Middleware;
 public sealed class RateLimitingMiddleware
 {
     private readonly RequestDelegate _next;
-    private const int MaxRequestsPerMinute = 60;
+    private const int MaxRequestsPerMinute = 200;
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
 
     public RateLimitingMiddleware(RequestDelegate next)

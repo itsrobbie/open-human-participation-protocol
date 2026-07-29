@@ -64,3 +64,19 @@ public enum TransferStatus
     Failed,
     Expired
 }
+
+/// <summary>
+/// A record of a transfer attempt and its outcome.
+/// </summary>
+public sealed class TransactionRecord
+{
+    public required string Id { get; init; }
+    public required string AccountId { get; init; }
+    public required string PayeeName { get; init; }
+    public required decimal Amount { get; init; }
+    public string? Reference { get; init; }
+    public required TransferStatus Status { get; set; }
+    public string? ParticipationRequestId { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset? ResolvedAt { get; set; }
+}

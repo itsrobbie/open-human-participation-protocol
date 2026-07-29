@@ -1,7 +1,9 @@
 using System.Security.Cryptography;
+using System.Text.Json;
 using OHPP.Domain.Attestation;
 using OHPP.Domain.Participation;
 using OHPP.Protocol.Models;
+using OHPP.Protocol.Serialisation;
 using OHPP.Sdk.Server;
 
 namespace OHPP.Presentation.Api;
@@ -15,15 +17,18 @@ public sealed class OhppResolverServicesAdapter : IOhppResolverServices
     private readonly IParticipationRequestService _participationService;
     private readonly IRequestLifecycleManager _lifecycleManager;
     private readonly IJwksService _jwksService;
+    private readonly IParticipationRecordRepository _recordRepo;
 
     public OhppResolverServicesAdapter(
         IParticipationRequestService participationService,
         IRequestLifecycleManager lifecycleManager,
-        IJwksService jwksService)
+        IJwksService jwksService,
+        IParticipationRecordRepository recordRepo)
     {
         _participationService = participationService;
         _lifecycleManager = lifecycleManager;
         _jwksService = jwksService;
+        _recordRepo = recordRepo;
     }
 
     public async Task<ResolverResult<string>> ProcessParticipationRequestAsync(
@@ -33,7 +38,18 @@ public sealed class OhppResolverServicesAdapter : IOhppResolverServices
             appRegistrationId, userId, appId, requestPayload);
 
         if (result.IsFailure)
-            return ResolverResult<string>.Fail(result.Error!.Message, 400);
+        {
+            var statusCode = result.Error!.Code switch
+            {
+                "SERVICE_UNAVAILABLE" => 503,
+                "RATE_LIMITED" => 429,
+                "NOT_FOUND" => 404,
+                "FORBIDDEN" => 403,
+                "CONFLICT" => 409,
+                _ => 400
+            };
+            return ResolverResult<string>.Fail(result.Error.Message, statusCode);
+        }
 
         return ResolverResult<string>.Ok(result.Value!.Id.ToString());
     }
@@ -49,10 +65,28 @@ public sealed class OhppResolverServicesAdapter : IOhppResolverServices
         var pending = result.Value!;
         var status = ParseStatus(pending.Status);
 
+        // Extract decision details and attestation if resolved
+        string? selectedOption = null;
+        AttestationEnvelope? attestation = null;
+
+        if (status == Protocol.RequestStatus.Resolved)
+        {
+            var record = await _recordRepo.GetByRequestIdAsync(requestId);
+            if (record?.DecisionPayload is not null)
+            {
+                selectedOption = ExtractSelectedOption(record.DecisionPayload);
+            }
+            if (record?.AttestationPayload is not null)
+            {
+                attestation = OhppJsonSerialiser.Deserialise<AttestationEnvelope>(record.AttestationPayload);
+            }
+        }
+
         return ResolverResult<RequestStatusResponse>.Ok(new RequestStatusResponse
         {
             Status = status,
-            Attestation = null // Attestation envelope is attached by the counter-signing flow if resolved
+            Attestation = attestation,
+            SelectedOption = selectedOption,
         });
     }
 
@@ -89,6 +123,25 @@ public sealed class OhppResolverServicesAdapter : IOhppResolverServices
         "Cancelled" => Protocol.RequestStatus.Cancelled,
         _ => Protocol.RequestStatus.Pending
     };
+
+    private static string? ExtractSelectedOption(string decisionPayloadJson)
+    {
+        try
+        {
+            var doc = JsonDocument.Parse(decisionPayloadJson);
+            // Web approval format: { "selectedOption": "approve", ... }
+            if (doc.RootElement.TryGetProperty("selectedOption", out var selOpt) && selOpt.ValueKind == JsonValueKind.String)
+                return selOpt.GetString();
+            // Device attestation format: { "decision": "approve", ... }
+            if (doc.RootElement.TryGetProperty("decision", out var dec) && dec.ValueKind == JsonValueKind.String)
+                return dec.GetString();
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     private static Jwk? ConvertPemToJwk(JwkEntry entry)
     {

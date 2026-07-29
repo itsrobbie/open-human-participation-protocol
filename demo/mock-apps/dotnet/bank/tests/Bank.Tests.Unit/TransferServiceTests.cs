@@ -10,11 +10,12 @@ public sealed class TransferServiceTests
 {
     private readonly IAccountStore _accountStore = Substitute.For<IAccountStore>();
     private readonly IParticipationClient _participationClient = Substitute.For<IParticipationClient>();
+    private readonly ITransactionStore _transactionStore = Substitute.For<ITransactionStore>();
     private readonly TransferService _service;
 
     public TransferServiceTests()
     {
-        _service = new TransferService(_accountStore, _participationClient);
+        _service = new TransferService(_accountStore, _participationClient, _transactionStore);
     }
 
     private static Account CreateAccount(bool withOhpp = false, decimal balance = 1000m)

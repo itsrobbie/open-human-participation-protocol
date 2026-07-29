@@ -110,7 +110,7 @@ public class ParticipationRequestServiceTests
         var result = await _sut.SubmitRequestAsync(_appRegistrationId, _userId, AppId, json);
 
         result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be("VALIDATION_ERROR");
+        result.Error!.Code.Should().Be("SERVICE_UNAVAILABLE");
         result.Error.Message.Should().Contain("No active devices");
     }
 

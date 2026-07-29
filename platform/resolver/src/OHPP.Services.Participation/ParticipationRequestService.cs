@@ -87,10 +87,7 @@ public sealed class ParticipationRequestService : IParticipationRequestService
         // Check active devices exist
         var devices = await _deviceTokenRepo.GetActiveByUserIdAsync(userId, cancellationToken);
         if (devices.Count == 0)
-            return Error.Validation("No active devices registered for user", new[]
-            {
-                new ValidationFailure { Field = "userId", Message = "User has no active devices" }
-            });
+            return Error.ServiceUnavailable("No active devices registered for user");
 
         // Build and store PendingRequest
         var pendingRequest = new PendingRequest

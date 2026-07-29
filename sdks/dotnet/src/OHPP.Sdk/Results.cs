@@ -29,14 +29,20 @@ public sealed class RequestStatusResult
     public bool Success { get; init; }
     public RequestStatus? Status { get; init; }
     public AttestationEnvelope? Attestation { get; init; }
+    /// <summary>
+    /// The user's selected option key (for Select type requests) or value.
+    /// Available when the request has been resolved, regardless of resolution method.
+    /// </summary>
+    public string? SelectedOption { get; init; }
     public string? Error { get; init; }
     public int? HttpStatusCode { get; init; }
 
-    public static RequestStatusResult Ok(RequestStatus status, AttestationEnvelope? attestation = null) => new()
+    public static RequestStatusResult Ok(RequestStatus status, AttestationEnvelope? attestation = null, string? selectedOption = null) => new()
     {
         Success = true,
         Status = status,
-        Attestation = attestation
+        Attestation = attestation,
+        SelectedOption = selectedOption
     };
 
     public static RequestStatusResult Fail(string error, int? statusCode = null) => new()

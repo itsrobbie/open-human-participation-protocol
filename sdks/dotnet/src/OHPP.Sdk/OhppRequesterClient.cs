@@ -83,7 +83,7 @@ public sealed class OhppRequesterClient : IOhppRequesterClient
         if (statusResponse is null)
             return RequestStatusResult.Fail("Could not parse status response");
 
-        return RequestStatusResult.Ok(statusResponse.Status, statusResponse.Attestation);
+        return RequestStatusResult.Ok(statusResponse.Status, statusResponse.Attestation, statusResponse.SelectedOption);
     }
 
     public async Task<CancelResult> CancelRequestAsync(
@@ -230,5 +230,6 @@ public sealed class OhppRequesterClient : IOhppRequesterClient
     {
         public RequestStatus Status { get; init; }
         public AttestationEnvelope? Attestation { get; init; }
+        public string? SelectedOption { get; init; }
     }
 }

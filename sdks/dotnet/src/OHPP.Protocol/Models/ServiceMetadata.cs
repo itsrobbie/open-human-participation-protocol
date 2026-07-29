@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace OHPP.Protocol.Models;
 
 public sealed class ServiceMetadata
@@ -16,7 +18,10 @@ public sealed class ProtocolVersionRange
 public sealed class ServiceEndpoints
 {
     public required string Participate { get; init; }
+
+    [JsonPropertyName("participate_status")]
     public required string ParticipateStatus { get; init; }
+
     public required string Keys { get; init; }
     public string? Federation { get; init; }
 }

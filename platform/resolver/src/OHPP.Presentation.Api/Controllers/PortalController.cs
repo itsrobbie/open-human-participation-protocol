@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 using OHPP.Domain.Auth;
 using OHPP.Domain.Participation;
 using OHPP.Domain.Registration;
@@ -160,6 +161,197 @@ public sealed class PortalController : OhppControllerBase
 
         return NoContent();
     }
+
+    // --- Web Approvals (fallback — only available when no devices with keys exist) ---
+
+    [HttpGet("web-approvals/status")]
+    public async Task<IActionResult> GetWebApprovalsStatus()
+    {
+        var enabled = !await HasActiveDeviceWithKeyAsync();
+        return Ok(new
+        {
+            enabled,
+            reason = enabled ? (string?)null : "Disabled — you have a registered device with a key"
+        });
+    }
+
+    [HttpGet("web-approvals/pending")]
+    public async Task<IActionResult> GetWebPending()
+    {
+        if (await HasActiveDeviceWithKeyAsync())
+            return StatusCode(403, new { error = "Web approvals are disabled when you have registered devices" });
+
+        var pending = await _pendingRepo.GetPendingByUserIdAsync(UserId);
+
+        // Deserialise RequestPayload to expose full request details to the portal
+        var enriched = pending.Select(p =>
+        {
+            var payload = TryParseRequestPayload(p.RequestPayload);
+            return new
+            {
+                p.Id,
+                p.AppId,
+                actionSummary = p.ActionSummary,
+                description = payload?.Description,
+                rationale = payload?.Rationale,
+                type = p.Type.ToLowerInvariant(),
+                options = payload?.Options,
+                placeholder = payload?.Placeholder,
+                masked = payload?.Masked ?? false,
+                keyboard = payload?.Keyboard,
+                expiresAt = p.ExpiresAt,
+                createdAt = p.CreatedAt,
+            };
+        });
+
+        return Ok(enriched);
+    }
+
+    [HttpPost("web-approvals/{requestId:guid}/resolve")]
+    public async Task<IActionResult> WebResolve(Guid requestId, [FromBody] WebResolveRequest request)
+    {
+        if (await HasActiveDeviceWithKeyAsync())
+            return StatusCode(403, new { error = "Web approvals are disabled when you have registered devices" });
+
+        var pending = await _pendingRepo.GetByIdAsync(requestId);
+        if (pending is null || pending.UserId != UserId)
+            return NotFound();
+
+        if (pending.Status != "Pending")
+            return Conflict(new { error = $"Request is already {pending.Status}" });
+
+        // Validate the response against the request's options (for Select/Multiselect)
+        var validationError = ValidateWebResponse(request, pending);
+        if (validationError is not null)
+            return BadRequest(new { error = validationError });
+
+        // Build decision payload matching the protocol's attestation structure
+        var decisionPayload = JsonSerializer.Serialize(new
+        {
+            selectedOption = request.SelectedOption,
+            selectedOptions = request.SelectedOptions,
+            value = request.Value,
+            method = "WebApproval",
+            decisionTimestamp = DateTimeOffset.UtcNow.ToString("o")
+        });
+
+        // Always "Resolved" — the resolver does not interpret the answer semantically.
+        // The requesting app reads the decision payload to determine what the user chose.
+        pending.Status = "Resolved";
+        pending.ResolvedAt = DateTimeOffset.UtcNow;
+        await _pendingRepo.UpdateStatusAsync(pending.Id, "Resolved", DateTimeOffset.UtcNow);
+
+        var record = new ParticipationRecord
+        {
+            Id = Guid.NewGuid(),
+            RequestId = pending.Id,
+            UserId = UserId,
+            AppRegistrationId = pending.AppRegistrationId,
+            Status = "Resolved",
+            AppId = pending.AppId,
+            AppName = pending.AppId,
+            ActionSummary = pending.ActionSummary,
+            Type = pending.Type,
+            DecisionPayload = decisionPayload,
+            ResolutionMethod = "WebApproval",
+            CreatedAt = pending.CreatedAt,
+            ResolvedAt = DateTimeOffset.UtcNow
+        };
+        await _recordRepo.CreateAsync(record);
+
+        return Ok(new { status = "resolved", selectedOption = request.SelectedOption, value = request.Value });
+    }
+
+    private static string? ValidateWebResponse(WebResolveRequest request, PendingRequest pending)
+    {
+        var type = pending.Type.ToLowerInvariant();
+
+        if (type is "select")
+        {
+            if (string.IsNullOrWhiteSpace(request.SelectedOption))
+                return "selectedOption is required for Select type requests";
+
+            // Validate against the request's options
+            var payload = TryParseRequestPayload(pending.RequestPayload);
+            if (payload?.Options is { Count: > 0 })
+            {
+                var validKeys = payload.Options.Select(o => o.Key).ToList();
+                if (!validKeys.Contains(request.SelectedOption))
+                    return $"'{request.SelectedOption}' is not a valid option. Valid options: {string.Join(", ", validKeys)}";
+            }
+        }
+        else if (type is "multiselect")
+        {
+            if (request.SelectedOptions is null || request.SelectedOptions.Count == 0)
+                return "selectedOptions is required for Multiselect type requests";
+        }
+        else if (type is "text" or "number" or "date" or "datetime")
+        {
+            if (string.IsNullOrWhiteSpace(request.Value))
+                return "value is required for this request type";
+        }
+        // Signature type just requires submission (acknowledgement)
+
+        return null;
+    }
+
+    private static ParsedRequestPayload? TryParseRequestPayload(string requestPayloadJson)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<ParsedRequestPayload>(requestPayloadJson, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<bool> HasActiveDeviceWithKeyAsync()
+    {
+        var devices = await _deviceRepo.GetActiveByUserIdAsync(UserId);
+        return devices.Any(d => d.PublicKey is not null);
+    }
 }
 
 public sealed record CreateDeviceRequest(string Name, string DeviceType);
+
+public sealed record WebResolveRequest(
+    string? SelectedOption,
+    IReadOnlyList<string>? SelectedOptions,
+    string? Value
+);
+
+/// <summary>
+/// Lightweight DTO for deserialising the stored RequestPayload JSON to expose to the portal.
+/// Matches the ParticipationRequest structure from the SDK.
+/// </summary>
+internal sealed class ParsedRequestPayload
+{
+    public ParsedActionInfo? Action { get; set; }
+    public string? Placeholder { get; set; }
+    public bool Masked { get; set; }
+    public string? Keyboard { get; set; }
+    public IReadOnlyList<ParsedRequestOption>? Options { get; set; }
+
+    // Convenience accessors for the enriched response
+    public string? Description => Action?.Description;
+    public string? Rationale => Action?.Rationale;
+}
+
+internal sealed class ParsedActionInfo
+{
+    public string? Summary { get; set; }
+    public string? Description { get; set; }
+    public string? Rationale { get; set; }
+    public string? Category { get; set; }
+}
+
+internal sealed class ParsedRequestOption
+{
+    public required string Key { get; set; }
+    public required string Label { get; set; }
+}

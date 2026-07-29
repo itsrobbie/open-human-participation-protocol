@@ -74,7 +74,7 @@ public static class OhppResolverEndpoints
             if (!result.IsSuccess)
                 return Results.Problem(detail: result.Error, statusCode: result.SuggestedStatusCode);
 
-            return Results.Created($"{options.StatusPathTemplate.Replace("{requestId}", result.Value)}", new { requestId = result.Value });
+            return Results.Created($"{options.StatusPathTemplate.Replace("{requestId}", result.Value)}", new { requestId = result.Value, status = "pending" });
         });
 
         endpoints.MapGet(options.StatusPathTemplate.Replace("{requestId}", "{requestId:guid}"),

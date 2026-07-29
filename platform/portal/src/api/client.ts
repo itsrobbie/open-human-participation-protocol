@@ -1,5 +1,6 @@
 import createClient from 'openapi-fetch'
 import type { paths } from './schema'
+import { ensureFreshToken, refreshAccessToken, clearTokens } from '../auth/token'
 
 /**
  * Typed API client generated from the Resolver's OpenAPI spec (swagger.json).
@@ -15,14 +16,28 @@ export const client = createClient<paths>({
   baseUrl: '',
 })
 
-// Inject auth token into every request
+// Inject auth token into every request (with proactive refresh)
 client.use({
   async onRequest({ request }) {
-    const token = localStorage.getItem('ohpp_device_token')
+    // Attempt to get a fresh token (refreshes proactively if near expiry)
+    const token = await ensureFreshToken()
     if (token) {
       request.headers.set('Authorization', `Bearer ${token}`)
     }
     return request
+  },
+  async onResponse({ response }) {
+    // If we still get a 401, try one more refresh attempt
+    if (response.status === 401) {
+      const refreshed = await refreshAccessToken()
+      if (!refreshed) {
+        // Refresh failed — session is truly over
+        clearTokens()
+        window.location.href = '/login'
+      }
+      // If refresh succeeded, the next request from react-query retry will use the new token
+    }
+    return response
   },
 })
 

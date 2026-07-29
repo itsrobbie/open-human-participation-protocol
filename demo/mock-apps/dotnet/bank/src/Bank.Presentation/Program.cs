@@ -1,9 +1,16 @@
+using System.Text.Json.Serialization;
 using Bank.Domain;
 using Bank.Infrastructure;
 using Bank.Services;
 using OHPP.Sdk;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- JSON serialization: enums as strings ---
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 // --- Swagger ---
 builder.Services.AddEndpointsApiExplorer();
@@ -19,12 +26,14 @@ builder.Services.AddSwaggerGen(options =>
 
 // --- DI ---
 builder.Services.AddSingleton<IAccountStore, InMemoryAccountStore>();
+builder.Services.AddSingleton<ITransactionStore, InMemoryTransactionStore>();
 builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<TransferService>();
 
 // OHPP SDK (Requester)
 var appId = builder.Configuration["Bank:AppId"] ?? "bank.demo.test";
 var bankBaseUrl = builder.Configuration["Bank:BaseUrl"] ?? "http://localhost:5010";
+var resolverInternalUrl = builder.Configuration["Bank:ResolverInternalUrl"];
 
 builder.Services.AddOhppRequester(options =>
 {
@@ -84,6 +93,21 @@ app.MapGet("/api/transfers/{requestId}/status", async (string requestId, string 
     return Results.Ok(result);
 });
 
+app.MapGet("/api/transactions", async (string accountId, ITransactionStore transactions, TransferService transfers) =>
+{
+    var records = await transactions.GetByAccountIdAsync(accountId);
+
+    // Refresh status of any pending transactions (resolves stale state after page reload)
+    foreach (var record in records.Where(r => r.Status == TransferStatus.PendingApproval && r.ParticipationRequestId is not null))
+    {
+        await transfers.CompleteTransferAsync(accountId, record.ParticipationRequestId!);
+    }
+
+    // Re-fetch after status updates
+    records = await transactions.GetByAccountIdAsync(accountId);
+    return Results.Ok(records);
+});
+
 // --- Payee endpoints ---
 app.MapPost("/api/payees", async (AddPayeeRequest request, AccountService accounts) =>
 {
@@ -104,13 +128,39 @@ app.MapPost("/api/ohpp/register", async (OhppRegistrationRequest request, Accoun
     return success ? Results.Ok() : Results.BadRequest();
 });
 
+app.MapDelete("/api/ohpp/disconnect", async (AccountService accounts) =>
+{
+    var account = await accounts.GetAccountAsync("demo-account");
+    if (account is null) return Results.NotFound();
+    account.OhppRegistration = null;
+    return Results.Ok(new { status = "disconnected" });
+});
+
+app.MapPost("/api/ohpp/generate-challenge", (ChallengeGenerator challengeGen) =>
+{
+    var challenge = challengeGen.CreateChallenge(TimeSpan.FromMinutes(10));
+    var uri = ChallengeGenerator.BuildChallengeUri(challenge);
+    return Results.Ok(new { challengeUri = uri, challengeId = challenge.ChallengeId, expiresAt = challenge.ExpiresAt });
+});
+
 // --- OHPP Callback (registration ceremony) ---
-app.MapPost("/ohpp/callback", async (HttpContext context, CallbackHandler handler) =>
+app.MapPost("/ohpp/callback", async (HttpContext context, CallbackHandler handler, AccountService accounts) =>
 {
     using var reader = new StreamReader(context.Request.Body);
     var body = await reader.ReadToEndAsync();
     var result = await handler.HandleCallbackAsync(body);
-    return result is not null ? Results.Ok() : Results.BadRequest();
+    if (result is null) return Results.BadRequest();
+
+    // Auto-connect OHPP to the demo account when callback arrives
+    var registration = new OhppRegistration
+    {
+        ResolverUrl = resolverInternalUrl ?? result.ResolverBaseUrl,
+        AccessToken = result.AccessToken,
+        UserId = result.UserId
+    };
+    await accounts.RegisterOhppAsync("demo-account", registration);
+
+    return Results.Ok();
 });
 
 // --- App Metadata (required by protocol) ---
@@ -118,8 +168,9 @@ app.MapGet("/.well-known/ohpp/app-metadata", () => Results.Ok(new
 {
     appId,
     name = "Demo Bank",
+    icon = (string?)null,
     version = "1.0",
-    endpoints = new { registrationCallback = $"{bankBaseUrl}/ohpp/callback" }
+    endpoints = new { registrationCallback = "/ohpp/callback" }
 }));
 
 app.Run();

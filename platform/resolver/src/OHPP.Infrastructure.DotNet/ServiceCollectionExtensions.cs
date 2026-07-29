@@ -19,10 +19,12 @@ public static class ServiceCollectionExtensions
     /// <param name="services">Service collection</param>
     /// <param name="resolverBaseUrl">Base URL of the Resolver (for registration callbacks)</param>
     /// <param name="encryptionKey">AES encryption key for signing key storage</param>
+    /// <param name="appIdOverrides">Optional mapping of appId to internal base URL (for Docker/dev environments)</param>
     public static IServiceCollection AddOhppInfrastructure(
         this IServiceCollection services,
         string resolverBaseUrl,
-        string encryptionKey)
+        string encryptionKey,
+        IReadOnlyDictionary<string, string>? appIdOverrides = null)
     {
         // Configuration
         services.AddSingleton<IResolverConfiguration>(new ResolverConfigurationRecord(resolverBaseUrl));
@@ -53,7 +55,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRegistrationCallbackSender, HttpRegistrationCallbackSender>();
 
         // App ID resolution (maps domain-based appId to base URL)
-        services.AddSingleton<IAppIdResolver>(new DevModeAppIdResolver(new Dictionary<string, string>()));
+        services.AddSingleton<IAppIdResolver>(new DevModeAppIdResolver(
+            appIdOverrides ?? new Dictionary<string, string>()));
 
         return services;
     }

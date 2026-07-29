@@ -80,4 +80,10 @@ public sealed class RequestStatusResponse
 {
     public required RequestStatus Status { get; init; }
     public AttestationEnvelope? Attestation { get; init; }
+    /// <summary>
+    /// The selected option key (for Select type) or free-text value, if resolved.
+    /// Available regardless of resolution method (device attestation or web approval).
+    /// Apps use this to determine the user's answer.
+    /// </summary>
+    public string? SelectedOption { get; init; }
 }

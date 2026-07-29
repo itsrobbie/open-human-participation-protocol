@@ -18,6 +18,7 @@ const resolverUrlInput = document.getElementById('resolver-url') as HTMLInputEle
 const accessTokenInput = document.getElementById('access-token') as HTMLInputElement
 const userIdInput = document.getElementById('user-id') as HTMLInputElement
 const ohppResultEl = document.getElementById('ohpp-result')!
+const transactionListEl = document.getElementById('transaction-list')!
 
 // --- Load account ---
 async function loadAccount() {
@@ -43,6 +44,49 @@ async function loadAccount() {
   }
 }
 
+// --- Transaction History ---
+interface TransactionRecord {
+  id: string
+  accountId: string
+  payeeName: string
+  amount: number
+  reference: string | null
+  status: string
+  participationRequestId: string | null
+  createdAt: string
+  resolvedAt: string | null
+}
+
+async function loadTransactions() {
+  const res = await fetch(`/api/transactions?accountId=${ACCOUNT_ID}`)
+  if (!res.ok) return
+  const transactions: TransactionRecord[] = await res.json()
+
+  if (transactions.length === 0) {
+    transactionListEl.innerHTML = '<p style="color:#888; font-size:0.85rem;">No transactions yet.</p>'
+    return
+  }
+
+  transactionListEl.innerHTML = transactions.map((txn) => {
+    const statusClass = txn.status.toLowerCase()
+    const statusLabel = txn.status === 'PendingApproval' ? 'Pending' : txn.status
+    const time = new Date(txn.createdAt).toLocaleString()
+    const ref = txn.reference ? ` · ${txn.reference}` : ''
+    return `
+      <div class="txn-item">
+        <div class="txn-left">
+          <span class="txn-payee">${txn.payeeName}</span>
+          <span class="txn-meta">${time}${ref}</span>
+        </div>
+        <div class="txn-right">
+          <span class="txn-amount">£${txn.amount.toFixed(2)}</span>
+          <span class="txn-status ${statusClass}">${statusLabel}</span>
+        </div>
+      </div>
+    `
+  }).join('')
+}
+
 // --- Transfer ---
 transferForm.addEventListener('submit', async (e) => {
   e.preventDefault()
@@ -64,9 +108,11 @@ transferForm.addEventListener('submit', async (e) => {
     transferResultEl.className = 'status success'
     transferResultEl.textContent = '✓ Transfer completed.'
     loadAccount()
+    loadTransactions()
   } else if (result.status === 'PendingApproval' || result.status === 1) {
     transferResultEl.className = 'status pending'
     transferResultEl.textContent = `⏳ Waiting for approval on your device... (Request ID: ${result.participationRequestId})`
+    loadTransactions()
     if (result.participationRequestId) pollStatus(result.participationRequestId)
   } else {
     transferResultEl.className = 'status error'
@@ -87,14 +133,17 @@ async function pollStatus(requestId: string) {
       transferResultEl.className = 'status success'
       transferResultEl.textContent = '✓ Transfer approved and completed.'
       loadAccount()
+      loadTransactions()
       return
     } else if (result.status === 'Denied' || result.status === 2) {
       transferResultEl.className = 'status error'
       transferResultEl.textContent = '✗ Transfer denied by user.'
+      loadTransactions()
       return
     } else if (result.status === 'Failed' || result.status === 3) {
       transferResultEl.className = 'status error'
       transferResultEl.textContent = `✗ ${result.error || 'Transfer failed'}`
+      loadTransactions()
       return
     }
   }
@@ -126,5 +175,56 @@ ohppForm.addEventListener('submit', async (e) => {
   }
 })
 
+// --- Challenge generation ---
+const generateBtn = document.getElementById('generate-challenge-btn')!
+const challengeDisplay = document.getElementById('challenge-display')!
+const challengeUriEl = document.getElementById('challenge-uri') as HTMLTextAreaElement
+const copyBtn = document.getElementById('copy-challenge')!
+const disconnectSection = document.getElementById('ohpp-disconnect-section')!
+const disconnectBtn = document.getElementById('disconnect-btn')!
+
+generateBtn.addEventListener('click', async () => {
+  const res = await fetch('/api/ohpp/generate-challenge', { method: 'POST' })
+  if (!res.ok) return
+
+  const data = await res.json() as { challengeUri: string }
+  challengeUriEl.value = data.challengeUri
+  challengeDisplay.style.display = 'block'
+
+  // Start polling for connection (callback will arrive once user approves in Portal)
+  pollForConnection()
+})
+
+copyBtn.addEventListener('click', () => {
+  challengeUriEl.select()
+  navigator.clipboard.writeText(challengeUriEl.value)
+  copyBtn.textContent = 'Copied!'
+  setTimeout(() => { copyBtn.textContent = 'Copy to clipboard' }, 2000)
+})
+
+disconnectBtn.addEventListener('click', async () => {
+  await fetch('/api/ohpp/disconnect', { method: 'DELETE' })
+  loadAccount()
+  disconnectSection.style.display = 'none'
+})
+
+async function pollForConnection() {
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 3000))
+    const res = await fetch(`/api/accounts/${ACCOUNT_ID}`)
+    if (!res.ok) continue
+    const account = await res.json() as { ohppRegistration: unknown }
+    if (account.ohppRegistration) {
+      ohppResultEl.style.display = 'block'
+      ohppResultEl.className = 'status success'
+      ohppResultEl.textContent = '✓ OHPP connected via registration ceremony!'
+      challengeDisplay.style.display = 'none'
+      loadAccount()
+      return
+    }
+  }
+}
+
 // --- Init ---
 loadAccount()
+loadTransactions()

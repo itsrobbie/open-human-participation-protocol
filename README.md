@@ -63,7 +63,59 @@ Three roles. Two fixed endpoints. One ceremony.
 
 ## Status
 
-This project is in active development. The protocol specification is being formalised, and a reference implementation (participation service, mobile client, and demo simulation) is being built.
+The protocol specification is complete. A working reference implementation and demo are available:
+
+| Component | Status |
+|-----------|--------|
+| Protocol specification (`/docs/`) | Complete |
+| Resolver — Participation Service (.NET 8) | Working — `platform/resolver/` |
+| .NET SDKs (Protocol, Requester, Server) | Working — `sdks/dotnet/` |
+| Portal — Management dashboard (React) | Working — `platform/portal/` |
+| CLI Client App | Working — `demo/client-cli/` |
+| Demo Bank App (OHPP-enabled) | Working — `demo/mock-apps/dotnet/bank/` |
+| Docker Compose demo | Working — `docker compose up` |
+| Client App (Flutter, iOS/Android) | Planned (U7) |
+| Additional mock apps (Node, Python, Go) | Planned (U3-U5) |
+| Mock AI Agent | Planned (U6) |
+
+### Try it now
+
+```bash
+git clone https://github.com/your-org/human-participation-protocol.git
+cd human-participation-protocol
+docker compose up --build
+```
+
+That's it. One command builds everything from source and starts the full stack. No SDK installs, no database setup, no config files.
+
+Once running, open:
+- **Bank demo**: http://localhost:5010 — make a transfer, see OHPP in action
+- **Portal**: http://localhost:3000 — register devices, manage apps
+- **Resolver API**: http://localhost:5050/swagger — explore the protocol
+
+[Full quick start guide →](docs/06-getting-started/01-quick-start.md)
+
+---
+
+## Development
+
+All common commands are in the `Makefile`. Run `make help` to see everything.
+
+| Command | What it does |
+|---------|-------------|
+| `make dev` | Start the dev stack |
+| `make test` | Run E2E tests (isolated stack, auto-teardown) |
+| `make test-unit` | Run .NET unit tests |
+| `make build` | Build everything locally |
+| `make clean-cache` | Free Docker disk space |
+
+### Running tests
+
+```bash
+make test
+```
+
+Spins up an isolated Docker stack, runs all Playwright E2E tests through real browser interactions, and tears everything down. Your dev stack is never touched.
 
 ## License
 

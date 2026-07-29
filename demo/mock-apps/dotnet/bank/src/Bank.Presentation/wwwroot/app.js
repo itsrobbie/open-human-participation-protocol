@@ -32,7 +32,7 @@ function createClient(clientOptions) {
   const middlewares = [];
   async function coreFetch(schemaPath, fetchOptions) {
     const {
-      fetch = baseFetch,
+      fetch: fetch2 = baseFetch,
       headers,
       params = {},
       parseAs = "json",
@@ -66,7 +66,7 @@ function createClient(clientOptions) {
       id = randomID();
       options = Object.freeze({
         baseUrl,
-        fetch,
+        fetch: fetch2,
         parseAs,
         querySerializer,
         bodySerializer
@@ -89,7 +89,7 @@ function createClient(clientOptions) {
         }
       }
     }
-    let response = await fetch(request);
+    let response = await fetch2(request);
     if (middlewares.length) {
       for (let i = middlewares.length - 1; i >= 0; i--) {
         const m = middlewares[i];
@@ -396,6 +396,7 @@ var resolverUrlInput = document.getElementById("resolver-url");
 var accessTokenInput = document.getElementById("access-token");
 var userIdInput = document.getElementById("user-id");
 var ohppResultEl = document.getElementById("ohpp-result");
+var transactionListEl = document.getElementById("transaction-list");
 async function loadAccount() {
   const { data } = await client.GET("/api/accounts/{id}", {
     params: { path: { id: ACCOUNT_ID } }
@@ -415,6 +416,33 @@ async function loadAccount() {
     payeeSelectEl.innerHTML += `<option value="${p.id}">${p.name}</option>`;
   }
 }
+async function loadTransactions() {
+  const res = await fetch(`/api/transactions?accountId=${ACCOUNT_ID}`);
+  if (!res.ok) return;
+  const transactions = await res.json();
+  if (transactions.length === 0) {
+    transactionListEl.innerHTML = '<p style="color:#888; font-size:0.85rem;">No transactions yet.</p>';
+    return;
+  }
+  transactionListEl.innerHTML = transactions.map((txn) => {
+    const statusClass = txn.status.toLowerCase();
+    const statusLabel = txn.status === "PendingApproval" ? "Pending" : txn.status;
+    const time = new Date(txn.createdAt).toLocaleString();
+    const ref = txn.reference ? ` \xB7 ${txn.reference}` : "";
+    return `
+      <div class="txn-item">
+        <div class="txn-left">
+          <span class="txn-payee">${txn.payeeName}</span>
+          <span class="txn-meta">${time}${ref}</span>
+        </div>
+        <div class="txn-right">
+          <span class="txn-amount">\xA3${txn.amount.toFixed(2)}</span>
+          <span class="txn-status ${statusClass}">${statusLabel}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
 transferForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const payeeId = payeeSelectEl.value;
@@ -431,9 +459,11 @@ transferForm.addEventListener("submit", async (e) => {
     transferResultEl.className = "status success";
     transferResultEl.textContent = "\u2713 Transfer completed.";
     loadAccount();
+    loadTransactions();
   } else if (result.status === "PendingApproval" || result.status === 1) {
     transferResultEl.className = "status pending";
     transferResultEl.textContent = `\u23F3 Waiting for approval on your device... (Request ID: ${result.participationRequestId})`;
+    loadTransactions();
     if (result.participationRequestId) pollStatus(result.participationRequestId);
   } else {
     transferResultEl.className = "status error";
@@ -452,14 +482,17 @@ async function pollStatus(requestId) {
       transferResultEl.className = "status success";
       transferResultEl.textContent = "\u2713 Transfer approved and completed.";
       loadAccount();
+      loadTransactions();
       return;
     } else if (result.status === "Denied" || result.status === 2) {
       transferResultEl.className = "status error";
       transferResultEl.textContent = "\u2717 Transfer denied by user.";
+      loadTransactions();
       return;
     } else if (result.status === "Failed" || result.status === 3) {
       transferResultEl.className = "status error";
       transferResultEl.textContent = `\u2717 ${result.error || "Transfer failed"}`;
+      loadTransactions();
       return;
     }
   }
@@ -486,4 +519,48 @@ ohppForm.addEventListener("submit", async (e) => {
     ohppResultEl.textContent = "\u2717 Failed to connect OHPP.";
   }
 });
+var generateBtn = document.getElementById("generate-challenge-btn");
+var challengeDisplay = document.getElementById("challenge-display");
+var challengeUriEl = document.getElementById("challenge-uri");
+var copyBtn = document.getElementById("copy-challenge");
+var disconnectSection = document.getElementById("ohpp-disconnect-section");
+var disconnectBtn = document.getElementById("disconnect-btn");
+generateBtn.addEventListener("click", async () => {
+  const res = await fetch("/api/ohpp/generate-challenge", { method: "POST" });
+  if (!res.ok) return;
+  const data = await res.json();
+  challengeUriEl.value = data.challengeUri;
+  challengeDisplay.style.display = "block";
+  pollForConnection();
+});
+copyBtn.addEventListener("click", () => {
+  challengeUriEl.select();
+  navigator.clipboard.writeText(challengeUriEl.value);
+  copyBtn.textContent = "Copied!";
+  setTimeout(() => {
+    copyBtn.textContent = "Copy to clipboard";
+  }, 2e3);
+});
+disconnectBtn.addEventListener("click", async () => {
+  await fetch("/api/ohpp/disconnect", { method: "DELETE" });
+  loadAccount();
+  disconnectSection.style.display = "none";
+});
+async function pollForConnection() {
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 3e3));
+    const res = await fetch(`/api/accounts/${ACCOUNT_ID}`);
+    if (!res.ok) continue;
+    const account = await res.json();
+    if (account.ohppRegistration) {
+      ohppResultEl.style.display = "block";
+      ohppResultEl.className = "status success";
+      ohppResultEl.textContent = "\u2713 OHPP connected via registration ceremony!";
+      challengeDisplay.style.display = "none";
+      loadAccount();
+      return;
+    }
+  }
+}
 loadAccount();
+loadTransactions();

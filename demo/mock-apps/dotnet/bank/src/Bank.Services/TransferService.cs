@@ -10,11 +10,13 @@ public sealed class TransferService
 {
     private readonly IAccountStore _accountStore;
     private readonly IParticipationClient _participationClient;
+    private readonly ITransactionStore _transactionStore;
 
-    public TransferService(IAccountStore accountStore, IParticipationClient participationClient)
+    public TransferService(IAccountStore accountStore, IParticipationClient participationClient, ITransactionStore transactionStore)
     {
         _accountStore = accountStore;
         _participationClient = participationClient;
+        _transactionStore = transactionStore;
     }
 
     public async Task<TransferResult> InitiateTransferAsync(TransferRequest request, CancellationToken cancellationToken = default)
@@ -22,6 +24,9 @@ public sealed class TransferService
         var account = await _accountStore.GetByIdAsync(request.FromAccountId, cancellationToken);
         if (account is null)
             return TransferResult.Failed("Account not found");
+
+        if (request.Amount <= 0)
+            return TransferResult.Failed("Amount must be greater than zero");
 
         if (account.Balance < request.Amount)
             return TransferResult.Failed("Insufficient funds");
@@ -44,12 +49,40 @@ public sealed class TransferService
             if (requestId is null)
                 return TransferResult.Failed("Could not send participation request to Resolver");
 
+            // Record the pending transaction
+            await _transactionStore.RecordAsync(new TransactionRecord
+            {
+                Id = Guid.NewGuid().ToString(),
+                AccountId = request.FromAccountId,
+                PayeeName = payee.Name,
+                Amount = request.Amount,
+                Reference = request.Reference,
+                Status = TransferStatus.PendingApproval,
+                ParticipationRequestId = requestId,
+                CreatedAt = DateTimeOffset.UtcNow,
+            }, cancellationToken);
+
             return TransferResult.PendingApproval(requestId);
         }
 
         // No OHPP — execute directly
         account.Balance -= request.Amount;
         await _accountStore.SaveAsync(account, cancellationToken);
+
+        // Record the immediate completion
+        await _transactionStore.RecordAsync(new TransactionRecord
+        {
+            Id = Guid.NewGuid().ToString(),
+            AccountId = request.FromAccountId,
+            PayeeName = payee.Name,
+            Amount = request.Amount,
+            Reference = request.Reference,
+            Status = TransferStatus.Completed,
+            ParticipationRequestId = null,
+            CreatedAt = DateTimeOffset.UtcNow,
+            ResolvedAt = DateTimeOffset.UtcNow,
+        }, cancellationToken);
+
         return TransferResult.Completed();
     }
 
@@ -64,6 +97,23 @@ public sealed class TransferService
             return TransferResult.Failed("No OHPP registration");
 
         var status = await _participationClient.CheckStatusAsync(account.OhppRegistration, requestId, cancellationToken);
+
+        // Update the transaction record when we get a terminal status
+        if (status is TransferStatus.Completed or TransferStatus.Denied or TransferStatus.Expired)
+        {
+            var txn = await _transactionStore.GetByParticipationRequestIdAsync(requestId, cancellationToken);
+            if (txn is not null && txn.Status == TransferStatus.PendingApproval)
+            {
+                // Deduct balance BEFORE updating status (in-memory store mutates the same reference)
+                if (status == TransferStatus.Completed)
+                {
+                    account.Balance -= txn.Amount;
+                    await _accountStore.SaveAsync(account, cancellationToken);
+                }
+
+                await _transactionStore.UpdateStatusAsync(txn.Id, status, cancellationToken);
+            }
+        }
 
         return status switch
         {

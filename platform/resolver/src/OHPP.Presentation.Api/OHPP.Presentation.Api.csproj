@@ -12,6 +12,7 @@
     <ProjectReference Include="..\OHPP.Services.Participation\OHPP.Services.Participation.csproj" />
     <ProjectReference Include="..\OHPP.Services.Attestation\OHPP.Services.Attestation.csproj" />
     <ProjectReference Include="..\OHPP.Infrastructure.Firebase\OHPP.Infrastructure.Firebase.csproj" />
+    <ProjectReference Include="..\OHPP.Infrastructure.Keycloak\OHPP.Infrastructure.Keycloak.csproj" />
     <ProjectReference Include="..\OHPP.Infrastructure.PostgreSQL\OHPP.Infrastructure.PostgreSQL.csproj" />
     <ProjectReference Include="..\OHPP.Infrastructure.DotNet\OHPP.Infrastructure.DotNet.csproj" />
     <ProjectReference Include="..\OHPP.Infrastructure.Serilog\OHPP.Infrastructure.Serilog.csproj" />

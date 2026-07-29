@@ -1,10 +1,53 @@
 # Quick start
 
+## Run the demo
+
+The fastest way to see OHPP in action — one command, nothing else to install (besides Docker):
+
+```bash
+docker compose up --build
+```
+
+This builds all images from source and starts the full ecosystem. First run takes a couple of minutes; subsequent runs are near-instant thanks to Docker layer caching.
+
+This starts:
+
+| Service | URL | What it is |
+|---------|-----|------------|
+| Resolver | http://localhost:5050 | OHPP Participation Service (routes requests, manages devices, issues attestations) |
+| Portal | http://localhost:3000 | Management dashboard (register devices, view history, manage apps) |
+| Bank | http://localhost:5010 | Demo bank app (make transfers, connect OHPP, see the difference) |
+| CLI | (interactive terminal) | CLI client for approving/denying requests from the terminal |
+| PostgreSQL | localhost:5432 | Backing database for the Resolver |
+
+### What to try
+
+1. Open the Bank at http://localhost:5010 — make a transfer. It completes immediately (no OHPP).
+2. Open the Resolver's Swagger UI at http://localhost:5050/swagger — explore the API.
+3. Register a user and device via the Portal at http://localhost:3000.
+4. Connect the Bank to OHPP via the Bank's OHPP Settings section.
+5. Make another transfer — this time it waits for your approval.
+6. Approve via the CLI container: `docker compose exec -it cli sh` then follow the prompts.
+
+---
+
 ## What's in this repository
 
-This repository contains the complete OHPP protocol specification: the problem it solves, the concepts behind it, the formal message schemas, ceremony definitions, security model, and real-world use cases.
+| Directory | What it contains |
+|-----------|-----------------|
+| `/docs/` | Protocol specification (problem, concepts, formal spec, use cases) |
+| `/platform/resolver/` | OHPP Resolver — the reference Participation Service (.NET 8) |
+| `/platform/portal/` | Management dashboard (React + TypeScript) |
+| `/sdks/dotnet/` | .NET SDKs (OHPP.Protocol, OHPP.Sdk, OHPP.Sdk.Server) |
+| `/demo/client-cli/` | CLI Client App — approve/deny requests from a terminal (.NET 8) |
+| `/demo/mock-apps/dotnet/bank/` | Demo bank app — OHPP-enabled transfers (.NET 8) |
+| `/docker-compose.yml` | One-command demo orchestration |
 
-If you're evaluating OHPP, start here:
+---
+
+## Reading the protocol spec
+
+If you're evaluating OHPP as a protocol (not the implementation):
 
 | If you want to... | Read |
 |-------------------|------|
@@ -16,42 +59,58 @@ If you're evaluating OHPP, start here:
 
 ---
 
-## Current status
+## Integrating OHPP into your app
 
-The protocol specification is complete. The following are in active development:
+The .NET SDK makes integration straightforward:
 
-| Component | Status |
-|-----------|--------|
-| Protocol specification (this repo, `/docs/`) | Complete |
-| Participation Service (Resolver, .NET 10) | Planned |
-| Client App (Flutter, iOS/Android) | Planned |
-| OHPP SDKs (TypeScript, Python, Go) | Planned |
-| Demo simulation (Docker Compose) | Planned |
-| Mock apps (10 apps, mixed tech stacks) | Planned |
-| Mock AI Agent | Planned |
+```csharp
+// In your Program.cs
+builder.Services.AddOhppRequester(options =>
+{
+    options.AppId = "your-app.example.com";
+    options.AppName = "Your App";
+    options.CallbackPath = "/ohpp/callback";
+    options.BaseUrl = "https://your-app.example.com";
+});
+```
+
+Then send a participation request:
+
+```csharp
+var request = new ParticipationRequestBuilder()
+    .ForUser(userId)
+    .FromApp("your-app.example.com")
+    .WithSummary("Approve £500 transfer to John")
+    .OfType(RequestType.Select)
+    .AddOption("approve", "Approve")
+    .AddOption("deny", "Deny")
+    .ExpiresIn(TimeSpan.FromMinutes(5))
+    .Build();
+
+var result = await requesterClient.SendRequestAsync(request, resolverUrl, accessToken);
+```
+
+See [Integrate as a Requester](02-integrate-requester.md) for the full guide.
 
 ---
 
-## What's coming: the demo simulation
+## Building a Resolver
 
-Once built, the demo will be a local simulation of the entire OHPP ecosystem. One `docker compose up` command will start:
+If you want to run your own Participation Service:
 
-- A Resolver (Participation Service)
-- A Client App simulator (web-based stand-in for the phone app)
-- An AI Agent interface (preset actions, not free-form chat)
-- 10 mock Requester apps written in different tech stacks (Express, Next.js, Flask, Django, FastAPI, Gin, Fiber)
+```csharp
+builder.Services.AddOhppResolver<MyResolverServices, MyAuthAccessor>(options =>
+{
+    options.BaseUrl = "https://resolver.example.com";
+    options.Name = "My Resolver";
+});
 
-The point of the demo: show that OHPP works across different technologies, and let people experience the difference between "agent with OHPP" and "agent without OHPP" firsthand.
+app.UseOhppResolver();
+```
 
----
+The SDK handles all protocol endpoints (metadata, JWKS, participate, status, cancel). You implement `IOhppResolverServices` to wire in your own storage and business logic.
 
-## Want to implement OHPP now?
-
-The protocol specification in [section 04](../04-specification/01-message-schemas.md) is complete enough to build against. If you want to integrate OHPP into an application today:
-
-1. Read [Integrate as a Requester](02-integrate-requester.md) for the step-by-step protocol flow
-2. Implement the five pieces: app-metadata endpoint, challenge generation, registration callback, participation requests, attestation verification
-3. For testing, you'd need a Resolver to talk to (reference implementation coming soon)
+See [Run a Resolver](03-run-resolver.md) for details.
 
 ---
 

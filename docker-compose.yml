@@ -18,6 +18,27 @@ services:
     networks:
       - ohpp
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_URL: http://localhost:8080
+      KC_HOSTNAME_STRICT: "false"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./platform/resolver/keycloak/realm-export.json:/opt/keycloak/data/import/ohpp-realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - ohpp
+
   # --- Platform ---
   resolver:
     build:
@@ -26,12 +47,17 @@ services:
     ports:
       - "5050:8080"
     environment:
+      ASPNETCORE_ENVIRONMENT: Docker
       ConnectionStrings__PostgreSQL: "Host=postgres;Database=ohpp;Username=ohpp;Password=${POSTGRES_PASSWORD:-ohpp_dev_password}"
       Resolver__BaseUrl: "http://localhost:5050"
       Resolver__Name: "OHPP Demo Resolver"
       Resolver__EncryptionKey: ${RESOLVER_ENCRYPTION_KEY:-dev-encryption-key-min-32-chars!!}
+      Auth__Provider: "Keycloak"
+      Auth__Keycloak__Authority: "http://keycloak:8080/realms/ohpp"
     depends_on:
       postgres:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
@@ -64,6 +90,7 @@ services:
     environment:
       Bank__AppId: "bank.demo.test"
       Bank__BaseUrl: "http://localhost:5010"
+      Bank__ResolverInternalUrl: "http://resolver:8080"
     depends_on:
       resolver:
         condition: service_healthy

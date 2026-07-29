@@ -33,6 +33,19 @@
         .nav a { color: #2563eb; text-decoration: none; font-weight: 500; }
         .nav a:hover { text-decoration: underline; }
         #transfer-result { display: none; }
+        .txn-item { padding: 0.75rem 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .txn-item:last-child { border-bottom: none; }
+        .txn-left { display: flex; flex-direction: column; gap: 0.15rem; }
+        .txn-payee { font-weight: 500; font-size: 0.9rem; }
+        .txn-meta { font-size: 0.75rem; color: #888; }
+        .txn-right { text-align: right; }
+        .txn-amount { font-weight: 600; font-size: 0.95rem; }
+        .txn-status { font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 10px; display: inline-block; margin-top: 0.2rem; }
+        .txn-status.completed { background: #dcfce7; color: #166534; }
+        .txn-status.pendingapproval { background: #fef3c7; color: #92400e; }
+        .txn-status.denied { background: #fee2e2; color: #991b1b; }
+        .txn-status.expired { background: #f3f4f6; color: #6b7280; }
+        .txn-status.failed { background: #fee2e2; color: #991b1b; }
     </style>
 </head>
 <body>
@@ -81,6 +94,13 @@
                 </form>
                 <div id="transfer-result"></div>
             </div>
+
+            <div class="card">
+                <h2>Transaction History</h2>
+                <div id="transaction-list">
+                    <p style="color:#888; font-size:0.85rem;">No transactions yet.</p>
+                </div>
+            </div>
         </section>
 
         <!-- OHPP Settings -->
@@ -88,22 +108,40 @@
             <div class="card">
                 <h2>OHPP Settings</h2>
                 <p style="margin-bottom:1rem; color:#666;">Connect your participation service to require approval for transfers.</p>
-                <form id="ohpp-form">
-                    <div class="form-row">
-                        <label for="resolver-url">Resolver URL</label>
-                        <input type="text" id="resolver-url" placeholder="http://localhost:5000">
+
+                <div id="ohpp-connect-section">
+                    <button id="generate-challenge-btn" style="margin-bottom:1rem;">Generate Connection Link</button>
+                    <div id="challenge-display" style="display:none;">
+                        <p style="font-size:0.85rem; color:#333; margin-bottom:0.5rem;">Copy this URI and paste it in your Resolver's Portal (Register App page):</p>
+                        <textarea id="challenge-uri" readonly rows="3" style="font-family:monospace; font-size:0.75rem; background:#f9f9f9; width:100%;"></textarea>
+                        <button id="copy-challenge" class="secondary" style="margin-top:0.5rem;">Copy to clipboard</button>
+                        <p style="font-size:0.75rem; color:#888; margin-top:0.5rem;">Once you approve in the Portal, this page will update automatically.</p>
                     </div>
-                    <div class="form-row">
-                        <label for="access-token">Access Token</label>
-                        <input type="text" id="access-token" placeholder="ohpp_app_...">
-                    </div>
-                    <div class="form-row">
-                        <label for="user-id">User ID</label>
-                        <input type="text" id="user-id" placeholder="Your user ID from the Resolver">
-                    </div>
-                    <button type="submit">Connect OHPP</button>
-                </form>
+                </div>
+
+                <details style="margin-top:1.5rem;">
+                    <summary style="cursor:pointer; color:#666; font-size:0.85rem;">Manual connection (advanced)</summary>
+                    <form id="ohpp-form" style="margin-top:1rem;">
+                        <div class="form-row">
+                            <label for="resolver-url">Resolver URL</label>
+                            <input type="text" id="resolver-url" placeholder="http://localhost:5050">
+                        </div>
+                        <div class="form-row">
+                            <label for="access-token">Access Token</label>
+                            <input type="text" id="access-token" placeholder="ohpp_app_...">
+                        </div>
+                        <div class="form-row">
+                            <label for="user-id">User ID</label>
+                            <input type="text" id="user-id" placeholder="Your user ID from the Resolver">
+                        </div>
+                        <button type="submit">Connect OHPP</button>
+                    </form>
+                </details>
                 <div id="ohpp-result"></div>
+
+                <div id="ohpp-disconnect-section" style="display:none; margin-top:1rem;">
+                    <button id="disconnect-btn" class="danger">Disconnect OHPP</button>
+                </div>
             </div>
         </section>
     </div>

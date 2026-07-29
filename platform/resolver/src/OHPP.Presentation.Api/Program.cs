@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using OHPP.Infrastructure.DotNet;
-using OHPP.Infrastructure.Firebase;
 using OHPP.Infrastructure.OpenTelemetry;
 using OHPP.Infrastructure.PostgreSQL;
 using OHPP.Infrastructure.Protocol.Local;
@@ -58,10 +57,17 @@ builder.Services.AddSwaggerGen(options =>
 
 // --- Infrastructure ---
 builder.Services.AddOhppPostgreSQL(builder.Configuration.GetConnectionString("PostgreSQL")!);
-builder.Services.AddOhppFirebaseAuth();
+builder.Services.AddOhppIdentityProvider(builder.Configuration);
+
+// App ID overrides — maps domain-based appIds to internal Docker URLs
+var appIdOverrides = builder.Configuration.GetSection("Resolver:AppIdOverrides")
+    .GetChildren()
+    .ToDictionary(x => x.Key, x => x.Value ?? string.Empty) as IReadOnlyDictionary<string, string>;
+
 builder.Services.AddOhppInfrastructure(
     resolverBaseUrl: builder.Configuration["Resolver:BaseUrl"] ?? "http://localhost:5000",
-    encryptionKey: builder.Configuration["Resolver:EncryptionKey"] ?? "");
+    encryptionKey: builder.Configuration["Resolver:EncryptionKey"] ?? "",
+    appIdOverrides: appIdOverrides);
 builder.Services.AddOhppProtocolValidation();
 
 // --- Services ---

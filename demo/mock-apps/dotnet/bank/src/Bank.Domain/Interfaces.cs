@@ -28,3 +28,12 @@ public interface IParticipationClient
         string requestId,
         CancellationToken cancellationToken = default);
 }
+
+
+public interface ITransactionStore
+{
+    Task RecordAsync(TransactionRecord record, CancellationToken cancellationToken = default);
+    Task UpdateStatusAsync(string id, TransferStatus status, CancellationToken cancellationToken = default);
+    Task<TransactionRecord?> GetByParticipationRequestIdAsync(string requestId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TransactionRecord>> GetByAccountIdAsync(string accountId, CancellationToken cancellationToken = default);
+}

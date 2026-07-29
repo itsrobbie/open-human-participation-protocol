@@ -91,6 +91,7 @@ docker-compose.override.yml
 *.tmp
 *.bak
 coverage/
+test-results/
 
 # .NET (additional)
 .vs/

@@ -40,10 +40,18 @@ public sealed class OhppParticipationClient : IParticipationClient
             .ExpiresIn(TimeSpan.FromMinutes(5))
             .Build();
 
-        var result = await _requesterClient.SendRequestAsync(
-            request, registration.ResolverUrl, registration.AccessToken, cancellationToken);
+        try
+        {
+            var result = await _requesterClient.SendRequestAsync(
+                request, registration.ResolverUrl, registration.AccessToken, cancellationToken);
 
-        return result.Success ? result.RequestId : null;
+            return result.Success ? result.RequestId : null;
+        }
+        catch (HttpRequestException)
+        {
+            // Resolver unreachable — treat as transient failure
+            return null;
+        }
     }
 
     public async Task<TransferStatus> CheckStatusAsync(
@@ -51,19 +59,42 @@ public sealed class OhppParticipationClient : IParticipationClient
         string requestId,
         CancellationToken cancellationToken = default)
     {
-        var result = await _requesterClient.GetStatusAsync(
-            requestId, registration.ResolverUrl, registration.AccessToken, cancellationToken);
-
-        if (!result.Success)
-            return TransferStatus.Failed;
-
-        return result.Status switch
+        try
         {
-            RequestStatus.Pending => TransferStatus.PendingApproval,
-            RequestStatus.Resolved => TransferStatus.Completed,
-            RequestStatus.Expired => TransferStatus.Expired,
-            RequestStatus.Cancelled => TransferStatus.Denied,
-            _ => TransferStatus.Failed
-        };
+            var result = await _requesterClient.GetStatusAsync(
+                requestId, registration.ResolverUrl, registration.AccessToken, cancellationToken);
+
+            if (!result.Success)
+            {
+                // Transient failures (network issues, resolver temporarily unavailable)
+                // should NOT terminate the polling loop — treat as still pending.
+                return TransferStatus.PendingApproval;
+            }
+
+            if (result.Status == RequestStatus.Resolved)
+            {
+                // Read the user's selected option to determine the outcome.
+                // The bank sent options ["approve", "deny"] — check which one was chosen.
+                return result.SelectedOption switch
+                {
+                    "approve" => TransferStatus.Completed,
+                    "deny" => TransferStatus.Denied,
+                    _ => TransferStatus.Completed // Unknown option — default to completed for forward compat
+                };
+            }
+
+            return result.Status switch
+            {
+                RequestStatus.Pending => TransferStatus.PendingApproval,
+                RequestStatus.Expired => TransferStatus.Expired,
+                RequestStatus.Cancelled => TransferStatus.Denied,
+                _ => TransferStatus.PendingApproval
+            };
+        }
+        catch (HttpRequestException)
+        {
+            // Resolver unreachable — treat as still pending, poll will retry
+            return TransferStatus.PendingApproval;
+        }
     }
 }
