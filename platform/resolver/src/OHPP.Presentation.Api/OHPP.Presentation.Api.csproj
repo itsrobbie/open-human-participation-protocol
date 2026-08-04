@@ -19,7 +19,7 @@
     <ProjectReference Include="..\OHPP.Infrastructure.OpenTelemetry\OHPP.Infrastructure.OpenTelemetry.csproj" />
     <ProjectReference Include="..\OHPP.Infrastructure.Protocol.Local\OHPP.Infrastructure.Protocol.Local.csproj" />
     <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Sdk.Server\OHPP.Sdk.Server.csproj" />
-    <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Protocol\OHPP.Protocol.csproj" />
+    <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Sdk\OHPP.Sdk.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,11 +27,13 @@
   </ItemGroup>
 
   <!-- Auto-generate swagger.json after build -->
-  <Target Name="GenerateSwagger" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+  <Target Name="GenerateSwagger" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug' and '$(GenerateContracts)' == 'true'">
     <PropertyGroup>
       <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../../..'))</RepoRoot>
     </PropertyGroup>
-    <Exec Command="&quot;$(RepoRoot)/.tools/swagger&quot; tofile --output &quot;$(RepoRoot)/platform/resolver/swagger.json&quot; &quot;$(TargetPath)&quot; v1" ContinueOnError="true" />
+    <Exec
+      Command="&quot;$(RepoRoot)/.tools/swagger&quot; tofile --output &quot;$(RepoRoot)/platform/resolver/swagger.json&quot; &quot;$(TargetPath)&quot; v1"
+      EnvironmentVariables="Startup__ContractGeneration=true" />
   </Target>
 
 </Project>

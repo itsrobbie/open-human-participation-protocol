@@ -3,7 +3,9 @@ using FluentAssertions;
 using NSubstitute;
 using OHPP.Domain.Attestation;
 using OHPP.Domain.Shared;
-using OHPP.Services.Attestation;
+using OHPP.Protocol.Models;
+using OHPP.Protocol.Serialisation;
+using OHPP.Infrastructure.Protocol.Local;
 using Xunit;
 
 namespace OHPP.Tests.Unit.Attestation;
@@ -42,13 +44,14 @@ public class CounterSigningServiceTests
 
         result.IsSuccess.Should().BeTrue();
 
-        var envelope = JsonSerializer.Deserialize<JsonElement>(result.Value!);
-        envelope.GetProperty("innerAttestation").GetString().Should().Be(innerJson);
-        envelope.GetProperty("deviceSignature").GetString().Should().Be(deviceSignature);
-        envelope.GetProperty("deviceKeyId").GetString().Should().Be(deviceKeyId);
-        envelope.GetProperty("resolverSignature").GetString().Should().Be(resolverSignature);
-        envelope.GetProperty("resolverKeyId").GetString().Should().Be(activeKey.KeyId);
-        envelope.GetProperty("resolverAlgorithm").GetString().Should().Be(activeKey.Algorithm);
+        var envelope = OhppJsonSerialiser.Deserialise<AttestationEnvelope>(result.Value!);
+        envelope.Should().NotBeNull();
+        envelope!.InnerAttestation.RequestId.Should().Be("abc");
+        envelope.InnerAttestation.Decision.SelectedOption.Should().Be("approve");
+        envelope.InnerAttestation.Signature.Value.Should().Be(deviceSignature);
+        envelope.InnerAttestation.Signature.KeyId.Should().Be(deviceKeyId);
+        envelope.OuterSignature.Value.Should().Be(resolverSignature);
+        envelope.OuterSignature.KeyId.Should().Be(activeKey.KeyId);
     }
 
     [Fact]
@@ -95,10 +98,11 @@ public class CounterSigningServiceTests
 
         result.IsSuccess.Should().BeTrue();
 
-        var envelope = JsonSerializer.Deserialize<JsonElement>(result.Value!);
-        envelope.GetProperty("innerAttestation").GetString().Should().Be(innerJson);
-        envelope.GetProperty("deviceSignature").GetString().Should().Be(deviceSignature);
-        envelope.GetProperty("deviceKeyId").GetString().Should().Be(deviceKeyId);
+        var envelope = OhppJsonSerialiser.Deserialise<AttestationEnvelope>(result.Value!);
+        envelope.Should().NotBeNull();
+        envelope!.InnerAttestation.Decision.SelectedOption.Should().Be("deny");
+        envelope.InnerAttestation.Signature.Value.Should().Be(deviceSignature);
+        envelope.InnerAttestation.Signature.KeyId.Should().Be(deviceKeyId);
     }
 
     private static SigningKey CreateActiveKey() => new()

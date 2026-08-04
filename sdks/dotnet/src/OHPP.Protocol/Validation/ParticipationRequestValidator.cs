@@ -1,4 +1,5 @@
 using OHPP.Protocol.Models;
+using System.Text.RegularExpressions;
 
 namespace OHPP.Protocol.Validation;
 
@@ -23,6 +24,7 @@ public static class ParticipationRequestValidator
         ValidateAction(request.Action, errors);
         ValidateType(request.Type, request.Options, errors);
         ValidateOptions(request.Type, request.Options, errors);
+        ValidateInputValidation(request.InputValidation, "inputValidation", errors);
         ValidateExpiry(request.Expiry, currentTime ?? DateTimeOffset.UtcNow, errors);
 
         return errors;
@@ -67,8 +69,9 @@ public static class ParticipationRequestValidator
         if (options is null) return;
 
         var keys = new HashSet<string>();
-        foreach (var option in options)
+        for (var index = 0; index < options.Count; index++)
         {
+            var option = options[index];
             if (string.IsNullOrWhiteSpace(option.Key))
                 errors.Add("options[].key must not be empty");
 
@@ -79,6 +82,27 @@ public static class ParticipationRequestValidator
 
             if (!string.IsNullOrWhiteSpace(option.Key) && !keys.Add(option.Key))
                 errors.Add($"options[].key must be unique within a request (duplicate: '{option.Key}')");
+
+            ValidateInputValidation(option.Validation, $"options[{index}].validation", errors);
+        }
+    }
+
+    private static void ValidateInputValidation(InputValidation? validation, string path, List<string> errors)
+    {
+        if (validation is null) return;
+
+        if (validation.Min.HasValue && validation.Max.HasValue && validation.Min.Value > validation.Max.Value)
+            errors.Add($"{path}.min must not exceed {path}.max");
+
+        if (validation.Pattern is null) return;
+
+        try
+        {
+            _ = new Regex(validation.Pattern);
+        }
+        catch (ArgumentException)
+        {
+            errors.Add($"{path}.pattern must be a valid regular expression");
         }
     }
 

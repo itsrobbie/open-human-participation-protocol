@@ -34,7 +34,7 @@ public sealed class SseClient : ISseClient
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/devices/me/events");
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
 
-        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -59,7 +59,7 @@ public sealed class SseClient : ISseClient
             }
             else if (line == "") // Empty line = end of event
             {
-                if (eventType == "request" && dataBuilder.Length > 0)
+                if ((eventType == "request" || eventType == "new_request") && dataBuilder.Length > 0)
                 {
                     var incoming = TryParseRequest(dataBuilder.ToString());
                     if (incoming is not null)

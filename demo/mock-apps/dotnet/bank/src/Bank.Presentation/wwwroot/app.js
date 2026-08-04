@@ -381,108 +381,362 @@ function mergeHeaders(...allHeaders) {
 }
 
 // src/app.ts
-var client = createClient({ baseUrl: "" });
-var ACCOUNT_ID = "demo-account";
+var accessToken = localStorage.getItem("ohpp-bank-access-token");
+var apiFetch = async (input, init = {}) => {
+  const headers = new Headers(init.headers ?? (input instanceof Request ? input.headers : void 0));
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  const response = await fetch(input, { ...init, headers });
+  if (response.status === 401 || response.status === 403) {
+    signOut("Your Bank session has expired. Please sign in again.");
+  }
+  return response;
+};
+var client = createClient({ baseUrl: "", fetch: apiFetch });
+var activeAccountId = "demo-account";
+var accounts = [];
+var transactions = [];
+var loginCard = document.getElementById("login-card");
+var bankApp = document.getElementById("bank-app");
+var appNav = document.getElementById("app-nav");
+var loginForm = document.getElementById("login-form");
+var loginResult = document.getElementById("login-result");
+async function signIn(username, password) {
+  const { data: config } = await client.GET("/.well-known/ohpp/auth-config");
+  if (!config?.authority || !config.clientId) throw new Error("Could not load sign-in configuration");
+  const body = new URLSearchParams({
+    client_id: config.clientId,
+    grant_type: "password",
+    username,
+    password
+  });
+  const response = await fetch(`${config.authority}/protocol/openid-connect/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+  if (!response.ok) throw new Error("Invalid demo credentials");
+  accessToken = (await response.json()).access_token;
+  localStorage.setItem("ohpp-bank-access-token", accessToken);
+}
+function showAuthenticatedApp() {
+  loginCard.hidden = true;
+  bankApp.hidden = false;
+  appNav.hidden = false;
+  showBankPage(routeFromHash());
+}
+function signOut(message = "") {
+  accessToken = null;
+  localStorage.removeItem("ohpp-bank-access-token");
+  loginCard.hidden = false;
+  bankApp.hidden = true;
+  loginResult.className = message ? "status error" : "";
+  loginResult.textContent = message;
+}
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  loginResult.className = "status pending";
+  loginResult.textContent = "Signing in...";
+  try {
+    await signIn(
+      document.getElementById("login-username").value,
+      document.getElementById("login-password").value
+    );
+    showAuthenticatedApp();
+    await loadWorkspace();
+  } catch (error) {
+    loginResult.className = "status error";
+    loginResult.textContent = error instanceof Error ? error.message : "Could not sign in";
+  }
+});
 var balanceEl = document.getElementById("balance");
+var accountListEl = document.getElementById("account-list");
+var activeAccountEl = document.getElementById("active-account");
 var ohppStatusEl = document.getElementById("ohpp-status");
 var payeeListEl = document.getElementById("payee-list");
 var payeeSelectEl = document.getElementById("payee-select");
 var transferForm = document.getElementById("transfer-form");
 var amountInput = document.getElementById("amount");
 var referenceInput = document.getElementById("reference");
+var scheduleModeEl = document.getElementById("schedule-mode");
+var scheduleDateEl = document.getElementById("schedule-date");
+var scheduleDateTimeEl = document.getElementById("schedule-datetime");
+var scheduleDateRowEl = document.getElementById("schedule-date-row");
+var scheduleDateTimeRowEl = document.getElementById("schedule-datetime-row");
 var transferResultEl = document.getElementById("transfer-result");
-var ohppForm = document.getElementById("ohpp-form");
-var resolverUrlInput = document.getElementById("resolver-url");
-var accessTokenInput = document.getElementById("access-token");
-var userIdInput = document.getElementById("user-id");
 var ohppResultEl = document.getElementById("ohpp-result");
 var transactionListEl = document.getElementById("transaction-list");
+var recentActivityEl = document.getElementById("recent-activity");
+var transactionSearchEl = document.getElementById("transaction-search");
+var transactionStatusFilterEl = document.getElementById("transaction-status-filter");
+var transferReviewEl = document.getElementById("transfer-review");
+var confirmTransferEl = document.getElementById("confirm-transfer");
+var cancelTransferEl = document.getElementById("cancel-transfer");
+async function loadAccounts() {
+  const { data } = await client.GET("/api/accounts");
+  if (!data?.length) return;
+  accounts = data;
+  if (!accounts.some((account) => account.id === activeAccountId)) activeAccountId = accounts[0].id;
+  accountListEl.replaceChildren();
+  activeAccountEl.replaceChildren();
+  for (const account of accounts) {
+    const card = document.createElement("article");
+    card.className = "account-card";
+    const name = document.createElement("strong");
+    name.textContent = account.name;
+    const balance = document.createElement("p");
+    balance.textContent = formatMoney(account.balance);
+    const identifier = document.createElement("small");
+    identifier.textContent = account.id;
+    card.append(name, balance, identifier);
+    accountListEl.append(card);
+    const option = document.createElement("option");
+    option.value = account.id;
+    option.textContent = account.name;
+    option.selected = account.id === activeAccountId;
+    activeAccountEl.append(option);
+  }
+}
 async function loadAccount() {
   const { data } = await client.GET("/api/accounts/{id}", {
-    params: { path: { id: ACCOUNT_ID } }
+    params: { path: { id: activeAccountId } }
   });
   if (!data) return;
   const account = data;
-  balanceEl.textContent = `\xA3${account.balance.toFixed(2)}`;
+  balanceEl.textContent = formatMoney(account.balance);
+  ohppStatusEl.replaceChildren();
   if (account.ohppRegistration) {
-    ohppStatusEl.innerHTML = '<span class="ohpp-badge">OHPP Connected</span> Transfers require approval';
+    const badge = document.createElement("span");
+    badge.className = "ohpp-badge";
+    badge.textContent = "OHPP Connected";
+    ohppStatusEl.append(badge, " Transfers require approval");
+    generateBtn.textContent = "Generate new connection link";
+    document.getElementById("ohpp-disconnect-section").style.display = "block";
   } else {
-    ohppStatusEl.innerHTML = '<span style="color:#666;">OHPP not connected \u2014 transfers execute immediately</span>';
+    const disconnected = document.createElement("span");
+    disconnected.style.color = "#666";
+    disconnected.textContent = "OHPP not connected. Transfers execute immediately.";
+    ohppStatusEl.append(disconnected);
+    document.getElementById("ohpp-connect-section").removeAttribute("hidden");
+    generateBtn.textContent = "Generate connection link";
+    document.getElementById("ohpp-disconnect-section").style.display = "none";
   }
-  payeeListEl.innerHTML = "";
-  payeeSelectEl.innerHTML = "";
+  payeeListEl.replaceChildren();
+  payeeSelectEl.replaceChildren();
   for (const p of account.payees) {
-    payeeListEl.innerHTML += `<li><span>${p.name}</span><span style="color:#888;font-size:0.85rem">${p.sortCode} / ${p.accountNumber}</span></li>`;
-    payeeSelectEl.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+    const item = document.createElement("li");
+    const name = document.createElement("span");
+    name.textContent = p.name;
+    const details = document.createElement("span");
+    details.style.color = "#888";
+    details.style.fontSize = "0.85rem";
+    details.textContent = `${p.sortCode} / ${p.accountNumber}`;
+    item.append(name, details);
+    payeeListEl.append(item);
+    const option = document.createElement("option");
+    option.value = p.id;
+    option.textContent = p.name;
+    payeeSelectEl.append(option);
   }
 }
 async function loadTransactions() {
-  const res = await fetch(`/api/transactions?accountId=${ACCOUNT_ID}`);
-  if (!res.ok) return;
-  const transactions = await res.json();
-  if (transactions.length === 0) {
-    transactionListEl.innerHTML = '<p style="color:#888; font-size:0.85rem;">No transactions yet.</p>';
+  const { data } = await client.GET("/api/transactions", {
+    params: { query: { accountId: activeAccountId } }
+  });
+  if (!data) return;
+  transactions = data;
+  renderTransactions();
+}
+function renderTransactions() {
+  const search = transactionSearchEl.value.trim().toLowerCase();
+  const statusFilter = transactionStatusFilterEl.value;
+  const filtered = transactions.filter((transaction) => {
+    const matchesSearch = !search || transaction.payeeName.toLowerCase().includes(search) || transaction.reference?.toLowerCase().includes(search);
+    const matchesStatus = statusFilter === "All" || transaction.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+  transactionListEl.replaceChildren();
+  if (filtered.length === 0) {
+    const empty = document.createElement("p");
+    empty.style.color = "#888";
+    empty.style.fontSize = "0.85rem";
+    empty.textContent = transactions.length === 0 ? "No transactions yet." : "No transactions match your filters.";
+    transactionListEl.append(empty);
     return;
   }
-  transactionListEl.innerHTML = transactions.map((txn) => {
+  for (const txn of filtered) {
     const statusClass = txn.status.toLowerCase();
     const statusLabel = txn.status === "PendingApproval" ? "Pending" : txn.status;
     const time = new Date(txn.createdAt).toLocaleString();
     const ref = txn.reference ? ` \xB7 ${txn.reference}` : "";
-    return `
-      <div class="txn-item">
-        <div class="txn-left">
-          <span class="txn-payee">${txn.payeeName}</span>
-          <span class="txn-meta">${time}${ref}</span>
-        </div>
-        <div class="txn-right">
-          <span class="txn-amount">\xA3${txn.amount.toFixed(2)}</span>
-          <span class="txn-status ${statusClass}">${statusLabel}</span>
-        </div>
-      </div>
-    `;
-  }).join("");
+    const item = document.createElement("div");
+    item.className = "txn-item";
+    const left = document.createElement("div");
+    left.className = "txn-left";
+    const payee = document.createElement("span");
+    payee.className = "txn-payee";
+    payee.textContent = txn.payeeName;
+    const metadata = document.createElement("span");
+    metadata.className = "txn-meta";
+    const request = txn.participationRequestId ? ` \xB7 Request ${txn.participationRequestId}` : "";
+    const scheduled = txn.scheduledFor ? ` \xB7 Scheduled ${new Date(txn.scheduledFor).toLocaleString()}` : "";
+    metadata.textContent = `${time}${ref}${scheduled}${request}`;
+    left.append(payee, metadata);
+    const right = document.createElement("div");
+    right.className = "txn-right";
+    const amount = document.createElement("span");
+    amount.className = "txn-amount";
+    amount.textContent = `\xA3${txn.amount.toFixed(2)}`;
+    const status = document.createElement("span");
+    status.className = `txn-status ${statusClass}`;
+    status.textContent = statusLabel;
+    right.append(amount, status);
+    item.append(left, right);
+    transactionListEl.append(item);
+  }
+  const recentItems = Array.from(transactionListEl.children).slice(0, 5).map((child) => {
+    const clone = child.cloneNode(true);
+    clone.classList.remove("txn-item");
+    clone.classList.add("recent-item");
+    return clone;
+  });
+  recentActivityEl.replaceChildren(...recentItems);
 }
+var bankPages = Array.from(document.querySelectorAll("[data-bank-page]"));
+var bankRoutes = new Set(bankPages.map((page) => page.dataset.bankPage));
+var routeAliases = { account: "overview", transfer: "payments", history: "transactions", ohpp: "settings" };
+function routeFromHash() {
+  const requested = window.location.hash.slice(1);
+  const resolved = routeAliases[requested] ?? requested;
+  return bankRoutes.has(resolved) ? resolved : "overview";
+}
+function showBankPage(route) {
+  const selectedRoute = bankRoutes.has(route) ? route : "overview";
+  for (const page of bankPages) page.hidden = page.dataset.bankPage !== selectedRoute;
+  for (const link of Array.from(document.querySelectorAll("[data-bank-route]"))) {
+    if (link.dataset.bankRoute === selectedRoute) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+}
+window.addEventListener("hashchange", () => showBankPage(routeFromHash()));
+for (const button of Array.from(document.querySelectorAll("[data-route-button]"))) {
+  button.addEventListener("click", () => {
+    window.location.hash = button.dataset.routeButton;
+  });
+}
+async function loadWorkspace() {
+  await loadAccounts();
+  await loadTransactions();
+  await loadAccount();
+}
+activeAccountEl.addEventListener("change", async () => {
+  activeAccountId = activeAccountEl.value;
+  transferReviewEl.hidden = true;
+  pendingTransfer = null;
+  await loadTransactions();
+  await loadAccount();
+});
+transactionSearchEl.addEventListener("input", renderTransactions);
+transactionStatusFilterEl.addEventListener("change", renderTransactions);
+document.getElementById("add-payee-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const result = document.getElementById("payee-result");
+  const { error } = await client.POST("/api/payees", {
+    body: {
+      accountId: activeAccountId,
+      name: document.getElementById("payee-name").value,
+      sortCode: document.getElementById("payee-sort-code").value,
+      accountNumber: document.getElementById("payee-account-number").value
+    }
+  });
+  if (error) {
+    result.className = "status error";
+    result.textContent = "Could not add payee.";
+    return;
+  }
+  result.className = "status success";
+  result.textContent = "Payee added.";
+  form.reset();
+  await loadAccount();
+});
+var pendingTransfer = null;
+scheduleModeEl.addEventListener("change", () => {
+  scheduleDateRowEl.hidden = scheduleModeEl.value !== "date";
+  scheduleDateTimeRowEl.hidden = scheduleModeEl.value !== "datetime";
+  scheduleDateEl.required = scheduleModeEl.value === "date";
+  scheduleDateTimeEl.required = scheduleModeEl.value === "datetime";
+});
 transferForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const payeeId = payeeSelectEl.value;
   const amount = parseFloat(amountInput.value);
   const reference = referenceInput.value;
+  const scheduleValue = scheduleModeEl.value === "date" ? scheduleDateEl.value ? `${scheduleDateEl.value}T09:00:00` : "" : scheduleModeEl.value === "datetime" ? scheduleDateTimeEl.value : "";
+  const scheduledFor = scheduleValue ? new Date(scheduleValue).toISOString() : void 0;
+  pendingTransfer = { payeeId, amount, reference, scheduledFor };
+  document.getElementById("review-account").textContent = accounts.find((account) => account.id === activeAccountId)?.name ?? activeAccountId;
+  document.getElementById("review-payee").textContent = payeeSelectEl.selectedOptions[0]?.textContent ?? payeeId;
+  document.getElementById("review-amount").textContent = formatMoney(amount);
+  document.getElementById("review-reference").textContent = reference || "No reference";
+  document.getElementById("review-schedule").textContent = scheduledFor ? new Date(scheduledFor).toLocaleString() : "Immediately";
+  transferReviewEl.hidden = false;
+  confirmTransferEl.focus();
+});
+confirmTransferEl.addEventListener("click", async () => {
+  if (!pendingTransfer) return;
+  const { payeeId, amount, reference, scheduledFor } = pendingTransfer;
   transferResultEl.style.display = "block";
   transferResultEl.className = "status pending";
   transferResultEl.textContent = "Processing...";
-  const { data, error } = await client.POST("/api/transfers", {
-    body: { fromAccountId: ACCOUNT_ID, toPayeeId: payeeId, amount, reference }
+  const { data, error, response } = await client.POST("/api/transfers", {
+    params: {},
+    body: { fromAccountId: activeAccountId, toPayeeId: payeeId, amount, reference, scheduledFor }
   });
   const result = data ?? error;
-  if (result.status === "Completed" || result.status === 0) {
+  if (result?.status === "Completed" || result?.status === 0) {
     transferResultEl.className = "status success";
     transferResultEl.textContent = "\u2713 Transfer completed.";
-    loadAccount();
-    loadTransactions();
-  } else if (result.status === "PendingApproval" || result.status === 1) {
+    await loadAccount();
+    await loadTransactions();
+  } else if (result?.status === "PendingApproval" || result?.status === 1) {
     transferResultEl.className = "status pending";
     transferResultEl.textContent = `\u23F3 Waiting for approval on your device... (Request ID: ${result.participationRequestId})`;
-    loadTransactions();
+    await loadTransactions();
     if (result.participationRequestId) pollStatus(result.participationRequestId);
+  } else if (result?.status === "Scheduled" || result?.status === 5) {
+    transferResultEl.className = "status success";
+    transferResultEl.textContent = "\u2713 Transfer scheduled.";
+    await loadTransactions();
   } else {
     transferResultEl.className = "status error";
-    transferResultEl.textContent = `\u2717 ${result.error || "Transfer failed"}`;
+    transferResultEl.textContent = `\u2717 ${result?.error || result?.title || result?.detail || `HTTP ${response.status}`}`;
   }
+  transferReviewEl.hidden = true;
+  pendingTransfer = null;
+});
+cancelTransferEl.addEventListener("click", () => {
+  transferReviewEl.hidden = true;
+  pendingTransfer = null;
+  amountInput.focus();
 });
 async function pollStatus(requestId) {
   for (let i = 0; i < 60; i++) {
     await new Promise((r) => setTimeout(r, 2e3));
     const { data } = await client.GET("/api/transfers/{requestId}/status", {
-      params: { path: { requestId }, query: { accountId: ACCOUNT_ID } }
+      params: { path: { requestId }, query: { accountId: activeAccountId } }
     });
     const result = data;
     if (!result) continue;
     if (result.status === "Completed" || result.status === 0) {
       transferResultEl.className = "status success";
       transferResultEl.textContent = "\u2713 Transfer approved and completed.";
-      loadAccount();
-      loadTransactions();
+      await loadAccount();
+      await loadTransactions();
+      return;
+    } else if (result.status === "Scheduled" || result.status === 5) {
+      transferResultEl.className = "status success";
+      transferResultEl.textContent = "\u2713 Transfer approved and scheduled.";
+      await loadTransactions();
       return;
     } else if (result.status === "Denied" || result.status === 2) {
       transferResultEl.className = "status error";
@@ -499,26 +753,6 @@ async function pollStatus(requestId) {
   transferResultEl.className = "status error";
   transferResultEl.textContent = "\u2717 Timed out waiting for approval.";
 }
-ohppForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const { error } = await client.POST("/api/ohpp/register", {
-    body: {
-      accountId: ACCOUNT_ID,
-      resolverUrl: resolverUrlInput.value,
-      accessToken: accessTokenInput.value,
-      userId: userIdInput.value
-    }
-  });
-  ohppResultEl.style.display = "block";
-  if (!error) {
-    ohppResultEl.className = "status success";
-    ohppResultEl.textContent = "\u2713 OHPP connected. Transfers now require approval.";
-    loadAccount();
-  } else {
-    ohppResultEl.className = "status error";
-    ohppResultEl.textContent = "\u2717 Failed to connect OHPP.";
-  }
-});
 var generateBtn = document.getElementById("generate-challenge-btn");
 var challengeDisplay = document.getElementById("challenge-display");
 var challengeUriEl = document.getElementById("challenge-uri");
@@ -526,9 +760,10 @@ var copyBtn = document.getElementById("copy-challenge");
 var disconnectSection = document.getElementById("ohpp-disconnect-section");
 var disconnectBtn = document.getElementById("disconnect-btn");
 generateBtn.addEventListener("click", async () => {
-  const res = await fetch("/api/ohpp/generate-challenge", { method: "POST" });
-  if (!res.ok) return;
-  const data = await res.json();
+  const { data } = await client.POST("/api/ohpp/generate-challenge", {
+    body: { accountId: activeAccountId }
+  });
+  if (!data) return;
   challengeUriEl.value = data.challengeUri;
   challengeDisplay.style.display = "block";
   pollForConnection();
@@ -542,16 +777,18 @@ copyBtn.addEventListener("click", () => {
   }, 2e3);
 });
 disconnectBtn.addEventListener("click", async () => {
-  await fetch("/api/ohpp/disconnect", { method: "DELETE" });
+  await client.DELETE("/api/ohpp/disconnect", { params: { query: { accountId: activeAccountId } } });
   loadAccount();
   disconnectSection.style.display = "none";
 });
 async function pollForConnection() {
   for (let i = 0; i < 60; i++) {
     await new Promise((r) => setTimeout(r, 3e3));
-    const res = await fetch(`/api/accounts/${ACCOUNT_ID}`);
-    if (!res.ok) continue;
-    const account = await res.json();
+    const { data } = await client.GET("/api/accounts/{id}", {
+      params: { path: { id: activeAccountId } }
+    });
+    const account = data;
+    if (!account) continue;
     if (account.ohppRegistration) {
       ohppResultEl.style.display = "block";
       ohppResultEl.className = "status success";
@@ -562,5 +799,56 @@ async function pollForConnection() {
     }
   }
 }
-loadAccount();
-loadTransactions();
+var protocolScenarioEl = document.getElementById("protocol-scenario");
+var createProtocolScenarioEl = document.getElementById("create-protocol-scenario");
+var refreshProtocolScenarioEl = document.getElementById("refresh-protocol-scenario");
+var protocolScenarioResultEl = document.getElementById("protocol-scenario-result");
+var protocolScenarioRequestId = null;
+createProtocolScenarioEl.addEventListener("click", async () => {
+  protocolScenarioResultEl.className = "status pending";
+  protocolScenarioResultEl.textContent = "Creating participation request...";
+  const { data, error } = await client.POST("/api/ohpp/scenarios/{scenario}", {
+    params: { path: { scenario: protocolScenarioEl.value } },
+    body: { accountId: activeAccountId }
+  });
+  if (!data || error) {
+    protocolScenarioResultEl.className = "status error";
+    protocolScenarioResultEl.textContent = "Could not create the protocol scenario. Connect OHPP first.";
+    return;
+  }
+  protocolScenarioRequestId = data.requestId ?? null;
+  protocolScenarioResultEl.className = "status pending";
+  protocolScenarioResultEl.textContent = `Awaiting human participation. Request ${protocolScenarioRequestId}`;
+  refreshProtocolScenarioEl.hidden = false;
+});
+refreshProtocolScenarioEl.addEventListener("click", async () => {
+  if (!protocolScenarioRequestId) return;
+  const { data } = await client.GET("/api/ohpp/scenarios/{requestId}/status", {
+    params: {
+      path: { requestId: protocolScenarioRequestId },
+      query: { accountId: activeAccountId }
+    }
+  });
+  if (!data) return;
+  if (data.status !== "Resolved") {
+    protocolScenarioResultEl.className = data.status === "Expired" ? "status error" : "status pending";
+    protocolScenarioResultEl.textContent = data.status ?? "Pending";
+    return;
+  }
+  if (!data.attestationVerified) {
+    protocolScenarioResultEl.className = "status error";
+    protocolScenarioResultEl.textContent = `Attestation verification failed: ${data.error ?? "unknown error"}`;
+    return;
+  }
+  const answer = data.selectedOption ?? data.selectedOptions?.join(", ") ?? data.value ?? "acknowledged";
+  protocolScenarioResultEl.className = "status success";
+  protocolScenarioResultEl.textContent = `Verified bank interpretation: ${answer}`;
+});
+function formatMoney(value) {
+  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(value);
+}
+document.getElementById("logout-button").addEventListener("click", () => signOut());
+if (accessToken) {
+  showAuthenticatedApp();
+  void loadWorkspace();
+}

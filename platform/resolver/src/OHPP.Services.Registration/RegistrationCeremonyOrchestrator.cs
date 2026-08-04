@@ -77,17 +77,14 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
         if (metadataValidation.IsFailure)
             return metadataValidation.Error!;
 
-        // Revoke existing registration for same app if exists
+        // Keep the current registration active until the requester accepts the
+        // replacement callback. A replayed or failed challenge must not break
+        // a working app connection.
         var existing = await _registrationRepo.GetActiveByUserAndAppIdAsync(userId, challenge.RequesterAppId, cancellationToken);
-        if (existing is not null)
-        {
-            existing.RevokedAt = _clock.UtcNow;
-            await _registrationRepo.UpdateAsync(existing, cancellationToken);
-            await _pendingRequestRepo.CancelAllForAppRegistrationAsync(existing.Id, cancellationToken);
-        }
 
         // Generate access token
         var accessToken = _tokenGenerator.GenerateAppAccessToken();
+        var registrationId = Guid.NewGuid();
 
         // Build registration response
         var response = new RegistrationResponseData
@@ -96,7 +93,7 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
             ResolverBaseUrl = _resolverConfig.BaseUrl,
             UserId = userId.ToString(),
             AccessToken = accessToken,
-            RegistrationId = Guid.NewGuid().ToString(),
+            RegistrationId = registrationId.ToString(),
             CreatedAt = _clock.UtcNow
         };
 
@@ -114,10 +111,17 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
         if (!callbackSuccess)
             return Error.ServiceUnavailable("Registration callback to requester failed");
 
+        if (existing is not null)
+        {
+            existing.RevokedAt = _clock.UtcNow;
+            await _registrationRepo.UpdateAsync(existing, cancellationToken);
+            await _pendingRequestRepo.CancelAllForAppRegistrationAsync(existing.Id, cancellationToken);
+        }
+
         // Store registration
         var registration = new AppRegistration
         {
-            Id = Guid.NewGuid(),
+            Id = registrationId,
             UserId = userId,
             AppId = challenge.RequesterAppId,
             AppName = metadata.Name,

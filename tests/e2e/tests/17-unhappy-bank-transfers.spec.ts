@@ -9,6 +9,7 @@ test.describe('Bank — Transfer error handling', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(BANK_URL)
     await expect(page.locator('#balance')).not.toHaveText('Loading...')
+    await page.getByTestId('nav-payments').click()
   })
 
   test('transfer with zero amount is blocked by form validation', async ({ page }) => {
@@ -54,6 +55,7 @@ test.describe('Bank — Transfer error handling', () => {
     await page.fill('#amount', String(balance + 1000))
     await page.fill('#reference', 'Over balance test')
     await page.click('#transfer-form button[type="submit"]')
+    await page.click('#confirm-transfer')
 
     const result = page.locator('#transfer-result')
     await expect(result).toBeVisible({ timeout: 10000 })

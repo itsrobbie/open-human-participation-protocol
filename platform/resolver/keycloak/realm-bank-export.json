@@ -1,0 +1,56 @@
+{
+  "realm": "ohpp-bank",
+  "enabled": true,
+  "registrationAllowed": false,
+  "sslRequired": "none",
+  "roles": { "realm": [{ "name": "bank-user" }] },
+  "clients": [{
+    "clientId": "ohpp-bank-app",
+    "name": "OHPP Demo Bank",
+    "enabled": true,
+    "publicClient": true,
+    "directAccessGrantsEnabled": true,
+    "standardFlowEnabled": true,
+    "redirectUris": ["http://localhost:5010/*", "http://localhost:5110/*"],
+    "webOrigins": ["http://localhost:5010", "http://localhost:5110"],
+    "protocol": "openid-connect",
+    "protocolMappers": [
+      {
+        "name": "stable-ohpp-user-id",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-usermodel-attribute-mapper",
+        "consentRequired": false,
+        "config": {
+          "user.attribute": "ohpp_user_id",
+          "claim.name": "ohpp_user_id",
+          "jsonType.label": "String",
+          "access.token.claim": "true",
+          "id.token.claim": "true",
+          "userinfo.token.claim": "true"
+        }
+      },
+      {
+        "name": "bank-api-audience",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-audience-mapper",
+        "consentRequired": false,
+        "config": {
+          "included.client.audience": "ohpp-bank-app",
+          "access.token.claim": "true"
+        }
+      }
+    ]
+  }],
+  "users": [{
+    "id": "demo-bank-user",
+    "username": "demo",
+    "email": "demo@ohpp.dev",
+    "firstName": "Demo",
+    "lastName": "User",
+    "enabled": true,
+    "emailVerified": true,
+    "attributes": { "ohpp_user_id": ["demo-user"] },
+    "credentials": [{ "type": "password", "value": "demo", "temporary": false }],
+    "realmRoles": ["bank-user"]
+  }]
+}

@@ -55,6 +55,36 @@ public sealed class PendingRequestRepository : IPendingRequestRepository
         }
     }
 
+    public async Task<bool> TryUpdateStatusAsync(
+        Guid id,
+        string expectedStatus,
+        string status,
+        DateTimeOffset? resolvedAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (_db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+        {
+            var request = await _db.PendingRequests.FindAsync(new object[] { id }, cancellationToken);
+            if (request is null || request.Status != expectedStatus)
+                return false;
+
+            request.Status = status;
+            request.ResolvedAt = resolvedAt;
+            await _db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        var affectedRows = await _db.PendingRequests
+            .Where(request => request.Id == id && request.Status == expectedStatus)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(request => request.Status, status)
+                    .SetProperty(request => request.ResolvedAt, resolvedAt),
+                cancellationToken);
+
+        return affectedRows == 1;
+    }
+
     public async Task CancelAllForAppRegistrationAsync(Guid appRegistrationId, CancellationToken cancellationToken = default)
     {
         var pending = await _db.PendingRequests

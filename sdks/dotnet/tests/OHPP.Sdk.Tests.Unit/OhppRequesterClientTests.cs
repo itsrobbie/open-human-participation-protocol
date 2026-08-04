@@ -26,6 +26,164 @@ public sealed class OhppRequesterClientTests
     };
 
     [Fact]
+    public async Task SendRequest_ValidResponse_ReturnsRequestId()
+    {
+        var metadataJson = OhppJsonSerialiser.Serialise(CreateMetadata());
+        var handler = new MultiResponseHandler(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (metadataJson, HttpStatusCode.OK),
+            ["/api/participate"] = ("{\"requestId\":\"request-created\"}", HttpStatusCode.OK)
+        });
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri(ResolverBaseUrl) };
+        var client = new OhppRequesterClient(httpClient, new EndpointDiscovery(httpClient));
+
+        var result = await client.SendRequestAsync(CreateRequest(), ResolverBaseUrl, "app-token");
+
+        result.Success.Should().BeTrue();
+        result.RequestId.Should().Be("request-created");
+    }
+
+    [Fact]
+    public async Task CancelRequest_Success_ReturnsSuccessfulResult()
+    {
+        var metadataJson = OhppJsonSerialiser.Serialise(CreateMetadata());
+        var handler = new MultiResponseHandler(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (metadataJson, HttpStatusCode.OK),
+            ["/api/participate/request-123/cancel"] = ("", HttpStatusCode.OK)
+        });
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri(ResolverBaseUrl) };
+        var client = new OhppRequesterClient(httpClient, new EndpointDiscovery(httpClient));
+
+        var result = await client.CancelRequestAsync("request-123", ResolverBaseUrl, "app-token");
+
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DiscoverMetadata_DelegatesToEndpointDiscovery()
+    {
+        var metadataJson = OhppJsonSerialiser.Serialise(CreateMetadata());
+        var handler = new MultiResponseHandler(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (metadataJson, HttpStatusCode.OK)
+        });
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri(ResolverBaseUrl) };
+        var client = new OhppRequesterClient(httpClient, new EndpointDiscovery(httpClient));
+
+        var result = await client.DiscoverMetadataAsync(ResolverBaseUrl);
+
+        result.Should().NotBeNull();
+        result!.Name.Should().Be("Test Resolver");
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.UnprocessableEntity)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    public async Task SendRequest_HttpFailure_PreservesStatusAndError(HttpStatusCode status)
+    {
+        var client = CreateClient(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (OhppJsonSerialiser.Serialise(CreateMetadata()), HttpStatusCode.OK),
+            ["/api/participate"] = ("{\"error\":\"request rejected\"}", status)
+        });
+
+        var result = await client.SendRequestAsync(CreateRequest(), ResolverBaseUrl, "app-token");
+
+        result.Success.Should().BeFalse();
+        result.HttpStatusCode.Should().Be((int)status);
+        result.Error.Should().Be("request rejected");
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{not-json")]
+    public async Task SendRequest_MalformedSuccess_ReturnsFailure(string body)
+    {
+        var client = CreateClient(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (OhppJsonSerialiser.Serialise(CreateMetadata()), HttpStatusCode.OK),
+            ["/api/participate"] = (body, HttpStatusCode.OK)
+        });
+
+        var result = await client.SendRequestAsync(CreateRequest(), ResolverBaseUrl, "app-token");
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().ContainEquivalentOf("response");
+    }
+
+    [Theory]
+    [InlineData(RequestStatus.Pending)]
+    [InlineData(RequestStatus.Expired)]
+    [InlineData(RequestStatus.Cancelled)]
+    public async Task GetStatus_NonResolvedStatus_ReturnsTypedStatus(RequestStatus status)
+    {
+        var statusJson = OhppJsonSerialiser.Serialise(new { status });
+        var client = CreateClient(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (OhppJsonSerialiser.Serialise(CreateMetadata()), HttpStatusCode.OK),
+            ["/api/participate/request-123/status"] = (statusJson, HttpStatusCode.OK)
+        });
+
+        var result = await client.GetStatusAsync("request-123", ResolverBaseUrl, "app-token");
+
+        result.Success.Should().BeTrue();
+        result.Status.Should().Be(status);
+    }
+
+    [Fact]
+    public async Task GetStatus_NotFound_ReturnsFailure()
+    {
+        var client = CreateClient(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (OhppJsonSerialiser.Serialise(CreateMetadata()), HttpStatusCode.OK),
+            ["/api/participate/missing/status"] = ("{\"error\":\"not found\"}", HttpStatusCode.NotFound)
+        });
+
+        var result = await client.GetStatusAsync("missing", ResolverBaseUrl, "app-token");
+
+        result.Success.Should().BeFalse();
+        result.HttpStatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task CancelRequest_Conflict_ReturnsFailure()
+    {
+        var client = CreateClient(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (OhppJsonSerialiser.Serialise(CreateMetadata()), HttpStatusCode.OK),
+            ["/api/participate/request-123/cancel"] = ("{\"error\":\"already resolved\"}", HttpStatusCode.Conflict)
+        });
+
+        var result = await client.CancelRequestAsync("request-123", ResolverBaseUrl, "app-token");
+
+        result.Success.Should().BeFalse();
+        result.HttpStatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public async Task GetStatus_ReturnsAllDecisionShapes()
+    {
+        var metadataJson = OhppJsonSerialiser.Serialise(CreateMetadata());
+        var handler = new MultiResponseHandler(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (metadataJson, HttpStatusCode.OK),
+            ["/api/participate/request-123/status"] = ("{\"status\":\"Resolved\",\"selectedOptions\":[\"email\",\"sms\"],\"value\":\"2026-07-31\"}", HttpStatusCode.OK)
+        });
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri(ResolverBaseUrl) };
+        var client = new OhppRequesterClient(httpClient, new EndpointDiscovery(httpClient));
+
+        var result = await client.GetStatusAsync("request-123", ResolverBaseUrl, "app-token");
+
+        result.Success.Should().BeTrue();
+        result.Status.Should().Be(RequestStatus.Resolved);
+        result.SelectedOption.Should().BeNull();
+        result.SelectedOptions.Should().BeEquivalentTo(new[] { "email", "sms" });
+        result.Value.Should().Be("2026-07-31");
+    }
+
+    [Fact]
     public async Task VerifyAttestation_ValidSignature_ReturnsTrue()
     {
         // Generate a real EC key pair
@@ -256,8 +414,79 @@ public sealed class OhppRequesterClientTests
         result.Error.Should().Contain("unknown-key-id");
     }
 
+    [Fact]
+    public async Task VerifyAttestation_UnsupportedAlgorithm_ReturnsInvalid()
+    {
+        var envelope = CreateEnvelope("eddsa-key", SignatureAlgorithm.EdDSA);
+        var jwks = OhppJsonSerialiser.Serialise(new JwkSet
+        {
+            Keys = [new Jwk { Kty = "OKP", Kid = "eddsa-key", Alg = "EdDSA", Use = "sig", Crv = "Ed25519", X = "unused" }]
+        });
+        var client = CreateClient(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (OhppJsonSerialiser.Serialise(CreateMetadata()), HttpStatusCode.OK),
+            ["/.well-known/ohpp/keys"] = (jwks, HttpStatusCode.OK)
+        });
+
+        var result = await client.VerifyAttestationAsync(envelope, ResolverBaseUrl);
+
+        result.Valid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task VerifyAttestation_MalformedJwks_ReturnsInvalid()
+    {
+        var client = CreateClient(new Dictionary<string, (string body, HttpStatusCode status)>
+        {
+            ["/.well-known/ohpp/metadata"] = (OhppJsonSerialiser.Serialise(CreateMetadata()), HttpStatusCode.OK),
+            ["/.well-known/ohpp/keys"] = ("{not-json", HttpStatusCode.OK)
+        });
+
+        var result = await client.VerifyAttestationAsync(CreateEnvelope("key-1"), ResolverBaseUrl);
+
+        result.Valid.Should().BeFalse();
+        result.Error.Should().Contain("JWKS");
+    }
+
     private static string Base64UrlEncode(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private static ParticipationRequest CreateRequest() => new ParticipationRequestBuilder()
+        .ForUser("demo-user")
+        .FromApp("requester.test")
+        .WithSummary("Test request")
+        .OfType(RequestType.Text)
+        .Build();
+
+    private static AttestationEnvelope CreateEnvelope(string keyId, SignatureAlgorithm algorithm = SignatureAlgorithm.ES256)
+    {
+        var inner = new ParticipationAttestation
+        {
+            Id = "att-test",
+            RequestId = "request-test",
+            Version = ProtocolConstants.Version,
+            Decision = new DecisionInfo { Timestamp = DateTimeOffset.UtcNow },
+            Resolution = new ResolutionInfo
+            {
+                Method = ResolutionMethod.Direct,
+                Endpoint = new EndpointInfo { Type = "device", Id = "device-test" }
+            },
+            Signature = new SignatureInfo { Algorithm = SignatureAlgorithm.ES256, Value = "inner", KeyId = "device-key" },
+            IssuedAt = DateTimeOffset.UtcNow
+        };
+        return new AttestationEnvelope
+        {
+            InnerAttestation = inner,
+            OuterSignature = new SignatureInfo { Algorithm = algorithm, Value = "outer", KeyId = keyId },
+            IssuedAt = DateTimeOffset.UtcNow
+        };
+    }
+
+    private static OhppRequesterClient CreateClient(Dictionary<string, (string body, HttpStatusCode status)> responses)
+    {
+        var httpClient = new HttpClient(new MultiResponseHandler(responses)) { BaseAddress = new Uri(ResolverBaseUrl) };
+        return new OhppRequesterClient(httpClient, new EndpointDiscovery(httpClient));
+    }
 
     private sealed class MultiResponseHandler : HttpMessageHandler
     {

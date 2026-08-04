@@ -6,6 +6,29 @@ namespace OHPP.Sdk.Tests.Unit;
 
 public sealed class ParticipationRequestBuilderTests
 {
+    [Theory]
+    [InlineData(RequestType.Select)]
+    [InlineData(RequestType.Multiselect)]
+    [InlineData(RequestType.Text)]
+    [InlineData(RequestType.Number)]
+    [InlineData(RequestType.Date)]
+    [InlineData(RequestType.DateTime)]
+    [InlineData(RequestType.Signature)]
+    public void BuildRequest_AllSevenRequestTypes_ProducesProtocolRequest(RequestType type)
+    {
+        var request = new ParticipationRequestBuilder()
+            .ForUser("user-123")
+            .FromApp("claims.example.com")
+            .WithSummary($"Exercise {type}")
+            .OfType(type)
+            .AddOption("continue", "Continue")
+            .Build();
+
+        request.Type.Should().Be(type);
+        request.Validation.UserId.Should().Be("user-123");
+        request.Options.Should().ContainSingle(option => option.Key == "continue");
+    }
+
     [Fact]
     public void BuildRequest_AllFieldsSet_ProducesValidRequest()
     {

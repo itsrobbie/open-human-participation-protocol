@@ -25,7 +25,7 @@ test.describe('Portal — Device management', () => {
       await expect(page.getByText('Browser registered', { exact: true })).toBeVisible({ timeout: 10000 })
     } else {
       // Browser device already exists from prior test — verify a device card is shown
-      await expect(page.locator('button:has-text("Revoke")')).toBeVisible({ timeout: 5000 })
+      await expect(page.locator('button:has-text("Revoke")').first()).toBeVisible({ timeout: 5000 })
     }
   })
 

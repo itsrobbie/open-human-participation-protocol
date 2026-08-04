@@ -8,6 +8,9 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\OHPP.Presentation.Api\OHPP.Presentation.Api.csproj" />
     <ProjectReference Include="..\..\..\..\sdks\dotnet\src\OHPP.Sdk\OHPP.Sdk.csproj" />
+    <ProjectReference Include="..\..\..\..\demo\client-cli\src\OHPP.Cli.Infrastructure\OHPP.Cli.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\demo\client-cli\src\OHPP.Cli.Services\OHPP.Cli.Services.csproj" />
+    <ProjectReference Include="..\..\..\..\demo\client-cli\src\OHPP.Cli.Presentation\OHPP.Cli.Presentation.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,6 +25,10 @@
     <PackageReference Include="Testcontainers" Version="3.7.0" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="3.7.0" />
     <PackageReference Include="WireMock.Net" Version="1.5.60" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

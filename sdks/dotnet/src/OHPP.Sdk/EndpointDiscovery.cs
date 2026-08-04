@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using OHPP.Protocol;
 using OHPP.Protocol.Models;
 using OHPP.Protocol.Serialisation;
@@ -56,7 +57,15 @@ public sealed class EndpointDiscovery
             return null;
 
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        var metadata = OhppJsonSerialiser.Deserialise<ServiceMetadata>(json);
+        ServiceMetadata? metadata;
+        try
+        {
+            metadata = OhppJsonSerialiser.Deserialise<ServiceMetadata>(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
 
         // Rebase endpoint URLs to use the caller's resolverBaseUrl.
         // The metadata may advertise URLs using the Resolver's public hostname

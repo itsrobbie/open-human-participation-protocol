@@ -37,6 +37,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/.well-known/ohpp/auth-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankAuthConfigResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/accounts": {
         parameters: {
             query?: never;
@@ -58,7 +93,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Account"][];
+                    };
                 };
             };
         };
@@ -90,6 +127,15 @@ export interface paths {
             responses: {
                 /** @description OK */
                 200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Account"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -132,6 +178,24 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
+                    content: {
+                        "application/json": components["schemas"]["TransferResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TransferResult"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
                     content?: never;
                 };
             };
@@ -164,6 +228,59 @@ export interface paths {
             responses: {
                 /** @description OK */
                 200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TransferResult"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    accountId: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TransactionRecord"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -201,8 +318,22 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description OK */
-                200: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -216,7 +347,159 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ohpp/register": {
+    "/api/ohpp/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query: {
+                    accountId: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ohpp/scenarios/{scenario}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    scenario: components["schemas"]["BankProtocolScenario"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BankScenarioRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankProtocolScenarioResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankProtocolScenarioResult"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ohpp/scenarios/{requestId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    accountId: string;
+                };
+                header?: never;
+                path: {
+                    requestId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankProtocolScenarioStatus"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ohpp/generate-challenge": {
         parameters: {
             query?: never;
             header?: never;
@@ -234,12 +517,21 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["OhppRegistrationRequest"];
+                    "application/json": components["schemas"]["GenerateBankChallengeRequest"];
                 };
             };
             responses: {
                 /** @description OK */
                 200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BankChallengeResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -323,25 +615,98 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Account: {
+            id: string;
+            ownerUserId: string;
+            name: string;
+            /** Format: double */
+            balance: number;
+            payees: components["schemas"]["Payee"][];
+            ohppRegistration?: components["schemas"]["OhppRegistration"];
+        };
         AddPayeeRequest: {
-            accountId: string | null;
-            name: string | null;
-            accountNumber: string | null;
-            sortCode: string | null;
+            accountId: string;
+            name: string;
+            accountNumber: string;
+            sortCode: string;
         };
-        OhppRegistrationRequest: {
-            accountId?: string | null;
-            resolverUrl?: string | null;
-            accessToken?: string | null;
-            userId?: string | null;
+        BankAuthConfigResponse: {
+            authority: string;
+            clientId: string;
         };
-        TransferRequest: {
-            fromAccountId: string | null;
-            toPayeeId: string | null;
+        BankChallengeResponse: {
+            challengeUri: string;
+            challengeId: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /** @enum {string} */
+        BankProtocolScenario: "TransferDecision" | "TransferControls" | "PaymentReference" | "TransferAmount" | "PaymentDate" | "PaymentDateTime" | "HighValueAcknowledgement";
+        BankProtocolScenarioResult: {
+            success: boolean;
+            requestId?: string | null;
+            error?: string | null;
+        };
+        BankProtocolScenarioStatus: {
+            status?: components["schemas"]["RequestStatus"];
+            selectedOption?: string | null;
+            selectedOptions?: string[] | null;
+            value?: string | null;
+            attestationVerified: boolean;
+            error?: string | null;
+        };
+        BankScenarioRequest: {
+            accountId: string;
+        };
+        GenerateBankChallengeRequest: {
+            accountId: string;
+        };
+        OhppRegistration: {
+            resolverUrl: string;
+            accessToken: string;
+            userId: string;
+        };
+        Payee: {
+            id: string;
+            name: string;
+            accountNumber: string;
+            sortCode: string;
+        };
+        /** @enum {string} */
+        RequestStatus: "Pending" | "Resolved" | "Expired" | "Cancelled";
+        TransactionRecord: {
+            id: string;
+            accountId: string;
+            payeeName: string;
             /** Format: double */
             amount: number;
             reference?: string | null;
+            status: components["schemas"]["TransferStatus"];
+            participationRequestId?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            resolvedAt?: string | null;
+            /** Format: date-time */
+            scheduledFor?: string | null;
         };
+        TransferRequest: {
+            fromAccountId: string;
+            toPayeeId: string;
+            /** Format: double */
+            amount: number;
+            reference?: string | null;
+            /** Format: date-time */
+            scheduledFor?: string | null;
+        };
+        TransferResult: {
+            success: boolean;
+            error?: string | null;
+            participationRequestId?: string | null;
+            status: components["schemas"]["TransferStatus"];
+        };
+        /** @enum {string} */
+        TransferStatus: "Completed" | "PendingApproval" | "Denied" | "Failed" | "Expired" | "Scheduled";
     };
     responses: never;
     parameters: never;

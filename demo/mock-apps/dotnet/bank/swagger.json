@@ -18,6 +18,25 @@
         }
       }
     },
+    "/.well-known/ohpp/auth-config": {
+      "get": {
+        "tags": [
+          "Bank.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankAuthConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/accounts": {
       "get": {
         "tags": [
@@ -25,7 +44,17 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Account"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -47,7 +76,17 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -69,7 +108,27 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -99,7 +158,52 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/transactions": {
+      "get": {
+        "tags": [
+          "Bank.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionRecord"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -120,13 +224,139 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK"
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
     },
-    "/api/ohpp/register": {
+    "/api/ohpp/disconnect": {
+      "delete": {
+        "tags": [
+          "Bank.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/ohpp/scenarios/{scenario}": {
+      "post": {
+        "tags": [
+          "Bank.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "parameters": [
+          {
+            "name": "scenario",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BankProtocolScenario"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankScenarioRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankProtocolScenarioResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankProtocolScenarioResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/ohpp/scenarios/{requestId}/status": {
+      "get": {
+        "tags": [
+          "Bank.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankProtocolScenarioStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/ohpp/generate-challenge": {
       "post": {
         "tags": [
           "Bank.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
@@ -135,7 +365,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OhppRegistrationRequest"
+                "$ref": "#/components/schemas/GenerateBankChallengeRequest"
               }
             }
           },
@@ -143,7 +373,17 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankChallengeResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -175,6 +415,41 @@
   },
   "components": {
     "schemas": {
+      "Account": {
+        "required": [
+          "balance",
+          "id",
+          "name",
+          "ownerUserId",
+          "payees"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "number",
+            "format": "double"
+          },
+          "payees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Payee"
+            }
+          },
+          "ohppRegistration": {
+            "$ref": "#/components/schemas/OhppRegistration"
+          }
+        },
+        "additionalProperties": false
+      },
       "AddPayeeRequest": {
         "required": [
           "accountId",
@@ -185,41 +460,247 @@
         "type": "object",
         "properties": {
           "accountId": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "name": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "accountNumber": {
+            "type": "string"
+          },
+          "sortCode": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BankAuthConfigResponse": {
+        "required": [
+          "authority",
+          "clientId"
+        ],
+        "type": "object",
+        "properties": {
+          "authority": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BankChallengeResponse": {
+        "required": [
+          "challengeId",
+          "challengeUri",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "challengeUri": {
+            "type": "string"
+          },
+          "challengeId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BankProtocolScenario": {
+        "enum": [
+          "TransferDecision",
+          "TransferControls",
+          "PaymentReference",
+          "TransferAmount",
+          "PaymentDate",
+          "PaymentDateTime",
+          "HighValueAcknowledgement"
+        ],
+        "type": "string"
+      },
+      "BankProtocolScenarioResult": {
+        "required": [
+          "success"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "requestId": {
             "type": "string",
             "nullable": true
           },
-          "sortCode": {
+          "error": {
             "type": "string",
             "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "OhppRegistrationRequest": {
+      "BankProtocolScenarioStatus": {
+        "required": [
+          "attestationVerified"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/RequestStatus"
+          },
+          "selectedOption": {
+            "type": "string",
+            "nullable": true
+          },
+          "selectedOptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
+          },
+          "attestationVerified": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "BankScenarioRequest": {
+        "required": [
+          "accountId"
+        ],
         "type": "object",
         "properties": {
           "accountId": {
-            "type": "string",
-            "nullable": true
-          },
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GenerateBankChallengeRequest": {
+        "required": [
+          "accountId"
+        ],
+        "type": "object",
+        "properties": {
+          "accountId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OhppRegistration": {
+        "required": [
+          "accessToken",
+          "resolverUrl",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
           "resolverUrl": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "accessToken": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Payee": {
+        "required": [
+          "accountNumber",
+          "id",
+          "name",
+          "sortCode"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "accountNumber": {
+            "type": "string"
+          },
+          "sortCode": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RequestStatus": {
+        "enum": [
+          "Pending",
+          "Resolved",
+          "Expired",
+          "Cancelled"
+        ],
+        "type": "string"
+      },
+      "TransactionRecord": {
+        "required": [
+          "accountId",
+          "amount",
+          "createdAt",
+          "id",
+          "payeeName",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "accountId": {
+            "type": "string"
+          },
+          "payeeName": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "reference": {
             "type": "string",
             "nullable": true
           },
-          "userId": {
+          "status": {
+            "$ref": "#/components/schemas/TransferStatus"
+          },
+          "participationRequestId": {
             "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "scheduledFor": {
+            "type": "string",
+            "format": "date-time",
             "nullable": true
           }
         },
@@ -234,12 +715,10 @@
         "type": "object",
         "properties": {
           "fromAccountId": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "toPayeeId": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "amount": {
             "type": "number",
@@ -248,9 +727,49 @@
           "reference": {
             "type": "string",
             "nullable": true
+          },
+          "scheduledFor": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         },
         "additionalProperties": false
+      },
+      "TransferResult": {
+        "required": [
+          "status",
+          "success"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "participationRequestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/TransferStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TransferStatus": {
+        "enum": [
+          "Completed",
+          "PendingApproval",
+          "Denied",
+          "Failed",
+          "Expired",
+          "Scheduled"
+        ],
+        "type": "string"
       }
     }
   }

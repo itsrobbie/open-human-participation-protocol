@@ -2,6 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using OHPP.Protocol;
+using OHPP.Protocol.Models;
+using OHPP.Protocol.Serialisation;
+using OHPP.Sdk;
 using OHPP.Tests.Integration.Api.Infrastructure;
 using Xunit;
 
@@ -100,7 +104,7 @@ public sealed class WebApprovalsTests : IntegrationTestBase
 
         // Approve via web
         var resolveResponse = await userClient.PostAsJsonAsync($"/api/web-approvals/{requestId}/resolve",
-            new { decision = "approve" });
+            new { selectedOption = "approve" });
 
         resolveResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var resolveBody = await resolveResponse.Content.ReadAsStringAsync();
@@ -122,7 +126,7 @@ public sealed class WebApprovalsTests : IntegrationTestBase
         var requestId = JsonDocument.Parse(submitBody).RootElement.GetProperty("requestId").GetGuid();
 
         var response = await userClient.PostAsJsonAsync($"/api/web-approvals/{requestId}/resolve",
-            new { decision = "approve" });
+            new { selectedOption = "approve" });
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -140,11 +144,11 @@ public sealed class WebApprovalsTests : IntegrationTestBase
         var requestId = JsonDocument.Parse(submitBody).RootElement.GetProperty("requestId").GetGuid();
 
         // First resolve
-        await userClient.PostAsJsonAsync($"/api/web-approvals/{requestId}/resolve", new { decision = "approve" });
+        await userClient.PostAsJsonAsync($"/api/web-approvals/{requestId}/resolve", new { selectedOption = "approve" });
 
         // Second resolve — should conflict
         var response = await userClient.PostAsJsonAsync($"/api/web-approvals/{requestId}/resolve",
-            new { decision = "approve" });
+            new { selectedOption = "approve" });
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -164,7 +168,7 @@ public sealed class WebApprovalsTests : IntegrationTestBase
 
         // User 2 tries to resolve user 1's request
         var response = await userClient2.PostAsJsonAsync($"/api/web-approvals/{requestId}/resolve",
-            new { decision = "approve" });
+            new { selectedOption = "approve" });
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -182,13 +186,24 @@ public sealed class WebApprovalsTests : IntegrationTestBase
         var requestId = JsonDocument.Parse(submitBody).RootElement.GetProperty("requestId").GetGuid();
 
         // Approve via web
-        await userClient.PostAsJsonAsync($"/api/web-approvals/{requestId}/resolve", new { decision = "approve" });
+        await userClient.PostAsJsonAsync($"/api/web-approvals/{requestId}/resolve", new { selectedOption = "approve" });
 
         // App polls — should be resolved
         var statusResponse = await appClient.GetAsync($"/api/participate/{requestId}/status");
         statusResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var statusBody = await statusResponse.Content.ReadAsStringAsync();
         statusBody.Should().Contain("resolved");
+        using var statusDocument = JsonDocument.Parse(statusBody);
+        var attestation = OhppJsonSerialiser.Deserialise<AttestationEnvelope>(
+            statusDocument.RootElement.GetProperty("attestation").GetRawText());
+        attestation.Should().NotBeNull();
+
+        var requester = new OhppRequesterClient(
+            Factory.CreateClient(),
+            new EndpointDiscovery(Factory.CreateClient()));
+        var resolverBaseUrl = Factory.Server.BaseAddress.ToString().TrimEnd('/');
+        var verification = await requester.VerifyAttestationAsync(attestation!, resolverBaseUrl);
+        verification.Valid.Should().BeTrue(verification.Error);
     }
 
     private static string BuildProtocolPayload(Guid userId, string appId)

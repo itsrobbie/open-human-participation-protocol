@@ -16,7 +16,7 @@ public sealed class RegistrationController : OhppControllerBase
         _orchestrator = orchestrator;
     }
 
-    [HttpPost("process-challenge")]
+    [HttpPost("process-challenge", Name = "ProcessRegistrationChallenge")]
     public async Task<IActionResult> ProcessChallenge([FromBody] ProcessChallengeRequest request)
     {
         var result = await _orchestrator.ProcessChallengeAsync(UserId, request.ChallengePayload);

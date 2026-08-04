@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Bank.Domain\Bank.Domain.csproj" />
     <ProjectReference Include="..\..\..\..\..\..\sdks\dotnet\src\OHPP.Sdk\OHPP.Sdk.csproj" />
+    <PackageReference Include="Npgsql" Version="8.0.3" />
   </ItemGroup>
 
 </Project>

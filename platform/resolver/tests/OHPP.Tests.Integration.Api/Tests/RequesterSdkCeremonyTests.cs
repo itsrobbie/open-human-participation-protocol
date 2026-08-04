@@ -112,6 +112,11 @@ public sealed class RequesterSdkCeremonyTests : IntegrationTestBase
         var resolvedResult = await requesterClient.GetStatusAsync(sendResult.RequestId!, resolverBaseUrl, accessToken);
         resolvedResult.Success.Should().BeTrue();
         resolvedResult.Status.Should().Be(RequestStatus.Resolved);
+        resolvedResult.Attestation.Should().NotBeNull();
+        var verification = await requesterClient.VerifyAttestationAsync(
+            resolvedResult.Attestation!,
+            resolverBaseUrl);
+        verification.Valid.Should().BeTrue(verification.Error);
 
         // Cancel should fail (already resolved)
         var cancelResult = await requesterClient.CancelRequestAsync(sendResult.RequestId!, resolverBaseUrl, accessToken);

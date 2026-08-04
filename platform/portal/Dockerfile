@@ -1,5 +1,7 @@
 FROM node:20-alpine AS build
 WORKDIR /app
+ARG VITE_ENABLE_PROTOCOL_LAB=false
+ENV VITE_ENABLE_PROTOCOL_LAB=$VITE_ENABLE_PROTOCOL_LAB
 COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .

@@ -23,7 +23,7 @@ public sealed class HttpResolverClient : IResolverClient
     {
         try
         {
-            await _apiClient.KeysPOSTAsync(new RegisterKeyRequest
+            await _apiClient.RegisterDeviceKeyAsync(new RegisterKeyRequest
             {
                 PublicKey = publicKeyPem,
                 Algorithm = algorithm
@@ -36,16 +36,34 @@ public sealed class HttpResolverClient : IResolverClient
         }
     }
 
-    public async Task<IReadOnlyList<IncomingRequest>> GetPendingRequestsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<IncomingRequest>?> GetPendingRequestsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            // The generated client's PendingAsync returns void because the OpenAPI spec
-            // doesn't define the response schema (needs ProducesResponseType on DeviceController).
-            // Once annotated, NSwag will generate a typed return value here.
-            // For now, use the raw HttpClient for this one endpoint.
-            await _apiClient.PendingAsync(cancellationToken);
-            return Array.Empty<IncomingRequest>();
+            var requests = await _apiClient.GetDevicePendingRequestsAsync(cancellationToken);
+            return requests.Select(request => new IncomingRequest
+            {
+                RequestId = request.RequestId,
+                AppId = request.AppId,
+                Summary = request.Summary,
+                Description = request.Description,
+                Rationale = request.Rationale,
+                Category = request.Category,
+                Type = request.Type,
+                Options = request.Options?.Select(option => new RequestOption
+                {
+                    Key = option.Key,
+                    Label = option.Label,
+                    FreeText = option.FreeText,
+                    Placeholder = option.Placeholder
+                }).ToList(),
+                Expiry = request.Expiry,
+                ReceivedAt = request.ReceivedAt
+            }).ToList();
+        }
+        catch (ApiException ex) when (ex.StatusCode == 401 || ex.StatusCode == 403)
+        {
+            return null; // Token is invalid/revoked
         }
         catch (ApiException)
         {
@@ -57,7 +75,7 @@ public sealed class HttpResolverClient : IResolverClient
     {
         try
         {
-            await _apiClient.AttestationsAsync(new SubmitAttestationRequest
+            await _apiClient.SubmitDeviceAttestationAsync(new SubmitAttestationRequest
             {
                 RequestId = requestId,
                 AttestationPayload = attestationPayload,

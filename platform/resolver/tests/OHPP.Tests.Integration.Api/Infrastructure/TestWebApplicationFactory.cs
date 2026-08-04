@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -5,7 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using OHPP.Domain.Auth;
+using OHPP.Domain.Attestation;
+using OHPP.Domain.Shared;
 using OHPP.Infrastructure.PostgreSQL;
+using OHPP.Presentation.Api.BackgroundServices;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -34,6 +38,7 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>, 
         builder.UseSetting("ConnectionStrings:PostgreSQL", ConnectionString);
         builder.UseSetting("Resolver:BaseUrl", "http://localhost");
         builder.UseSetting("Resolver:EncryptionKey", "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcw==");
+        builder.UseSetting("Startup:SkipDatabaseInitialization", "true");
 
         builder.ConfigureServices(services =>
         {
@@ -55,25 +60,60 @@ public sealed class TestWebApplicationFactory : WebApplicationFactory<Program>, 
             services.AddSingleton<OHPP.Infrastructure.DotNet.Http.IAppIdResolver>(
                 new OHPP.Infrastructure.DotNet.Http.DevModeAppIdResolver(AppIdOverrides));
 
-            // Remove background services to avoid interference during tests
-            services.RemoveAll<IHostedService>();
+            // Disable only application background loops. Removing every
+            // IHostedService also removes ASP.NET Core's internal web-host
+            // service and can leave WebApplicationFactory startup hanging.
+            var applicationBackgroundServices = services
+                .Where(descriptor =>
+                    descriptor.ServiceType == typeof(IHostedService) &&
+                    (descriptor.ImplementationType == typeof(ExpiryEnforcementBackgroundService) ||
+                     descriptor.ImplementationType == typeof(SseHeartbeatService)))
+                .ToArray();
+
+            foreach (var descriptor in applicationBackgroundServices)
+                services.Remove(descriptor);
         });
 
-        builder.UseEnvironment("Development");
+        // The factory owns test-database migration in InitializeAsync. Mark the
+        // host explicitly so Program does not synchronously migrate it as well.
+        builder.UseEnvironment("Testing");
     }
 
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
 
-        // Apply migrations to the test database
+        // The test host requests the startup skip during configuration.
+        // Migrations remain idempotent, and this factory owns the test schema
+        // and signing-key seeding.
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.MigrateAsync();
+        await EnsureResolverSigningKeyAsync(scope.ServiceProvider);
     }
 
     async Task IAsyncLifetime.DisposeAsync()
     {
         await _postgres.DisposeAsync();
+    }
+
+    private static async Task EnsureResolverSigningKeyAsync(IServiceProvider services)
+    {
+        var keyStore = services.GetRequiredService<IKeyStore>();
+        if (await keyStore.GetActiveKeyAsync() is not null)
+            return;
+
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var keyEncryptor = services.GetRequiredService<IKeyEncryptor>();
+        var clock = services.GetRequiredService<IClock>();
+        await keyStore.CreateKeyAsync(new SigningKey
+        {
+            KeyId = $"resolver-test-{Guid.NewGuid():N}",
+            Algorithm = "ES256",
+            PublicKeyPem = key.ExportSubjectPublicKeyInfoPem(),
+            PrivateKeyPem = keyEncryptor.Encrypt(key.ExportPkcs8PrivateKeyPem()),
+            IsActive = true,
+            CreatedAt = clock.UtcNow
+        });
     }
 }

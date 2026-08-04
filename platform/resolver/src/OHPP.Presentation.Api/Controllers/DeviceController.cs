@@ -4,6 +4,7 @@ using OHPP.Domain.Auth;
 using OHPP.Domain.Participation;
 using OHPP.Infrastructure.DotNet.Notifications;
 using OHPP.Presentation.Api.Filters;
+using OHPP.Services.Participation;
 
 namespace OHPP.Presentation.Api.Controllers;
 
@@ -28,7 +29,7 @@ public sealed class DeviceController : OhppControllerBase
         _sseChannel = sseChannel;
     }
 
-    [HttpPost("keys")]
+    [HttpPost("keys", Name = "RegisterDeviceKey")]
     public async Task<IActionResult> RegisterKey([FromBody] RegisterKeyRequest request)
     {
         var device = await _deviceRepo.GetByIdAsync(Principal!.DeviceId!.Value);
@@ -42,7 +43,7 @@ public sealed class DeviceController : OhppControllerBase
         return Ok(new { deviceId = device.Id, keyRegistered = true });
     }
 
-    [HttpGet("events")]
+    [HttpGet("events", Name = "SubscribeDeviceEvents")]
     public async Task Events(CancellationToken cancellationToken)
     {
         Response.ContentType = "text/event-stream";
@@ -52,6 +53,9 @@ public sealed class DeviceController : OhppControllerBase
         var deviceId = Principal!.DeviceId!.Value;
         var connection = new SseConnection(deviceId, Response.Body);
         _sseChannel.AddConnection(UserId, connection);
+
+        // Flush headers so the client receives the 200 and starts reading the stream
+        await Response.Body.FlushAsync(cancellationToken);
 
         try
         {
@@ -67,14 +71,15 @@ public sealed class DeviceController : OhppControllerBase
         }
     }
 
-    [HttpGet("pending")]
+    [HttpGet("pending", Name = "GetDevicePendingRequests")]
+    [ProducesResponseType(typeof(DeviceParticipationRequest[]), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPending()
     {
         var requests = await _pendingRepo.GetPendingByUserIdAsync(UserId);
-        return Ok(requests);
+        return Ok(requests.Select(DeviceParticipationRequestMapper.Map).ToList());
     }
 
-    [HttpPost("attestations")]
+    [HttpPost("attestations", Name = "SubmitDeviceAttestation")]
     public async Task<IActionResult> SubmitAttestation([FromBody] SubmitAttestationRequest request)
     {
         var result = await _attestationService.ProcessDeviceAttestationAsync(
@@ -85,7 +90,15 @@ public sealed class DeviceController : OhppControllerBase
             request.DeviceSignature);
 
         if (result.IsFailure)
-            return BadRequest(new { error = result.Error });
+        {
+            return result.Error!.Code switch
+            {
+                "CONFLICT" => Conflict(new { error = result.Error }),
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "UNAUTHORIZED" => Unauthorized(new { error = result.Error }),
+                _ => BadRequest(new { error = result.Error })
+            };
+        }
 
         return Ok(new { attestation = result.Value });
     }

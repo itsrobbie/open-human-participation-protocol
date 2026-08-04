@@ -47,6 +47,7 @@ test.describe('Bank — Transfer denied by user', () => {
     const badge = bankPage.locator('.ohpp-badge')
     if (!(await badge.isVisible().catch(() => false))) {
       // Generate challenge and register in portal
+      await bankPage.getByTestId('nav-settings').click()
       await bankPage.click('#generate-challenge-btn')
       const challengeTextarea = bankPage.locator('#challenge-uri')
       await expect(challengeTextarea).toBeVisible({ timeout: 10000 })
@@ -65,10 +66,12 @@ test.describe('Bank — Transfer denied by user', () => {
     await expect(bankPage.locator('.ohpp-badge')).toBeVisible({ timeout: 10000 })
 
     // --- Make a transfer ---
+    await bankPage.getByTestId('nav-payments').click()
     await bankPage.selectOption('#payee-select', { index: 0 })
     await bankPage.fill('#amount', '25.00')
     await bankPage.fill('#reference', 'E2E deny test')
     await bankPage.click('#transfer-form button[type="submit"]')
+    await bankPage.click('#confirm-transfer')
 
     const transferResult = bankPage.locator('#transfer-result')
     await expect(transferResult).toBeVisible({ timeout: 15000 })
@@ -78,13 +81,17 @@ test.describe('Bank — Transfer denied by user', () => {
     await portalPage.click('nav >> text=Pending')
 
     // The bank sends Select options with labels "Approve transfer" and "Deny transfer"
-    const denyBtn = portalPage.locator('button:has-text("Deny transfer")')
+    const requestCard = portalPage.locator('div.bg-white')
+      .filter({ hasText: 'Transfer £25.00' })
+      .filter({ has: portalPage.getByRole('button', { name: 'Deny transfer' }) })
+      .last()
+    const denyBtn = requestCard.getByRole('button', { name: 'Deny transfer' })
     await expect(denyBtn).toBeVisible({ timeout: 15000 })
 
     await denyBtn.click()
 
     // Request should disappear
-    await expect(denyBtn).not.toBeVisible({ timeout: 10000 })
+    await expect(requestCard).not.toBeVisible({ timeout: 10000 })
 
     // --- Bank should show DENIED, not approved ---
     await expect(transferResult).toContainText('denied', { timeout: 30000 })

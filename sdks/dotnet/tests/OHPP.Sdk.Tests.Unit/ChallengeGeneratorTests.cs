@@ -29,6 +29,22 @@ public sealed class ChallengeGeneratorTests
     }
 
     [Fact]
+    public void GenerateChallenge_DefaultsToFiveMinuteExpiry()
+    {
+        var challenge = new ChallengeGenerator(_options).CreateChallenge();
+
+        (challenge.ExpiresAt - challenge.CreatedAt).Should().BeCloseTo(TimeSpan.FromMinutes(5), TimeSpan.FromMilliseconds(10));
+    }
+
+    [Fact]
+    public void GenerateChallenge_UsesCustomValidity()
+    {
+        var challenge = new ChallengeGenerator(_options).CreateChallenge(TimeSpan.FromMinutes(17));
+
+        (challenge.ExpiresAt - challenge.CreatedAt).Should().BeCloseTo(TimeSpan.FromMinutes(17), TimeSpan.FromMilliseconds(10));
+    }
+
+    [Fact]
     public void GenerateChallenge_EncodesAsBase64Url()
     {
         var generator = new ChallengeGenerator(_options);

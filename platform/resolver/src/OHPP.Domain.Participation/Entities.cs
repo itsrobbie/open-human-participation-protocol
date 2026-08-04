@@ -15,6 +15,28 @@ public sealed class PendingRequest
     public DateTimeOffset? ResolvedAt { get; set; }
 }
 
+public sealed class DeviceParticipationRequest
+{
+    public required Guid RequestId { get; init; }
+    public required string AppId { get; init; }
+    public required string Summary { get; init; }
+    public string? Description { get; init; }
+    public string? Rationale { get; init; }
+    public string? Category { get; init; }
+    public required string Type { get; init; }
+    public IReadOnlyList<DeviceRequestOption>? Options { get; init; }
+    public DateTimeOffset? Expiry { get; init; }
+    public DateTimeOffset ReceivedAt { get; init; }
+}
+
+public sealed class DeviceRequestOption
+{
+    public required string Key { get; init; }
+    public required string Label { get; init; }
+    public bool FreeText { get; init; }
+    public string? Placeholder { get; init; }
+}
+
 public sealed class ParticipationRecord
 {
     public Guid Id { get; set; }

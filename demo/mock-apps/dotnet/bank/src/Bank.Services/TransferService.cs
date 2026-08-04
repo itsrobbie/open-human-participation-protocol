@@ -11,12 +11,18 @@ public sealed class TransferService
     private readonly IAccountStore _accountStore;
     private readonly IParticipationClient _participationClient;
     private readonly ITransactionStore _transactionStore;
+    private readonly IClock _clock;
 
-    public TransferService(IAccountStore accountStore, IParticipationClient participationClient, ITransactionStore transactionStore)
+    public TransferService(
+        IAccountStore accountStore,
+        IParticipationClient participationClient,
+        ITransactionStore transactionStore,
+        IClock clock)
     {
         _accountStore = accountStore;
         _participationClient = participationClient;
         _transactionStore = transactionStore;
+        _clock = clock;
     }
 
     public async Task<TransferResult> InitiateTransferAsync(TransferRequest request, CancellationToken cancellationToken = default)
@@ -34,6 +40,8 @@ public sealed class TransferService
         var payee = account.Payees.FirstOrDefault(p => p.Id == request.ToPayeeId);
         if (payee is null)
             return TransferResult.Failed("Payee not found");
+
+        var isFutureSchedule = request.ScheduledFor is { } scheduledFor && scheduledFor > _clock.UtcNow;
 
         // If user has OHPP registered, request participation before executing
         if (account.OhppRegistration is not null)
@@ -59,13 +67,30 @@ public sealed class TransferService
                 Reference = request.Reference,
                 Status = TransferStatus.PendingApproval,
                 ParticipationRequestId = requestId,
-                CreatedAt = DateTimeOffset.UtcNow,
+                CreatedAt = _clock.UtcNow,
+                ScheduledFor = request.ScheduledFor,
             }, cancellationToken);
 
             return TransferResult.PendingApproval(requestId);
         }
 
-        // No OHPP — execute directly
+        if (isFutureSchedule)
+        {
+            await _transactionStore.RecordAsync(new TransactionRecord
+            {
+                Id = Guid.NewGuid().ToString(),
+                AccountId = request.FromAccountId,
+                PayeeName = payee.Name,
+                Amount = request.Amount,
+                Reference = request.Reference,
+                Status = TransferStatus.Scheduled,
+                CreatedAt = _clock.UtcNow,
+                ScheduledFor = request.ScheduledFor,
+            }, cancellationToken);
+            return TransferResult.Scheduled();
+        }
+
+        // No OHPP and no future schedule: execute directly.
         account.Balance -= request.Amount;
         await _accountStore.SaveAsync(account, cancellationToken);
 
@@ -79,8 +104,9 @@ public sealed class TransferService
             Reference = request.Reference,
             Status = TransferStatus.Completed,
             ParticipationRequestId = null,
-            CreatedAt = DateTimeOffset.UtcNow,
-            ResolvedAt = DateTimeOffset.UtcNow,
+            CreatedAt = _clock.UtcNow,
+            ResolvedAt = _clock.UtcNow,
+            ScheduledFor = request.ScheduledFor,
         }, cancellationToken);
 
         return TransferResult.Completed();
@@ -102,16 +128,17 @@ public sealed class TransferService
         if (status is TransferStatus.Completed or TransferStatus.Denied or TransferStatus.Expired)
         {
             var txn = await _transactionStore.GetByParticipationRequestIdAsync(requestId, cancellationToken);
-            if (txn is not null && txn.Status == TransferStatus.PendingApproval)
+            if (txn is null || !string.Equals(txn.AccountId, accountId, StringComparison.Ordinal))
+                return TransferResult.Failed("Participation request does not belong to this account");
+            if (txn.Status == TransferStatus.PendingApproval)
             {
-                // Deduct balance BEFORE updating status (in-memory store mutates the same reference)
-                if (status == TransferStatus.Completed)
-                {
-                    account.Balance -= txn.Amount;
-                    await _accountStore.SaveAsync(account, cancellationToken);
-                }
-
-                await _transactionStore.UpdateStatusAsync(txn.Id, status, cancellationToken);
+                var resolutionStatus = status == TransferStatus.Completed &&
+                    txn.ScheduledFor is { } scheduledFor && scheduledFor > _clock.UtcNow
+                    ? TransferStatus.Scheduled
+                    : status;
+                await _transactionStore.TryResolveAsync(txn.Id, resolutionStatus, _clock.UtcNow, cancellationToken);
+                if (resolutionStatus == TransferStatus.Scheduled)
+                    return TransferResult.Scheduled();
             }
         }
 
@@ -121,6 +148,7 @@ public sealed class TransferService
             TransferStatus.PendingApproval => TransferResult.PendingApproval(requestId),
             TransferStatus.Denied => TransferResult.Denied("User denied the transfer"),
             TransferStatus.Expired => TransferResult.Failed("Participation request expired"),
+            TransferStatus.Scheduled => TransferResult.Scheduled(),
             _ => TransferResult.Failed("Unexpected status")
         };
     }

@@ -32,8 +32,9 @@ public interface IResolverClient
 
     /// <summary>
     /// Fetches all pending participation requests for this device.
+    /// Returns null if the token is invalid/revoked (401/403).
     /// </summary>
-    Task<IReadOnlyList<IncomingRequest>> GetPendingRequestsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IncomingRequest>?> GetPendingRequestsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Submits a signed attestation to the Resolver.

@@ -67,6 +67,8 @@ public sealed class OhppResolverServicesAdapter : IOhppResolverServices
 
         // Extract decision details and attestation if resolved
         string? selectedOption = null;
+        IReadOnlyList<string>? selectedOptions = null;
+        string? value = null;
         AttestationEnvelope? attestation = null;
 
         if (status == Protocol.RequestStatus.Resolved)
@@ -74,7 +76,10 @@ public sealed class OhppResolverServicesAdapter : IOhppResolverServices
             var record = await _recordRepo.GetByRequestIdAsync(requestId);
             if (record?.DecisionPayload is not null)
             {
-                selectedOption = ExtractSelectedOption(record.DecisionPayload);
+                var decision = ExtractDecision(record.DecisionPayload);
+                selectedOption = decision.SelectedOption;
+                selectedOptions = decision.SelectedOptions;
+                value = decision.Value;
             }
             if (record?.AttestationPayload is not null)
             {
@@ -87,6 +92,8 @@ public sealed class OhppResolverServicesAdapter : IOhppResolverServices
             Status = status,
             Attestation = attestation,
             SelectedOption = selectedOption,
+            SelectedOptions = selectedOptions,
+            Value = value,
         });
     }
 
@@ -124,24 +131,37 @@ public sealed class OhppResolverServicesAdapter : IOhppResolverServices
         _ => Protocol.RequestStatus.Pending
     };
 
-    private static string? ExtractSelectedOption(string decisionPayloadJson)
+    private static DecisionPayload ExtractDecision(string decisionPayloadJson)
     {
         try
         {
             var doc = JsonDocument.Parse(decisionPayloadJson);
             // Web approval format: { "selectedOption": "approve", ... }
             if (doc.RootElement.TryGetProperty("selectedOption", out var selOpt) && selOpt.ValueKind == JsonValueKind.String)
-                return selOpt.GetString();
+                return new DecisionPayload(selOpt.GetString(), null, null);
+            IReadOnlyList<string>? selectedOptions = null;
+            if (doc.RootElement.TryGetProperty("selectedOptions", out var selOpts) && selOpts.ValueKind == JsonValueKind.Array)
+                selectedOptions = selOpts.EnumerateArray()
+                    .Where(item => item.ValueKind == JsonValueKind.String)
+                    .Select(item => item.GetString()!)
+                    .ToArray();
             // Device attestation format: { "decision": "approve", ... }
             if (doc.RootElement.TryGetProperty("decision", out var dec) && dec.ValueKind == JsonValueKind.String)
-                return dec.GetString();
-            return null;
+                return new DecisionPayload(dec.GetString(), selectedOptions, null);
+            if (doc.RootElement.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.String)
+                return new DecisionPayload(null, selectedOptions, value.GetString());
+            return new DecisionPayload(null, selectedOptions, null);
         }
         catch
         {
-            return null;
+            return new DecisionPayload(null, null, null);
         }
     }
+
+    private sealed record DecisionPayload(
+        string? SelectedOption,
+        IReadOnlyList<string>? SelectedOptions,
+        string? Value);
 
     private static Jwk? ConvertPemToJwk(JwkEntry entry)
     {

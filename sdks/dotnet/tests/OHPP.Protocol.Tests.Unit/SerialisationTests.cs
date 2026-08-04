@@ -8,6 +8,15 @@ namespace OHPP.Protocol.Tests.Unit;
 public sealed class SerialisationTests
 {
     [Fact]
+    public void PublicConstantsAndSerializerOptions_MatchProtocolContract()
+    {
+        ProtocolConstants.Version.Should().Be("1.0");
+        ProtocolConstants.UriScheme.Should().Be("ohpp");
+        ProtocolConstants.WellKnownMetadataPath.Should().Be("/.well-known/ohpp/metadata");
+        OhppJsonSerialiser.GetOptions().PropertyNamingPolicy.Should().NotBeNull();
+    }
+
+    [Fact]
     public void CanonicalJson_DeterministicOutput_ForSigning()
     {
         var request = new ParticipationRequest

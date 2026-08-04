@@ -159,6 +159,35 @@ public sealed class OhppResolverEndpointsTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task ParticipateEndpoint_Success_ReturnsCreatedAndPendingStatus()
+    {
+        var auth = AuthenticatedContext();
+        _authAccessor.GetAppContext(Arg.Any<HttpContext>()).Returns(auth);
+        _services.ProcessParticipationRequestAsync(auth.AppRegistrationId, auth.UserId, auth.AppId, Arg.Any<string>())
+            .Returns(ResolverResult<string>.Ok("request-created"));
+
+        var response = await _client.PostAsync("/api/participate", ValidParticipationBody());
+        var body = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location!.ToString().Should().Contain("request-created/status");
+        body.Should().Contain("request-created").And.Contain("pending");
+    }
+
+    [Fact]
+    public async Task ParticipateEndpoint_ServiceFailure_MapsSuggestedStatusCode()
+    {
+        var auth = AuthenticatedContext();
+        _authAccessor.GetAppContext(Arg.Any<HttpContext>()).Returns(auth);
+        _services.ProcessParticipationRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(ResolverResult<string>.Fail("too many requests", StatusCodes.Status429TooManyRequests));
+
+        var response = await _client.PostAsync("/api/participate", ValidParticipationBody());
+
+        response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
     public async Task StatusEndpoint_WithoutAuth_Returns401()
     {
         _authAccessor.GetAppContext(Arg.Any<HttpContext>()).Returns((OhppAppAuthContext?)null);
@@ -178,6 +207,103 @@ public sealed class OhppResolverEndpointsTests : IAsyncDisposable
         var response = await _client.PostAsync($"/api/participate/{requestId}/cancel", null);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task CancelEndpoint_Success_ReturnsOk()
+    {
+        var auth = AuthenticatedContext();
+        _authAccessor.GetAppContext(Arg.Any<HttpContext>()).Returns(auth);
+        _services.CancelRequestAsync(Arg.Any<Guid>(), auth.AppRegistrationId)
+            .Returns(ResolverResult<bool>.Ok(true));
+
+        var response = await _client.PostAsync($"/api/participate/{Guid.NewGuid()}/cancel", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task CancelEndpoint_Conflict_MapsSuggestedConflictStatus()
+    {
+        var auth = AuthenticatedContext();
+        _authAccessor.GetAppContext(Arg.Any<HttpContext>()).Returns(auth);
+        _services.CancelRequestAsync(Arg.Any<Guid>(), auth.AppRegistrationId)
+            .Returns(ResolverResult<bool>.Fail("already resolved", StatusCodes.Status409Conflict));
+
+        var response = await _client.PostAsync($"/api/participate/{Guid.NewGuid()}/cancel", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task StatusEndpoint_Success_PreservesTypedAnswerFields()
+    {
+        var auth = AuthenticatedContext();
+        _authAccessor.GetAppContext(Arg.Any<HttpContext>()).Returns(auth);
+        _services.GetRequestStatusAsync(Arg.Any<Guid>(), auth.AppRegistrationId)
+            .Returns(ResolverResult<RequestStatusResponse>.Ok(new RequestStatusResponse
+            {
+                Status = RequestStatus.Resolved,
+                SelectedOption = "continue",
+                SelectedOptions = ["building", "contents"],
+                Value = "typed-value"
+            }));
+
+        var response = await _client.GetAsync($"/api/participate/{Guid.NewGuid()}/status");
+        var body = await response.Content.ReadAsStringAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        body.Should().Contain("continue").And.Contain("building").And.Contain("typed-value");
+    }
+
+    [Fact]
+    public async Task StatusEndpoint_ServiceFailure_MapsSuggestedStatusCode()
+    {
+        var auth = AuthenticatedContext();
+        _authAccessor.GetAppContext(Arg.Any<HttpContext>()).Returns(auth);
+        _services.GetRequestStatusAsync(Arg.Any<Guid>(), auth.AppRegistrationId)
+            .Returns(ResolverResult<RequestStatusResponse>.Fail("missing", StatusCodes.Status404NotFound));
+
+        var response = await _client.GetAsync($"/api/participate/{Guid.NewGuid()}/status");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task StatusEndpoint_InvalidGuid_DoesNotReachService()
+    {
+        var response = await _client.GetAsync("/api/participate/not-a-guid/status");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        await _services.DidNotReceiveWithAnyArgs().GetRequestStatusAsync(default, default);
+    }
+
+    private static OhppAppAuthContext AuthenticatedContext() => new()
+    {
+        AppRegistrationId = Guid.NewGuid(),
+        UserId = Guid.NewGuid(),
+        AppId = "requester.test"
+    };
+
+    private static StringContent ValidParticipationBody()
+    {
+        var payload = OhppJsonSerialiser.Serialise(new ParticipationRequest
+        {
+            Id = "request-valid",
+            Version = ProtocolConstants.Version,
+            Requester = new RequesterInfo { AppId = "requester.test" },
+            Validation = new ValidationInfo { UserId = "user-valid" },
+            Action = new ActionInfo { Summary = "Approve request" },
+            Type = RequestType.Select,
+            Options =
+            [
+                new RequestOption { Key = "approve", Label = "Approve" },
+                new RequestOption { Key = "deny", Label = "Deny" }
+            ],
+            Expiry = DateTimeOffset.UtcNow.AddMinutes(5),
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        return new StringContent(OhppJsonSerialiser.Serialise(new { payload }), Encoding.UTF8, "application/json");
     }
 }
 

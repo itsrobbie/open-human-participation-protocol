@@ -15,10 +15,13 @@ import { Settings } from './pages/Settings'
 import { Login } from './pages/Login'
 import { Pending } from './pages/Pending'
 import { RegisterApp } from './pages/RegisterApp'
+import { ProtocolLab } from './pages/ProtocolLab'
 import { api } from './api/client'
 import { hasValidSession, clearTokens, startTokenRefreshTimer } from './auth/token'
 import { Logo } from './components/Logo'
 import { ThemeToggle } from './components/ThemeToggle'
+
+const protocolLabEnabled = import.meta.env.VITE_ENABLE_PROTOCOL_LAB === 'true'
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -40,6 +43,7 @@ function AuthenticatedLayout() {
     { to: '/devices' as const, label: 'Devices' },
     { to: '/apps' as const, label: 'Apps' },
     { to: '/register-app' as const, label: 'Connect App' },
+    ...(protocolLabEnabled ? [{ to: '/protocol-lab' as const, label: 'Protocol Lab' }] : []),
   ]
 
   return (
@@ -150,10 +154,20 @@ const devicesRoute = createRoute({ getParentRoute: () => authenticatedLayout, pa
 const appsRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/apps', component: Apps })
 const registerAppRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/register-app', component: RegisterApp })
 const settingsRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/settings', component: Settings })
+const protocolLabRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/protocol-lab', component: ProtocolLab })
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  authenticatedLayout.addChildren([indexRoute, pendingRoute, historyRoute, devicesRoute, appsRoute, registerAppRoute, settingsRoute]),
+  authenticatedLayout.addChildren([
+    indexRoute,
+    pendingRoute,
+    historyRoute,
+    devicesRoute,
+    appsRoute,
+    registerAppRoute,
+    settingsRoute,
+    ...(protocolLabEnabled ? [protocolLabRoute] : []),
+  ]),
 ])
 
 export const router = createRouter({ routeTree })

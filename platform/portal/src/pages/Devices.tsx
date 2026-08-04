@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, type DeviceInfo } from '../api/client'
 import { useToast } from '../components/Toast'
@@ -18,6 +18,7 @@ export function Devices() {
 
   const [newToken, setNewToken] = useState<string | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<DeviceInfo | null>(null)
+  const createInFlight = useRef(false)
 
   const createBrowserDevice = useMutation({
     mutationFn: () => api.createDevice('This browser', 'browser'),
@@ -54,6 +55,14 @@ export function Devices() {
     },
   })
 
+  const registerBrowser = () => {
+    if (createInFlight.current) return
+    createInFlight.current = true
+    createBrowserDevice.mutate(undefined, {
+      onSettled: () => { createInFlight.current = false },
+    })
+  }
+
   if (isLoading) return <ListSkeleton count={3} />
   if (error) return <ErrorState message="Failed to load devices." onRetry={() => refetch()} />
 
@@ -77,7 +86,7 @@ export function Devices() {
             participation requests directly on the Pending page — no separate app needed.
           </p>
           <button
-            onClick={() => createBrowserDevice.mutate()}
+            onClick={registerBrowser}
             disabled={createBrowserDevice.isPending}
             className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
           >
@@ -127,7 +136,7 @@ export function Devices() {
       {revokedDevices.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold text-gray-500 dark:text-slate-400 mb-3">Revoked</h2>
-          <div className="space-y-3 opacity-60">
+          <div className="space-y-3">
             {revokedDevices.map((device) => (
               <DeviceCard key={device.id} device={device} />
             ))}
@@ -184,15 +193,15 @@ function DeviceCard({
       }`}
     >
       <div>
-        <p className={`font-medium ${!device.isActive ? 'text-gray-400 dark:text-slate-500' : ''}`}>{device.name}</p>
-        <p className="text-sm text-gray-500 dark:text-slate-400">
+        <p className={`font-medium ${!device.isActive ? 'text-gray-700 dark:text-slate-300' : ''}`}>{device.name}</p>
+        <p className={`text-sm ${!device.isActive ? 'text-gray-600 dark:text-slate-400' : 'text-gray-500 dark:text-slate-400'}`}>
           {typeLabel[device.deviceType] ?? device.deviceType}
           {device.hasKey && ' · Key registered'}
           {!device.isActive && (
-            <span className="text-red-500 font-medium"> · Revoked</span>
+            <span className="text-red-700 dark:text-red-400 font-medium"> · Revoked</span>
           )}
         </p>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+        <p className={`text-xs mt-1 ${!device.isActive ? 'text-gray-700 dark:text-slate-300' : 'text-gray-600 dark:text-slate-300'}`}>
           Registered {formatRelativeTime(device.registeredAt)}
           {device.lastSeenAt && ` · Last seen ${formatRelativeTime(device.lastSeenAt)}`}
         </p>

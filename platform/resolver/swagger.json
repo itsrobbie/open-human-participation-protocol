@@ -11,6 +11,7 @@
         "tags": [
           "Device"
         ],
+        "operationId": "RegisterDeviceKey",
         "requestBody": {
           "content": {
             "application/json": {
@@ -42,6 +43,7 @@
         "tags": [
           "Device"
         ],
+        "operationId": "SubscribeDeviceEvents",
         "responses": {
           "200": {
             "description": "OK"
@@ -54,9 +56,36 @@
         "tags": [
           "Device"
         ],
+        "operationId": "GetDevicePendingRequests",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceParticipationRequest"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceParticipationRequest"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceParticipationRequest"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -66,6 +95,7 @@
         "tags": [
           "Device"
         ],
+        "operationId": "SubmitDeviceAttestation",
         "requestBody": {
           "content": {
             "application/json": {
@@ -97,6 +127,7 @@
         "tags": [
           "Health"
         ],
+        "operationId": "GetHealthShallow",
         "responses": {
           "200": {
             "description": "OK"
@@ -109,6 +140,7 @@
         "tags": [
           "Health"
         ],
+        "operationId": "GetHealthReady",
         "responses": {
           "200": {
             "description": "OK"
@@ -121,6 +153,7 @@
         "tags": [
           "OHPP.Presentation.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
         ],
+        "operationId": "GetResolverMetadata",
         "responses": {
           "200": {
             "description": "OK"
@@ -133,6 +166,7 @@
         "tags": [
           "OHPP.Presentation.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
         ],
+        "operationId": "GetResolverKeys",
         "responses": {
           "200": {
             "description": "OK"
@@ -145,6 +179,7 @@
         "tags": [
           "OHPP.Presentation.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
         ],
+        "operationId": "SubmitParticipationRequest",
         "responses": {
           "200": {
             "description": "OK"
@@ -157,6 +192,7 @@
         "tags": [
           "OHPP.Presentation.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
         ],
+        "operationId": "GetParticipationRequestStatus",
         "parameters": [
           {
             "name": "requestId",
@@ -180,6 +216,7 @@
         "tags": [
           "OHPP.Presentation.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
         ],
+        "operationId": "CancelParticipationRequest",
         "parameters": [
           {
             "name": "requestId",
@@ -203,6 +240,7 @@
         "tags": [
           "Portal"
         ],
+        "operationId": "CreateOrGetProfile",
         "responses": {
           "200": {
             "description": "OK"
@@ -215,6 +253,7 @@
         "tags": [
           "Portal"
         ],
+        "operationId": "GetUserSummary",
         "responses": {
           "200": {
             "description": "OK"
@@ -227,6 +266,7 @@
         "tags": [
           "Portal"
         ],
+        "operationId": "GetParticipationHistory",
         "parameters": [
           {
             "name": "page",
@@ -259,6 +299,7 @@
         "tags": [
           "Portal"
         ],
+        "operationId": "GetParticipationHistoryDetail",
         "parameters": [
           {
             "name": "id",
@@ -282,6 +323,7 @@
         "tags": [
           "Portal"
         ],
+        "operationId": "GetUserDevices",
         "responses": {
           "200": {
             "description": "OK"
@@ -292,6 +334,7 @@
         "tags": [
           "Portal"
         ],
+        "operationId": "CreateDevice",
         "requestBody": {
           "content": {
             "application/json": {
@@ -323,6 +366,7 @@
         "tags": [
           "Portal"
         ],
+        "operationId": "RevokeDevice",
         "parameters": [
           {
             "name": "id",
@@ -346,6 +390,7 @@
         "tags": [
           "Portal"
         ],
+        "operationId": "GetRegisteredApps",
         "responses": {
           "200": {
             "description": "OK"
@@ -358,9 +403,206 @@
         "tags": [
           "Portal"
         ],
+        "operationId": "RevokeRegisteredApp",
         "parameters": [
           {
             "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/web-approvals/status": {
+      "get": {
+        "tags": [
+          "Portal"
+        ],
+        "operationId": "GetWebApprovalsStatus",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/web-approvals/pending": {
+      "get": {
+        "tags": [
+          "Portal"
+        ],
+        "operationId": "GetWebApprovalsPending",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/web-approvals/{requestId}/resolve": {
+      "post": {
+        "tags": [
+          "Portal"
+        ],
+        "operationId": "ResolveWebApproval",
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebResolveRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebResolveRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebResolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/.well-known/ohpp/app-metadata": {
+      "get": {
+        "tags": [
+          "ProtocolLab"
+        ],
+        "operationId": "GetLabAppMetadata",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/protocol-lab/callback": {
+      "post": {
+        "tags": [
+          "ProtocolLab"
+        ],
+        "operationId": "ReceiveLabRegistrationCallback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabCallbackPayload"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabCallbackPayload"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabCallbackPayload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/protocol-lab/register": {
+      "post": {
+        "tags": [
+          "ProtocolLab"
+        ],
+        "operationId": "RegisterProtocolLab",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/protocol-lab/status": {
+      "get": {
+        "tags": [
+          "ProtocolLab"
+        ],
+        "operationId": "GetProtocolLabStatus",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/protocol-lab/requests": {
+      "post": {
+        "tags": [
+          "ProtocolLab"
+        ],
+        "operationId": "SendLabRequest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendLabRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendLabRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendLabRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/protocol-lab/requests/{requestId}/status": {
+      "get": {
+        "tags": [
+          "ProtocolLab"
+        ],
+        "operationId": "GetLabRequestStatus",
+        "parameters": [
+          {
+            "name": "requestId",
             "in": "path",
             "required": true,
             "schema": {
@@ -381,6 +623,7 @@
         "tags": [
           "Registration"
         ],
+        "operationId": "ProcessRegistrationChallenge",
         "requestBody": {
           "content": {
             "application/json": {
@@ -424,6 +667,117 @@
         },
         "additionalProperties": false
       },
+      "DeviceParticipationRequest": {
+        "required": [
+          "appId",
+          "requestId",
+          "summary",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "appId": {
+            "type": "string",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "rationale": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeviceRequestOption"
+            },
+            "nullable": true
+          },
+          "expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeviceRequestOption": {
+        "required": [
+          "key",
+          "label"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "nullable": true
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "freeText": {
+            "type": "boolean"
+          },
+          "placeholder": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LabCallbackPayload": {
+        "type": "object",
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "resolverBaseUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "accessToken": {
+            "type": "string",
+            "nullable": true
+          },
+          "registrationId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ProcessChallengeRequest": {
         "type": "object",
         "properties": {
@@ -448,6 +802,16 @@
         },
         "additionalProperties": false
       },
+      "SendLabRequest": {
+        "type": "object",
+        "properties": {
+          "payload": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "SubmitAttestationRequest": {
         "type": "object",
         "properties": {
@@ -460,6 +824,27 @@
             "nullable": true
           },
           "deviceSignature": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebResolveRequest": {
+        "type": "object",
+        "properties": {
+          "selectedOption": {
+            "type": "string",
+            "nullable": true
+          },
+          "selectedOptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "value": {
             "type": "string",
             "nullable": true
           }

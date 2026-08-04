@@ -82,7 +82,7 @@ export function RegisterApp() {
           className="w-full border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm font-mono resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-800 dark:text-slate-100"
           placeholder="ohpp://register?challenge=eyJ..."
         />
-        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+        <p className="text-xs text-gray-600 dark:text-slate-300 mt-1">
           Look for a "Connect to OHPP" or "Generate connection link" button in the app you want to connect.
         </p>
 

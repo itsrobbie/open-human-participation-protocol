@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using OHPP.Protocol;
 using OHPP.Protocol.Models;
 using OHPP.Protocol.Serialisation;
@@ -48,7 +49,15 @@ public sealed class OhppRequesterClient : IOhppRequesterClient
             return ParticipationResult.Fail(error, (int)response.StatusCode);
         }
 
-        var result = OhppJsonSerialiser.Deserialise<ParticipateResponse>(responseBody);
+        ParticipateResponse? result;
+        try
+        {
+            result = OhppJsonSerialiser.Deserialise<ParticipateResponse>(responseBody);
+        }
+        catch (JsonException)
+        {
+            return ParticipationResult.Fail("Could not parse participation response");
+        }
         if (result?.RequestId is null)
             return ParticipationResult.Fail("Response missing requestId");
 
@@ -79,11 +88,24 @@ public sealed class OhppRequesterClient : IOhppRequesterClient
             return RequestStatusResult.Fail(error, (int)response.StatusCode);
         }
 
-        var statusResponse = OhppJsonSerialiser.Deserialise<StatusResponse>(responseBody);
+        StatusResponse? statusResponse;
+        try
+        {
+            statusResponse = OhppJsonSerialiser.Deserialise<StatusResponse>(responseBody);
+        }
+        catch (JsonException)
+        {
+            return RequestStatusResult.Fail("Could not parse status response");
+        }
         if (statusResponse is null)
             return RequestStatusResult.Fail("Could not parse status response");
 
-        return RequestStatusResult.Ok(statusResponse.Status, statusResponse.Attestation, statusResponse.SelectedOption);
+        return RequestStatusResult.Ok(
+            statusResponse.Status,
+            statusResponse.Attestation,
+            statusResponse.SelectedOption,
+            statusResponse.SelectedOptions,
+            statusResponse.Value);
     }
 
     public async Task<CancelResult> CancelRequestAsync(
@@ -131,7 +153,15 @@ public sealed class OhppRequesterClient : IOhppRequesterClient
             return VerificationResult.Invalid("Could not fetch Resolver JWKS");
 
         var jwksJson = await jwksResponse.Content.ReadAsStringAsync(cancellationToken);
-        var jwks = OhppJsonSerialiser.Deserialise<JwkSet>(jwksJson);
+        JwkSet? jwks;
+        try
+        {
+            jwks = OhppJsonSerialiser.Deserialise<JwkSet>(jwksJson);
+        }
+        catch (JsonException)
+        {
+            return VerificationResult.Invalid("Could not parse JWKS response");
+        }
         if (jwks is null)
             return VerificationResult.Invalid("Could not parse JWKS response");
 
@@ -141,10 +171,21 @@ public sealed class OhppRequesterClient : IOhppRequesterClient
         if (matchingKey is null)
             return VerificationResult.Invalid($"Key '{keyId}' not found in Resolver JWKS");
 
+        if (envelope.OuterSignature.Algorithm != SignatureAlgorithm.ES256)
+            return VerificationResult.Invalid($"Unsupported signature algorithm '{envelope.OuterSignature.Algorithm}'");
+
         // Verify the outer signature using the public key
         var payload = OhppJsonSerialiser.SerialiseCanonical(envelope.InnerAttestation);
         var payloadBytes = Encoding.UTF8.GetBytes(payload);
-        var signatureBytes = Base64UrlDecode(envelope.OuterSignature.Value);
+        byte[] signatureBytes;
+        try
+        {
+            signatureBytes = Base64UrlDecode(envelope.OuterSignature.Value);
+        }
+        catch (FormatException)
+        {
+            return VerificationResult.Invalid("Outer signature is not valid base64url");
+        }
 
         var isValid = VerifySignature(
             payloadBytes,
@@ -202,6 +243,8 @@ public sealed class OhppRequesterClient : IOhppRequesterClient
             var doc = System.Text.Json.JsonDocument.Parse(responseBody);
             if (doc.RootElement.TryGetProperty("error", out var errorProp))
                 return errorProp.GetString();
+            if (doc.RootElement.TryGetProperty("detail", out var detailProp))
+                return detailProp.GetString();
         }
         catch
         {
@@ -231,5 +274,7 @@ public sealed class OhppRequesterClient : IOhppRequesterClient
         public RequestStatus Status { get; init; }
         public AttestationEnvelope? Attestation { get; init; }
         public string? SelectedOption { get; init; }
+        public IReadOnlyList<string>? SelectedOptions { get; init; }
+        public string? Value { get; init; }
     }
 }

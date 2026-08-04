@@ -186,7 +186,10 @@ function RequestCard({
   isResolving: boolean
 }) {
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm dark:shadow-slate-900/20 border border-gray-200 dark:border-slate-700">
+    <div
+      data-testid={`pending-${request.type.toLowerCase()}`}
+      className="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm dark:shadow-slate-900/20 border border-gray-200 dark:border-slate-700"
+    >
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-start gap-3">
           <RequestTypeIcon type={request.type} />
@@ -197,7 +200,7 @@ function RequestCard({
             </p>
           </div>
         </div>
-        <span className="text-xs text-gray-400 dark:text-slate-500">
+        <span className="text-xs text-gray-600 dark:text-slate-300">
           {formatRelativeTime(request.createdAt)}
         </span>
       </div>
@@ -217,7 +220,7 @@ function RequestCard({
       )}
 
       {request.expiresAt && (
-        <p className="text-xs text-orange-600 dark:text-orange-400 mb-3">
+        <p className="text-xs text-orange-700 dark:text-orange-400 mb-3">
           Expires: {formatDateTime(request.expiresAt)}
         </p>
       )}

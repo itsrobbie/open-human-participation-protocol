@@ -10,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./platform/world-database/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ohpp"]
       interval: 5s
@@ -29,13 +30,13 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./platform/resolver/keycloak/realm-export.json:/opt/keycloak/data/import/ohpp-realm.json:ro
+      - ./platform/resolver/keycloak:/opt/keycloak/data/import:ro
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 30
+      start_period: 60s
     networks:
       - ohpp
 
@@ -50,10 +51,12 @@ services:
       ASPNETCORE_ENVIRONMENT: Docker
       ConnectionStrings__PostgreSQL: "Host=postgres;Database=ohpp;Username=ohpp;Password=${POSTGRES_PASSWORD:-ohpp_dev_password}"
       Resolver__BaseUrl: "http://localhost:5050"
+      Resolver__InternalBaseUrl: "http://resolver:8080"
       Resolver__Name: "OHPP Demo Resolver"
       Resolver__EncryptionKey: ${RESOLVER_ENCRYPTION_KEY:-dev-encryption-key-min-32-chars!!}
       Auth__Provider: "Keycloak"
       Auth__Keycloak__Authority: "http://keycloak:8080/realms/ohpp"
+      Features__ProtocolLab: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,6 +75,8 @@ services:
     build:
       context: platform/portal
       dockerfile: Dockerfile
+      args:
+        VITE_ENABLE_PROTOCOL_LAB: "true"
     ports:
       - "3000:80"
     depends_on:
@@ -91,14 +96,45 @@ services:
       Bank__AppId: "bank.demo.test"
       Bank__BaseUrl: "http://localhost:5010"
       Bank__ResolverInternalUrl: "http://resolver:8080"
+      WorldDatabase__ConnectionString: "Host=postgres;Port=5432;Database=ohpp;Username=bank_app;Password=ohpp_bank_demo_password"
+      WorldDatabase__RunBootstrap: "true"
+      Auth__Keycloak__Authority: "http://keycloak:8080/realms/ohpp-bank"
+      Auth__Keycloak__Audience: "ohpp-bank-app"
+      Auth__PublicAuthority: "http://localhost:8080/realms/ohpp-bank"
     depends_on:
       resolver:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - ohpp
+
+  insurance-claims:
+    build:
+      context: .
+      dockerfile: demo/mock-apps/dotnet/insurance-claims/Dockerfile
+    ports:
+      - "5020:5020"
+    environment:
+      Insurance__AppId: "insurance-claims.demo.test"
+      Insurance__BaseUrl: "http://localhost:5020"
+      Insurance__ResolverUrl: "http://resolver:8080"
+      WorldDatabase__ConnectionString: "Host=postgres;Port=5432;Database=ohpp;Username=insurance_claims_app;Password=ohpp_insurance_demo_password"
+      WorldDatabase__RunBootstrap: "true"
+      Auth__Keycloak__Authority: "http://keycloak:8080/realms/ohpp-insurance"
+      Auth__Keycloak__Audience: "ohpp-insurance-app"
+      Auth__PublicAuthority: "http://localhost:8080/realms/ohpp-insurance"
+    depends_on:
+      resolver:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - ohpp
 
   # --- CLI (interactive) ---
   cli:
+    profiles: ["tools"]
     build:
       context: .
       dockerfile: demo/client-cli/Dockerfile

@@ -73,13 +73,22 @@ public sealed class OhppParticipationClient : IParticipationClient
 
             if (result.Status == RequestStatus.Resolved)
             {
+                if (result.Attestation is null)
+                    return TransferStatus.Failed;
+                var verification = await _requesterClient.VerifyAttestationAsync(
+                    result.Attestation,
+                    registration.ResolverUrl,
+                    cancellationToken);
+                if (!verification.Valid)
+                    return TransferStatus.Failed;
+
                 // Read the user's selected option to determine the outcome.
                 // The bank sent options ["approve", "deny"] — check which one was chosen.
                 return result.SelectedOption switch
                 {
                     "approve" => TransferStatus.Completed,
                     "deny" => TransferStatus.Denied,
-                    _ => TransferStatus.Completed // Unknown option — default to completed for forward compat
+                    _ => TransferStatus.Failed
                 };
             }
 

@@ -15,9 +15,9 @@ public sealed class RateLimitingTests : IntegrationTestBase
     {
         var (client, _) = await CreateAuthenticatedUserAsync();
 
-        // The limit is 60/min. Send 61 requests.
+        // The recorded development limit is 200/min. The next request must be rejected.
         HttpResponseMessage? lastResponse = null;
-        for (var i = 0; i < 61; i++)
+        for (var i = 0; i < 201; i++)
         {
             lastResponse = await client.GetAsync("/api/users/me/summary");
             if (lastResponse.StatusCode == HttpStatusCode.TooManyRequests)

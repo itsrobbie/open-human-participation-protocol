@@ -40,6 +40,7 @@ test.describe('Portal — Connect App (full user journey)', () => {
     // Step 1: Open the bank and generate a connection link via the UI
     const bankPage = await context.newPage()
     await bankPage.goto(BANK_URL)
+    await bankPage.getByTestId('nav-settings').click()
     await expect(bankPage.locator('#generate-challenge-btn')).toBeVisible({ timeout: 10000 })
 
     // Click "Generate Connection Link" button in the bank's OHPP Settings section

@@ -39,6 +39,7 @@ public static class OhppJsonSerialiser
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             WriteIndented = false
         };
+        options.Converters.Add(new SignatureAlgorithmJsonConverter());
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         return options;
     }
@@ -52,6 +53,7 @@ public static class OhppJsonSerialiser
             WriteIndented = false,
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
+        options.Converters.Add(new SignatureAlgorithmJsonConverter());
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
         return options;
     }

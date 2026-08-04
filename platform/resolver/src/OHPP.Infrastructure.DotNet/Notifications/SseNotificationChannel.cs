@@ -7,10 +7,10 @@ public sealed class SseNotificationChannel : INotificationChannel
 {
     private readonly ConcurrentDictionary<Guid, ConcurrentBag<SseConnection>> _connections = new();
 
-    public Task NotifyDevicesAsync(Guid userId, string eventType, string payload, CancellationToken cancellationToken = default)
+    public async Task NotifyDevicesAsync(Guid userId, string eventType, string payload, CancellationToken cancellationToken = default)
     {
         if (!_connections.TryGetValue(userId, out var connections))
-            return Task.CompletedTask;
+            return;
 
         var deadConnections = new List<SseConnection>();
 
@@ -18,7 +18,7 @@ public sealed class SseNotificationChannel : INotificationChannel
         {
             try
             {
-                connection.WriteEvent(eventType, payload);
+                await connection.WriteEventAsync(eventType, payload);
             }
             catch (Exception)
             {
@@ -30,8 +30,6 @@ public sealed class SseNotificationChannel : INotificationChannel
         {
             RemoveConnection(userId, dead);
         }
-
-        return Task.CompletedTask;
     }
 
     public bool HasActiveConnections(Guid userId)
@@ -58,7 +56,7 @@ public sealed class SseNotificationChannel : INotificationChannel
     /// Sends a heartbeat comment to all connected clients to keep connections alive
     /// through proxies and load balancers that kill idle SSE streams.
     /// </summary>
-    public void BroadcastHeartbeat()
+    public async Task BroadcastHeartbeatAsync()
     {
         foreach (var (userId, connections) in _connections)
         {
@@ -68,7 +66,7 @@ public sealed class SseNotificationChannel : INotificationChannel
             {
                 try
                 {
-                    connection.WriteComment("ping");
+                    await connection.WriteCommentAsync("ping");
                 }
                 catch (Exception)
                 {
@@ -87,7 +85,6 @@ public sealed class SseNotificationChannel : INotificationChannel
 public sealed class SseConnection
 {
     private readonly Stream _stream;
-    private readonly object _lock = new();
 
     public Guid DeviceId { get; }
 
@@ -97,28 +94,17 @@ public sealed class SseConnection
         _stream = stream;
     }
 
-    public void WriteEvent(string eventType, string data)
+    public async Task WriteEventAsync(string eventType, string data)
     {
-        lock (_lock)
-        {
-            var writer = new StreamWriter(_stream, leaveOpen: true);
-            writer.Write($"event: {eventType}\n");
-            writer.Write($"data: {data}\n\n");
-            writer.Flush();
-        }
+        var bytes = System.Text.Encoding.UTF8.GetBytes($"event: {eventType}\ndata: {data}\n\n");
+        await _stream.WriteAsync(bytes);
+        await _stream.FlushAsync();
     }
 
-    /// <summary>
-    /// Writes an SSE comment line (: comment\n\n). Used for heartbeats.
-    /// Comments are ignored by SSE clients but keep the connection alive.
-    /// </summary>
-    public void WriteComment(string comment)
+    public async Task WriteCommentAsync(string comment)
     {
-        lock (_lock)
-        {
-            var writer = new StreamWriter(_stream, leaveOpen: true);
-            writer.Write($": {comment}\n\n");
-            writer.Flush();
-        }
+        var bytes = System.Text.Encoding.UTF8.GetBytes($": {comment}\n\n");
+        await _stream.WriteAsync(bytes);
+        await _stream.FlushAsync();
     }
 }

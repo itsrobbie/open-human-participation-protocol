@@ -1,4 +1,5 @@
 using Bank.Domain;
+using System.Text.RegularExpressions;
 
 namespace Bank.Services;
 
@@ -24,8 +25,18 @@ public sealed class AccountService
         return await _accountStore.GetAllAsync(cancellationToken);
     }
 
+    public Task SaveAccountAsync(Account account, CancellationToken cancellationToken = default)
+    {
+        return _accountStore.SaveAsync(account, cancellationToken);
+    }
+
     public async Task<bool> AddPayeeAsync(AddPayeeRequest request, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Trim().Length > 120 ||
+            !Regex.IsMatch(request.SortCode ?? string.Empty, "^[0-9]{2}-[0-9]{2}-[0-9]{2}$") ||
+            !Regex.IsMatch(request.AccountNumber ?? string.Empty, "^[0-9]{8}$"))
+            return false;
+
         var account = await _accountStore.GetByIdAsync(request.AccountId, cancellationToken);
         if (account is null)
             return false;
@@ -33,9 +44,9 @@ public sealed class AccountService
         account.Payees.Add(new Payee
         {
             Id = Guid.NewGuid().ToString("N"),
-            Name = request.Name,
-            AccountNumber = request.AccountNumber,
-            SortCode = request.SortCode
+            Name = request.Name.Trim(),
+            AccountNumber = request.AccountNumber!,
+            SortCode = request.SortCode!
         });
 
         await _accountStore.SaveAsync(account, cancellationToken);

@@ -85,7 +85,7 @@ export interface HistoryEntry {
 
 export interface PagedResult<T> {
   items: T[]
-  total: number
+  totalCount: number
   page: number
   pageSize: number
 }

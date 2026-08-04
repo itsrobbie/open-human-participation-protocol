@@ -8,6 +8,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\OHPP.Cli.Domain\OHPP.Cli.Domain.csproj" />
     <ProjectReference Include="..\..\src\OHPP.Cli.Services\OHPP.Cli.Services.csproj" />
+    <ProjectReference Include="..\..\src\OHPP.Cli.Infrastructure\OHPP.Cli.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\OHPP.Cli.Presentation\OHPP.Cli.Presentation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

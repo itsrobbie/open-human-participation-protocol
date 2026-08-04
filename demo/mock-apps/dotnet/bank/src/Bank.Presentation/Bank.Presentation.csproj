@@ -12,6 +12,16 @@
 
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
   </ItemGroup>
+
+  <Target Name="GenerateSwagger" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <PropertyGroup>
+      <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../../../../..'))</RepoRoot>
+    </PropertyGroup>
+    <Exec
+      Command="&quot;$(RepoRoot)/.tools/swagger&quot; tofile --output &quot;$(RepoRoot)/demo/mock-apps/dotnet/bank/swagger.json&quot; &quot;$(TargetPath)&quot; v1"
+      EnvironmentVariables="WorldDatabase__RunBootstrap=false" />
+  </Target>
 
 </Project>

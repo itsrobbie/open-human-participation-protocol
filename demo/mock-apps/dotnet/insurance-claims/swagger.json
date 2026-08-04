@@ -1,0 +1,736 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Demo Insurance Claims API",
+    "description": "Authenticated claim and OHPP participation endpoints for the Insurance Claims mock app.",
+    "version": "v1"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Get application health",
+        "description": "Returns the shallow health state used by Docker Compose.",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/.well-known/ohpp/app-metadata": {
+      "get": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Get OHPP requester metadata",
+        "description": "Describes the Insurance Claims requester and its registration callback.",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/ohpp/callback": {
+      "post": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Receive an OHPP registration callback",
+        "description": "Validates and stores Resolver credentials delivered by the registration ceremony.",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/.well-known/ohpp/auth-config": {
+      "get": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Get browser authentication configuration",
+        "description": "Returns the public Keycloak authority and client ID used by the demo login form.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/policies": {
+      "get": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "List policies for the signed-in user",
+        "description": "Returns only policies owned by the stable ohpp_user_id in the access token.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InsurancePolicy"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/claims": {
+      "get": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "List claims for the signed-in user",
+        "description": "Returns only claims owned by the stable ohpp_user_id in the access token.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InsuranceClaim"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Submit a claim",
+        "description": "Validates a new claim, assigns ownership from the access token, and stores it.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateClaimRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsuranceClaim"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/claims/drafts": {
+      "post": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Save a claim draft",
+        "description": "Stores the complete claim-entry state without advancing it to submitted.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateClaimRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsuranceClaim"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimOperationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/claims/{id}/submit": {
+      "post": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Submit a saved claim draft",
+        "description": "Validates an owned draft and advances it to submitted.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsuranceClaim"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimOperationResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/claims/{id}/participation": {
+      "post": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Request human participation for a claim",
+        "description": "Creates one of the seven app-defined OHPP request scenarios for an owned claim.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ClaimScenario"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimOperationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimOperationResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/claims/{id}/participation/status": {
+      "get": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Refresh claim participation status",
+        "description": "Reads the Resolver status through the requester SDK and applies the answer to the claim.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsuranceClaim"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimOperationResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/ohpp/generate-challenge": {
+      "post": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Generate an OHPP registration challenge",
+        "description": "Creates the URI that the signed-in user submits to their Resolver.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationChallengeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ohpp/status": {
+      "get": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Get OHPP connection status",
+        "description": "Reports whether the signed-in user has stored Resolver credentials.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ohpp/disconnect": {
+      "delete": {
+        "tags": [
+          "InsuranceClaims.Presentation, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null"
+        ],
+        "summary": "Disconnect OHPP registration",
+        "description": "Revokes the signed-in user's locally stored Resolver credentials.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuthConfigResponse": {
+        "required": [
+          "authority",
+          "clientId"
+        ],
+        "type": "object",
+        "properties": {
+          "authority": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ClaimNote": {
+        "required": [
+          "authorType",
+          "body",
+          "createdAt",
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "authorType": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ClaimOperationResult": {
+        "required": [
+          "isSuccess"
+        ],
+        "type": "object",
+        "properties": {
+          "isSuccess": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "requestId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ClaimScenario": {
+        "enum": [
+          "SelectDisposition",
+          "AffectedItems",
+          "ClaimantNote",
+          "EstimatedAmount",
+          "IncidentDate",
+          "AdjusterAppointment",
+          "ClaimantDeclaration"
+        ],
+        "type": "string"
+      },
+      "ClaimStatus": {
+        "enum": [
+          "Draft",
+          "Submitted",
+          "AwaitingParticipation",
+          "MoreInformationRequired",
+          "Escalated",
+          "InReview",
+          "ApprovedForNextStep",
+          "Closed",
+          "Expired",
+          "Cancelled"
+        ],
+        "type": "string"
+      },
+      "ConnectionStatusResponse": {
+        "required": [
+          "connected"
+        ],
+        "type": "object",
+        "properties": {
+          "connected": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateClaimRequest": {
+        "required": [
+          "claimantName",
+          "description",
+          "estimatedAmount",
+          "incidentDate",
+          "policyId"
+        ],
+        "type": "object",
+        "properties": {
+          "policyId": {
+            "type": "string"
+          },
+          "claimantName": {
+            "type": "string"
+          },
+          "incidentDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "description": {
+            "type": "string"
+          },
+          "estimatedAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "incidentAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "claimantNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "affectedItems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "InsuranceClaim": {
+        "required": [
+          "affectedItems",
+          "claimantName",
+          "claimNumber",
+          "createdAt",
+          "description",
+          "estimatedAmount",
+          "id",
+          "incidentAt",
+          "incidentDate",
+          "notes",
+          "policyId",
+          "status",
+          "updatedAt",
+          "userId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "policyId": {
+            "type": "string"
+          },
+          "claimNumber": {
+            "type": "string"
+          },
+          "claimantName": {
+            "type": "string"
+          },
+          "incidentDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "incidentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClaimNote"
+            }
+          },
+          "affectedItems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "estimatedAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ClaimStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "participationRequestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "participationScenario": {
+            "$ref": "#/components/schemas/ClaimScenario"
+          },
+          "selectedOption": {
+            "type": "string",
+            "nullable": true
+          },
+          "selectedOptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "answerValue": {
+            "type": "string",
+            "nullable": true
+          },
+          "attestationPayload": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "InsurancePolicy": {
+        "required": [
+          "coverageLimit",
+          "customerName",
+          "id",
+          "policyNumber",
+          "status",
+          "validFrom",
+          "validTo"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "policyNumber": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "coverageLimit": {
+            "type": "number",
+            "format": "double"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "validTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PolicyStatus"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PolicyStatus": {
+        "enum": [
+          "Active",
+          "Expired",
+          "Cancelled"
+        ],
+        "type": "string"
+      },
+      "RegistrationChallengeResponse": {
+        "required": [
+          "challengeId",
+          "challengeUri",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "challengeUri": {
+            "type": "string"
+          },
+          "challengeId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Access token issued by the ohpp-insurance Keycloak realm.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "Bearer": [ ]
+    }
+  ]
+}

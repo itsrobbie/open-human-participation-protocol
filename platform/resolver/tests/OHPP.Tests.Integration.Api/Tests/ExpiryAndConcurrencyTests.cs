@@ -168,9 +168,8 @@ public sealed class ExpiryAndConcurrencyTests : IntegrationTestBase
         var sig1 = TestCryptoHelper.Sign(attestPayload1, priv1);
         var sig2 = TestCryptoHelper.Sign(attestPayload2, priv2);
 
-        // Send both — one should succeed, the other should fail (either 400 Conflict or 500 from DB constraint)
-        // NOTE: Proper optimistic concurrency handling would make the second return 409 Conflict.
-        // Currently the DB unique index on RequestId in participation_records catches it as a DB exception.
+        // Send both. The state transition must choose one winner and return a domain conflict
+        // for the loser. A database exception or generic server error is never acceptable.
         var task1 = device1Client.PostAsJsonAsync("/api/devices/me/attestations", new
         {
             requestId, attestationPayload = attestPayload1, deviceSignature = sig1
@@ -182,9 +181,10 @@ public sealed class ExpiryAndConcurrencyTests : IntegrationTestBase
 
         var results = await Task.WhenAll(task1, task2);
 
-        var statuses = results.Select(r => r.StatusCode).ToList();
-        statuses.Should().Contain(HttpStatusCode.OK, "one device should win");
-        // The second gets either BadRequest (status check caught it) or InternalServerError (DB constraint)
-        statuses.Should().Contain(s => s != HttpStatusCode.OK, "second device must not succeed");
+        var statuses = results.Select(r => r.StatusCode).OrderBy(status => status).ToList();
+        statuses.Should().BeEquivalentTo(
+            new[] { HttpStatusCode.OK, HttpStatusCode.Conflict },
+            options => options.WithStrictOrdering(),
+            "one device must win and the race loser must receive a deterministic conflict");
     }
 }

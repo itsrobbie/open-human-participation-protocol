@@ -114,13 +114,49 @@ public sealed class OhppParticipationClientTests
     [Fact]
     public async Task CheckStatus_Resolved_ReturnsCompleted()
     {
+        var attestation = CreateAttestation();
         _requesterClient
             .GetStatusAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(RequestStatusResult.Ok(RequestStatus.Resolved, null));
+            .Returns(RequestStatusResult.Ok(RequestStatus.Resolved, attestation, selectedOption: "approve"));
+        _requesterClient
+            .VerifyAttestationAsync(attestation, _registration.ResolverUrl, Arg.Any<CancellationToken>())
+            .Returns(VerificationResult.Verified());
 
         var result = await _client.CheckStatusAsync(_registration, "req-123");
 
         result.Should().Be(TransferStatus.Completed);
+    }
+
+    [Fact]
+    public async Task CheckStatus_InvalidAttestation_ReturnsFailed()
+    {
+        var attestation = CreateAttestation();
+        _requesterClient
+            .GetStatusAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(RequestStatusResult.Ok(RequestStatus.Resolved, attestation, selectedOption: "approve"));
+        _requesterClient
+            .VerifyAttestationAsync(attestation, _registration.ResolverUrl, Arg.Any<CancellationToken>())
+            .Returns(VerificationResult.Invalid("Outer signature verification failed"));
+
+        var result = await _client.CheckStatusAsync(_registration, "req-123");
+
+        result.Should().Be(TransferStatus.Failed);
+    }
+
+    [Fact]
+    public async Task CheckStatus_ResolvedWithUnofferedAnswer_ReturnsFailed()
+    {
+        var attestation = CreateAttestation();
+        _requesterClient
+            .GetStatusAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(RequestStatusResult.Ok(RequestStatus.Resolved, attestation, selectedOption: "unexpected"));
+        _requesterClient
+            .VerifyAttestationAsync(attestation, _registration.ResolverUrl, Arg.Any<CancellationToken>())
+            .Returns(VerificationResult.Verified());
+
+        var result = await _client.CheckStatusAsync(_registration, "req-123");
+
+        result.Should().Be(TransferStatus.Failed);
     }
 
     [Fact]
@@ -145,5 +181,43 @@ public sealed class OhppParticipationClientTests
         var result = await _client.CheckStatusAsync(_registration, "req-123");
 
         result.Should().Be(TransferStatus.Denied);
+    }
+
+    private static AttestationEnvelope CreateAttestation()
+    {
+        var issuedAt = new DateTimeOffset(2026, 7, 31, 12, 0, 0, TimeSpan.Zero);
+        return new AttestationEnvelope
+        {
+            InnerAttestation = new ParticipationAttestation
+            {
+                Id = "attestation-1",
+                RequestId = "req-123",
+                Version = "1.0",
+                Decision = new DecisionInfo
+                {
+                    SelectedOption = "approve",
+                    Timestamp = issuedAt
+                },
+                Resolution = new ResolutionInfo
+                {
+                    Method = ResolutionMethod.Direct,
+                    Endpoint = new EndpointInfo { Type = "browser", Id = "device-1" }
+                },
+                Signature = new SignatureInfo
+                {
+                    Algorithm = SignatureAlgorithm.ES256,
+                    Value = "inner-signature",
+                    KeyId = "device-key"
+                },
+                IssuedAt = issuedAt
+            },
+            OuterSignature = new SignatureInfo
+            {
+                Algorithm = SignatureAlgorithm.ES256,
+                Value = "outer-signature",
+                KeyId = "resolver-key"
+            },
+            IssuedAt = issuedAt
+        };
     }
 }

@@ -11,11 +11,13 @@ public sealed class TransferServiceTests
     private readonly IAccountStore _accountStore = Substitute.For<IAccountStore>();
     private readonly IParticipationClient _participationClient = Substitute.For<IParticipationClient>();
     private readonly ITransactionStore _transactionStore = Substitute.For<ITransactionStore>();
+    private readonly IClock _clock = Substitute.For<IClock>();
     private readonly TransferService _service;
 
     public TransferServiceTests()
     {
-        _service = new TransferService(_accountStore, _participationClient, _transactionStore);
+        _clock.UtcNow.Returns(new DateTimeOffset(2026, 7, 31, 12, 0, 0, TimeSpan.Zero));
+        _service = new TransferService(_accountStore, _participationClient, _transactionStore, _clock);
     }
 
     private static Account CreateAccount(bool withOhpp = false, decimal balance = 1000m)
@@ -90,13 +92,62 @@ public sealed class TransferServiceTests
 
         // Balance should be deducted
         account.Balance.Should().Be(900m);
+        await _transactionStore.Received(1).RecordAsync(
+            Arg.Is<TransactionRecord>(record =>
+                record.CreatedAt == _clock.UtcNow &&
+                record.ResolvedAt == _clock.UtcNow),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TransferService_FutureScheduledTransfer_DoesNotDeductAndRecordsSchedule()
+    {
+        var account = CreateAccount(withOhpp: false);
+        var scheduledFor = _clock.UtcNow.AddDays(1);
+        _accountStore.GetByIdAsync("acc-1", Arg.Any<CancellationToken>()).Returns(account);
+
+        var result = await _service.InitiateTransferAsync(new TransferRequest
+        {
+            FromAccountId = "acc-1",
+            ToPayeeId = "payee-1",
+            Amount = 100m,
+            ScheduledFor = scheduledFor
+        });
+
+        result.Status.Should().Be(TransferStatus.Scheduled);
+        account.Balance.Should().Be(1000m);
+        await _accountStore.DidNotReceive().SaveAsync(account, Arg.Any<CancellationToken>());
+        await _transactionStore.Received(1).RecordAsync(
+            Arg.Is<TransactionRecord>(record =>
+                record.Status == TransferStatus.Scheduled &&
+                record.ScheduledFor == scheduledFor &&
+                record.ResolvedAt == null),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task TransferService_Approved_ExecutesTransfer()
     {
         var account = CreateAccount(withOhpp: true);
+        var transaction = new TransactionRecord
+        {
+            Id = "txn-1",
+            AccountId = account.Id,
+            PayeeName = "John",
+            Amount = 100m,
+            Status = TransferStatus.PendingApproval,
+            ParticipationRequestId = "req-123",
+            CreatedAt = _clock.UtcNow.AddMinutes(-1)
+        };
         _accountStore.GetByIdAsync("acc-1", Arg.Any<CancellationToken>()).Returns(account);
+        _transactionStore.GetByParticipationRequestIdAsync("req-123", Arg.Any<CancellationToken>())
+            .Returns(transaction);
+        _transactionStore.TryResolveAsync(
+                transaction.Id,
+                TransferStatus.Completed,
+                _clock.UtcNow,
+                Arg.Any<CancellationToken>())
+            .Returns(true);
         _participationClient.CheckStatusAsync(
             Arg.Any<OhppRegistration>(), "req-123", Arg.Any<CancellationToken>())
             .Returns(TransferStatus.Completed);
@@ -105,13 +156,50 @@ public sealed class TransferServiceTests
 
         result.Status.Should().Be(TransferStatus.Completed);
         result.Success.Should().BeTrue();
+        await _transactionStore.Received(1).TryResolveAsync(
+            transaction.Id,
+            TransferStatus.Completed,
+            _clock.UtcNow,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TransferService_RequestOwnedByAnotherAccount_DoesNotResolveTransaction()
+    {
+        var account = CreateAccount(withOhpp: true);
+        var transaction = new TransactionRecord
+        {
+            Id = "txn-other",
+            AccountId = "other-account",
+            PayeeName = "John",
+            Amount = 100m,
+            Status = TransferStatus.PendingApproval,
+            ParticipationRequestId = "req-other",
+            CreatedAt = _clock.UtcNow.AddMinutes(-1)
+        };
+        _accountStore.GetByIdAsync(account.Id, Arg.Any<CancellationToken>()).Returns(account);
+        _transactionStore.GetByParticipationRequestIdAsync("req-other", Arg.Any<CancellationToken>()).Returns(transaction);
+        _participationClient.CheckStatusAsync(Arg.Any<OhppRegistration>(), "req-other", Arg.Any<CancellationToken>())
+            .Returns(TransferStatus.Completed);
+
+        var result = await _service.CompleteTransferAsync(account.Id, "req-other");
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("belong");
+        await _transactionStore.DidNotReceive().TryResolveAsync(
+            Arg.Any<string>(),
+            Arg.Any<TransferStatus>(),
+            Arg.Any<DateTimeOffset>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task TransferService_Denied_RejectsTransfer()
     {
         var account = CreateAccount(withOhpp: true);
+        var transaction = PendingTransaction(account.Id, "req-456");
         _accountStore.GetByIdAsync("acc-1", Arg.Any<CancellationToken>()).Returns(account);
+        _transactionStore.GetByParticipationRequestIdAsync("req-456", Arg.Any<CancellationToken>()).Returns(transaction);
         _participationClient.CheckStatusAsync(
             Arg.Any<OhppRegistration>(), "req-456", Arg.Any<CancellationToken>())
             .Returns(TransferStatus.Denied);
@@ -127,7 +215,9 @@ public sealed class TransferServiceTests
     public async Task TransferService_Expired_RejectsTransfer()
     {
         var account = CreateAccount(withOhpp: true);
+        var transaction = PendingTransaction(account.Id, "req-789");
         _accountStore.GetByIdAsync("acc-1", Arg.Any<CancellationToken>()).Returns(account);
+        _transactionStore.GetByParticipationRequestIdAsync("req-789", Arg.Any<CancellationToken>()).Returns(transaction);
         _participationClient.CheckStatusAsync(
             Arg.Any<OhppRegistration>(), "req-789", Arg.Any<CancellationToken>())
             .Returns(TransferStatus.Expired);
@@ -171,4 +261,15 @@ public sealed class TransferServiceTests
         result.Status.Should().Be(TransferStatus.Failed);
         result.Error.Should().Contain("not found");
     }
+
+    private TransactionRecord PendingTransaction(string accountId, string requestId) => new()
+    {
+        Id = $"txn-{requestId}",
+        AccountId = accountId,
+        PayeeName = "John",
+        Amount = 100m,
+        Status = TransferStatus.PendingApproval,
+        ParticipationRequestId = requestId,
+        CreatedAt = _clock.UtcNow.AddMinutes(-1)
+    };
 }

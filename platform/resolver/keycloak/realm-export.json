@@ -36,12 +36,16 @@
   ],
   "users": [
     {
+      "id": "demo-user",
       "username": "demo",
       "email": "demo@ohpp.dev",
       "firstName": "Demo",
       "lastName": "User",
       "enabled": true,
       "emailVerified": true,
+      "attributes": {
+        "ohpp_user_id": ["demo-user"]
+      },
       "credentials": [
         {
           "type": "password",

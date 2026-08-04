@@ -27,14 +27,14 @@ public static class OhppResolverEndpoints
             var metadata = MetadataBuilder.Build(opts.Value);
             var json = OhppJsonSerialiser.Serialise(metadata);
             return Results.Content(json, "application/json");
-        });
+        }).WithName("GetResolverMetadata");
 
         endpoints.MapGet(options.JwksPath, async (IOhppResolverServices services) =>
         {
             var jwks = await services.GetJwksAsync();
             var json = OhppJsonSerialiser.Serialise(jwks);
             return Results.Content(json, "application/json");
-        });
+        }).WithName("GetResolverKeys");
 
         endpoints.MapPost(options.ParticipatePath, async (HttpContext context, IOhppResolverServices services, IOhppAuthContextAccessor authAccessor) =>
         {
@@ -75,7 +75,7 @@ public static class OhppResolverEndpoints
                 return Results.Problem(detail: result.Error, statusCode: result.SuggestedStatusCode);
 
             return Results.Created($"{options.StatusPathTemplate.Replace("{requestId}", result.Value)}", new { requestId = result.Value, status = "pending" });
-        });
+        }).WithName("SubmitParticipationRequest");
 
         endpoints.MapGet(options.StatusPathTemplate.Replace("{requestId}", "{requestId:guid}"),
             async (Guid requestId, HttpContext context, IOhppResolverServices services, IOhppAuthContextAccessor authAccessor) =>
@@ -91,7 +91,7 @@ public static class OhppResolverEndpoints
 
             var json = OhppJsonSerialiser.Serialise(result.Value);
             return Results.Content(json, "application/json");
-        });
+        }).WithName("GetParticipationRequestStatus");
 
         endpoints.MapPost(options.CancelPathTemplate.Replace("{requestId}", "{requestId:guid}"),
             async (Guid requestId, HttpContext context, IOhppResolverServices services, IOhppAuthContextAccessor authAccessor) =>
@@ -106,7 +106,7 @@ public static class OhppResolverEndpoints
                 return Results.Problem(detail: result.Error, statusCode: result.SuggestedStatusCode);
 
             return Results.Ok(new { status = "cancelled" });
-        });
+        }).WithName("CancelParticipationRequest");
 
         return endpoints;
     }

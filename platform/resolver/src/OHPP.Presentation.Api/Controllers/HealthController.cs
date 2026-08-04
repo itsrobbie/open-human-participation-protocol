@@ -13,10 +13,10 @@ public sealed class HealthController : OhppControllerBase
         _db = db;
     }
 
-    [HttpGet("")]
+    [HttpGet("", Name = "GetHealthShallow")]
     public IActionResult Shallow() => Ok(new { status = "healthy" });
 
-    [HttpGet("ready")]
+    [HttpGet("ready", Name = "GetHealthReady")]
     public async Task<IActionResult> Ready()
     {
         try

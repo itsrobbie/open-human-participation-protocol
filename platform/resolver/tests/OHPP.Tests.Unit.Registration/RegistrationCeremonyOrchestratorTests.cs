@@ -58,6 +58,27 @@ public class RegistrationCeremonyOrchestratorTests
     }
 
     [Fact]
+    public async Task ProcessChallenge_CallbackReceivesStoredRegistrationId()
+    {
+        RegistrationResponseData? callbackResponse = null;
+        SetupValidChallengeAndMetadata();
+        _callbackSender.SendAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Do<RegistrationResponseData>(response => callbackResponse = response),
+                Arg.Any<CancellationToken>())
+            .Returns(true);
+        _registrationRepo.CreateAsync(Arg.Any<AppRegistration>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<AppRegistration>());
+
+        var result = await _sut.ProcessChallengeAsync(Guid.NewGuid(), "validPayload");
+
+        result.IsSuccess.Should().BeTrue();
+        callbackResponse.Should().NotBeNull();
+        callbackResponse!.RegistrationId.Should().Be(result.Value!.Id.ToString());
+    }
+
+    [Fact]
     public async Task ProcessChallenge_ExpiredChallenge_ReturnsError()
     {
         _challengeValidator.ValidateAndDecode(Arg.Any<string>())
@@ -145,6 +166,40 @@ public class RegistrationCeremonyOrchestratorTests
         result.IsFailure.Should().BeTrue();
         result.Error!.Message.Should().Contain("callback");
         await _registrationRepo.DidNotReceive().CreateAsync(Arg.Any<AppRegistration>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessChallenge_CallbackFails_PreservesExistingRegistration()
+    {
+        var userId = Guid.NewGuid();
+        var existing = new AppRegistration
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AppId = "bank.test",
+            AppName = "Existing Bank",
+            AccessToken = "working-token",
+            ResolverBaseUrl = "http://resolver",
+            RegisteredAt = _clock.UtcNow.AddDays(-1)
+        };
+        _registrationRepo.GetActiveByUserAndAppIdAsync(userId, "bank.test", Arg.Any<CancellationToken>())
+            .Returns(existing);
+        SetupValidChallengeAndMetadata();
+        _callbackSender.SendAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<RegistrationResponseData>(),
+                Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        var result = await _sut.ProcessChallengeAsync(userId, "replayedPayload");
+
+        result.IsFailure.Should().BeTrue();
+        existing.RevokedAt.Should().BeNull();
+        await _registrationRepo.DidNotReceive().UpdateAsync(existing, Arg.Any<CancellationToken>());
+        await _pendingRequestRepo.DidNotReceive().CancelAllForAppRegistrationAsync(
+            existing.Id,
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

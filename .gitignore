@@ -92,6 +92,7 @@ docker-compose.override.yml
 *.bak
 coverage/
 test-results/
+tests/e2e/.auth-state.json
 
 # .NET (additional)
 .vs/
@@ -103,3 +104,4 @@ test-results/
 
 # Docker
 postgres_data/
+AGENTS.md

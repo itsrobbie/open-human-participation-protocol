@@ -3,149 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Demo Bank</title>
+    <title>Northstar Bank</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; }
-        .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
-        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-        h2 { font-size: 1.2rem; margin: 1.5rem 0 0.75rem; color: #333; }
-        .subtitle { color: #666; margin-bottom: 2rem; }
-        .card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .balance { font-size: 2rem; font-weight: 700; color: #16a34a; }
-        .payee-list { list-style: none; }
-        .payee-list li { padding: 0.75rem 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .payee-list li:last-child { border-bottom: none; }
-        button { background: #2563eb; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
-        button:hover { background: #1d4ed8; }
-        button.danger { background: #dc2626; }
-        button.danger:hover { background: #b91c1c; }
-        button.secondary { background: #6b7280; }
-        input, select { padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; width: 100%; margin-bottom: 0.5rem; }
-        .form-row { margin-bottom: 0.75rem; }
-        label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 0.25rem; }
-        .status { padding: 0.5rem 1rem; border-radius: 4px; margin-top: 1rem; }
-        .status.success { background: #dcfce7; color: #166534; }
-        .status.pending { background: #fef3c7; color: #92400e; }
-        .status.error { background: #fee2e2; color: #991b1b; }
-        .ohpp-badge { display: inline-block; background: #dbeafe; color: #1e40af; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
-        .nav { display: flex; gap: 1rem; margin-bottom: 2rem; }
-        .nav a { color: #2563eb; text-decoration: none; font-weight: 500; }
-        .nav a:hover { text-decoration: underline; }
-        #transfer-result { display: none; }
-        .txn-item { padding: 0.75rem 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .txn-item:last-child { border-bottom: none; }
-        .txn-left { display: flex; flex-direction: column; gap: 0.15rem; }
-        .txn-payee { font-weight: 500; font-size: 0.9rem; }
-        .txn-meta { font-size: 0.75rem; color: #888; }
-        .txn-right { text-align: right; }
-        .txn-amount { font-weight: 600; font-size: 0.95rem; }
-        .txn-status { font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 10px; display: inline-block; margin-top: 0.2rem; }
-        .txn-status.completed { background: #dcfce7; color: #166534; }
-        .txn-status.pendingapproval { background: #fef3c7; color: #92400e; }
-        .txn-status.denied { background: #fee2e2; color: #991b1b; }
-        .txn-status.expired { background: #f3f4f6; color: #6b7280; }
-        .txn-status.failed { background: #fee2e2; color: #991b1b; }
+        :root { color-scheme: light; --navy:#10253f; --navy-2:#17395f; --blue:#1677ff; --ink:#172234; --muted:#64748b; --line:#dce4ee; --surface:#fff; --canvas:#f3f6fa; --success:#0f7a4d; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--canvas); color:var(--ink); }
+        button, input, select, textarea { font:inherit; }
+        button { border:0; border-radius:8px; padding:.72rem 1.1rem; background:var(--blue); color:#fff; font-weight:700; cursor:pointer; }
+        button:hover { filter:brightness(.94); }
+        button.secondary { background:#e8eef5; color:var(--ink); }
+        button.danger { background:#c93636; }
+        input, select, textarea { width:100%; border:1px solid #c9d4e2; border-radius:8px; padding:.72rem .8rem; background:#fff; color:var(--ink); }
+        input:focus, select:focus, textarea:focus { outline:3px solid #b8d6ff; border-color:var(--blue); }
+        label { display:block; color:#42526a; font-size:.84rem; font-weight:650; margin-bottom:.35rem; }
+        h1, h2, h3, p { margin-top:0; }
+        [hidden] { display:none !important; }
+
+        .login-screen { min-height:100vh; display:grid; grid-template-columns:minmax(280px, 1fr) minmax(340px, 520px); background:var(--navy); }
+        .login-story { padding:clamp(3rem, 8vw, 8rem); display:flex; flex-direction:column; justify-content:center; color:#fff; background:radial-gradient(circle at 20% 20%, #2769a8, transparent 45%), linear-gradient(145deg, var(--navy), #0b1a2d); }
+        .login-story .brand { font-weight:800; letter-spacing:.04em; margin-bottom:5rem; }
+        .login-story h1 { max-width:620px; font-size:clamp(2.4rem, 5vw, 4.8rem); line-height:1.02; letter-spacing:-.045em; }
+        .login-story p { max-width:540px; color:#c9dbec; font-size:1.08rem; line-height:1.7; }
+        .login-panel { background:#fff; display:flex; align-items:center; padding:clamp(2rem, 7vw, 5rem); }
+        .login-card { width:100%; max-width:390px; margin:auto; }
+        .login-card h2 { font-size:2rem; margin-bottom:.5rem; }
+        .eyebrow { color:var(--blue); font-size:.76rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+        .muted { color:var(--muted); line-height:1.55; }
+        .form-row { margin-bottom:1rem; }
+        .login-card button { width:100%; margin-top:.35rem; }
+
+        .bank-shell { min-height:100vh; display:grid; grid-template-columns:248px minmax(0, 1fr); }
+        .sidebar { position:sticky; top:0; height:100vh; padding:1.7rem 1.15rem; background:var(--navy); color:#fff; display:flex; flex-direction:column; }
+        .sidebar-brand { font-size:1.18rem; font-weight:850; letter-spacing:.035em; padding:.4rem .8rem 1.8rem; }
+        .nav { display:flex; flex-direction:column; gap:.35rem; }
+        .nav a { color:#cad8e8; text-decoration:none; border-radius:8px; padding:.78rem .85rem; font-weight:650; }
+        .nav a:hover, .nav a[aria-current="page"] { color:#fff; background:var(--navy-2); }
+        .nav a[aria-current="page"] { box-shadow:inset 3px 0 var(--blue); }
+        .sidebar-foot { margin-top:auto; border-top:1px solid #2b4664; padding-top:1rem; }
+        .sidebar-foot button { width:100%; background:transparent; color:#dbe7f3; text-align:left; }
+        .app-column { min-width:0; }
+        .topbar { height:76px; background:#fff; border-bottom:1px solid var(--line); padding:0 clamp(1.2rem, 4vw, 3.5rem); display:flex; align-items:center; justify-content:space-between; gap:1.5rem; }
+        .topbar strong { display:block; }
+        .topbar small { color:var(--muted); }
+        .account-picker { display:flex; align-items:center; gap:.7rem; min-width:290px; }
+        .account-picker label { margin:0; white-space:nowrap; }
+        .workspace { max-width:1180px; margin:0 auto; padding:2.6rem clamp(1.2rem, 4vw, 3.5rem) 5rem; }
+        .page-heading { display:flex; justify-content:space-between; gap:1rem; align-items:end; margin-bottom:1.6rem; }
+        .page-heading h1 { font-size:2rem; letter-spacing:-.025em; margin-bottom:.35rem; }
+        .grid { display:grid; grid-template-columns:repeat(12, 1fr); gap:1rem; }
+        .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:1.35rem; box-shadow:0 6px 20px rgba(16, 37, 63, .05); }
+        .card h2 { font-size:1.08rem; margin-bottom:.9rem; }
+        .span-4 { grid-column:span 4; } .span-5 { grid-column:span 5; } .span-7 { grid-column:span 7; } .span-8 { grid-column:span 8; } .span-12 { grid-column:1 / -1; }
+        .hero-balance { color:#fff; background:linear-gradient(135deg, #17395f, #1464a5); border:0; }
+        .hero-balance .muted { color:#d2e4f5; }
+        .balance { font-size:2.45rem; font-weight:800; letter-spacing:-.035em; margin:.4rem 0 1rem; }
+        .account-list { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:.75rem; }
+        .account-card { border:1px solid var(--line); border-radius:10px; padding:1rem; background:#f8fafc; }
+        .account-card p { margin:.5rem 0; font-size:1.2rem; font-weight:800; }
+        .account-card small { color:var(--muted); }
+        .ohpp-badge { display:inline-block; background:#d9edff; color:#07549a; padding:.24rem .6rem; border-radius:999px; font-size:.75rem; font-weight:750; }
+        .payee-list { list-style:none; padding:0; margin:0; }
+        .payee-list li { padding:.9rem 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:1rem; }
+        details { border-top:1px solid var(--line); margin-top:1rem; padding-top:1rem; }
+        summary { color:var(--blue); font-weight:750; cursor:pointer; }
+        .status { padding:.7rem 1rem; border-radius:8px; margin-top:1rem; }
+        .status.success { background:#dcfce7; color:#166534; }
+        .status.pending { background:#fef3c7; color:#92400e; }
+        .status.error { background:#fee2e2; color:#991b1b; }
+        #transfer-result { display:none; }
+        .review { margin-top:1rem; border:2px solid #93c5fd; background:#eff6ff; box-shadow:none; }
+        .review dl { display:grid; grid-template-columns:auto 1fr; gap:.55rem 1rem; }
+        .review dt { font-weight:700; }
+        .review-actions { display:flex; flex-wrap:wrap; gap:.55rem; margin-top:1rem; }
+        .filters { display:grid; grid-template-columns:2fr 1fr; gap:.75rem; }
+        .txn-item, .recent-item { padding:.9rem 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:1rem; }
+        .txn-left, .txn-right { display:flex; flex-direction:column; gap:.2rem; }
+        .txn-right { text-align:right; align-items:flex-end; }
+        .txn-payee, .txn-amount { font-weight:750; }
+        .txn-meta { color:var(--muted); font-size:.75rem; }
+        .txn-status { width:max-content; padding:.16rem .5rem; border-radius:999px; font-size:.7rem; font-weight:750; }
+        .txn-status.completed { background:#dcfce7; color:#166534; } .txn-status.pendingapproval { background:#fef3c7; color:#92400e; }
+        .txn-status.denied, .txn-status.failed { background:#fee2e2; color:#991b1b; } .txn-status.expired { background:#eef2f7; color:#64748b; } .txn-status.scheduled { background:#e0e7ff; color:#3730a3; }
+        .section-stack { display:grid; gap:1rem; max-width:800px; }
+        .connection-panel { border-left:4px solid var(--blue); }
+        @media (max-width:850px) {
+            .login-screen { grid-template-columns:1fr; } .login-story { display:none; }
+            .bank-shell { grid-template-columns:1fr; } .sidebar { position:static; height:auto; padding:1rem; }
+            .sidebar-brand { padding:.2rem .5rem .8rem; } .nav { flex-direction:row; overflow-x:auto; } .nav a { white-space:nowrap; }
+            .sidebar-foot { position:absolute; top:.65rem; right:.7rem; border:0; padding:0; } .sidebar-foot button { width:auto; }
+            .topbar { height:auto; padding:1rem; align-items:flex-start; } .account-picker { min-width:0; flex-direction:column; align-items:stretch; }
+            .workspace { padding:1.5rem 1rem 4rem; } .span-4, .span-5, .span-7, .span-8 { grid-column:1 / -1; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Demo Bank</h1>
-        <p class="subtitle">OHPP-enabled banking demo</p>
-
-        <nav class="nav">
-            <a href="#account">Account</a>
-            <a href="#transfer">Transfer</a>
-            <a href="#ohpp">OHPP Settings</a>
-        </nav>
-
-        <!-- Account Section -->
-        <section id="account">
-            <div class="card">
-                <h2>Account Balance</h2>
-                <p class="balance" id="balance">Loading...</p>
-                <p id="ohpp-status"></p>
-            </div>
-
-            <div class="card">
-                <h2>Payees</h2>
-                <ul class="payee-list" id="payee-list"></ul>
-            </div>
-        </section>
-
-        <!-- Transfer Section -->
-        <section id="transfer">
-            <div class="card">
-                <h2>Make a Transfer</h2>
-                <form id="transfer-form">
-                    <div class="form-row">
-                        <label for="payee-select">To</label>
-                        <select id="payee-select"></select>
-                    </div>
-                    <div class="form-row">
-                        <label for="amount">Amount (£)</label>
-                        <input type="number" id="amount" step="0.01" min="0.01" placeholder="0.00">
-                    </div>
-                    <div class="form-row">
-                        <label for="reference">Reference (optional)</label>
-                        <input type="text" id="reference" placeholder="e.g. Rent July">
-                    </div>
-                    <button type="submit">Send Transfer</button>
+    <section class="login-screen" id="login-card" data-testid="bank-login">
+        <div class="login-story">
+            <div class="brand">NORTHSTAR BANK</div>
+            <h1>Your money, with a human in the loop.</h1>
+            <p>A realistic demonstration bank protected by the Open Human Participation Protocol for sensitive payment decisions.</p>
+        </div>
+        <div class="login-panel">
+            <div class="login-card">
+                <p class="eyebrow">Secure online banking</p>
+                <h2>Welcome back</h2>
+                <p class="muted">Sign in to the seeded demonstration account.</p>
+                <form id="login-form">
+                    <div class="form-row"><label for="login-username">Username</label><input id="login-username" data-testid="login-username" value="demo" autocomplete="username" required></div>
+                    <div class="form-row"><label for="login-password">Password</label><input id="login-password" data-testid="login-password" type="password" value="demo" autocomplete="current-password" required></div>
+                    <button type="submit" data-testid="login-submit">Sign in securely</button>
                 </form>
-                <div id="transfer-result"></div>
+                <div id="login-result" role="status"></div>
             </div>
+        </div>
+    </section>
 
-            <div class="card">
-                <h2>Transaction History</h2>
-                <div id="transaction-list">
-                    <p style="color:#888; font-size:0.85rem;">No transactions yet.</p>
-                </div>
-            </div>
-        </section>
+    <div class="bank-shell" id="bank-app" data-testid="bank-shell" hidden>
+        <aside class="sidebar">
+            <div class="sidebar-brand">NORTHSTAR BANK</div>
+            <nav class="nav" id="app-nav" aria-label="Banking">
+                <a href="#overview" data-bank-route="overview" data-testid="nav-overview">Overview</a>
+                <a href="#payments" data-bank-route="payments" data-testid="nav-payments">Make a payment</a>
+                <a href="#payees" data-bank-route="payees" data-testid="nav-payees">Payees</a>
+                <a href="#transactions" data-bank-route="transactions" data-testid="nav-transactions">Transactions</a>
+                <a href="#settings" data-bank-route="settings" data-testid="nav-settings">Settings</a>
+            </nav>
+            <div class="sidebar-foot"><button id="logout-button" data-testid="logout" type="button">Sign out</button></div>
+        </aside>
 
-        <!-- OHPP Settings -->
-        <section id="ohpp">
-            <div class="card">
-                <h2>OHPP Settings</h2>
-                <p style="margin-bottom:1rem; color:#666;">Connect your participation service to require approval for transfers.</p>
-
-                <div id="ohpp-connect-section">
-                    <button id="generate-challenge-btn" style="margin-bottom:1rem;">Generate Connection Link</button>
-                    <div id="challenge-display" style="display:none;">
-                        <p style="font-size:0.85rem; color:#333; margin-bottom:0.5rem;">Copy this URI and paste it in your Resolver's Portal (Register App page):</p>
-                        <textarea id="challenge-uri" readonly rows="3" style="font-family:monospace; font-size:0.75rem; background:#f9f9f9; width:100%;"></textarea>
-                        <button id="copy-challenge" class="secondary" style="margin-top:0.5rem;">Copy to clipboard</button>
-                        <p style="font-size:0.75rem; color:#888; margin-top:0.5rem;">Once you approve in the Portal, this page will update automatically.</p>
+        <div class="app-column">
+            <header class="topbar">
+                <div><strong>Personal banking</strong><small id="ohpp-status">Demo customer</small></div>
+                <div class="account-picker"><label for="active-account">Working account</label><select id="active-account" data-testid="active-account"></select></div>
+            </header>
+            <main class="workspace">
+                <section id="account" data-bank-page="overview" data-testid="bank-page-overview" hidden>
+                    <div class="page-heading"><div><p class="eyebrow">Saturday, 1 August</p><h1>Overview</h1><p class="muted">A clear view of your money and protection status.</p></div></div>
+                    <div class="grid">
+                        <article class="card hero-balance span-5"><p class="muted">Available balance</p><p class="balance" id="balance">Loading...</p><small>Updated from your active account</small></article>
+                        <article class="card span-7"><h2>Your accounts</h2><div id="account-list" class="account-list"></div></article>
+                        <article class="card span-8"><h2>Recent activity</h2><div id="recent-activity" class="activity-list"><p class="muted">No transactions yet.</p></div></article>
+                        <article class="card span-4"><h2>Participation protection</h2><p class="muted">Control when sensitive payments require a signed human decision.</p><button type="button" class="secondary" data-route-button="settings">Manage protection</button></article>
                     </div>
-                </div>
+                </section>
 
-                <details style="margin-top:1.5rem;">
-                    <summary style="cursor:pointer; color:#666; font-size:0.85rem;">Manual connection (advanced)</summary>
-                    <form id="ohpp-form" style="margin-top:1rem;">
-                        <div class="form-row">
-                            <label for="resolver-url">Resolver URL</label>
-                            <input type="text" id="resolver-url" placeholder="http://localhost:5050">
-                        </div>
-                        <div class="form-row">
-                            <label for="access-token">Access Token</label>
-                            <input type="text" id="access-token" placeholder="ohpp_app_...">
-                        </div>
-                        <div class="form-row">
-                            <label for="user-id">User ID</label>
-                            <input type="text" id="user-id" placeholder="Your user ID from the Resolver">
-                        </div>
-                        <button type="submit">Connect OHPP</button>
-                    </form>
-                </details>
-                <div id="ohpp-result"></div>
+                <section id="transfer" data-bank-page="payments" data-testid="bank-page-payments" hidden>
+                    <div class="page-heading"><div><p class="eyebrow">Payments</p><h1>Make a payment</h1><p class="muted">Review every detail before money leaves your account.</p></div></div>
+                    <div class="section-stack">
+                        <article class="card"><form id="transfer-form">
+                            <div class="form-row"><label for="payee-select">Payee</label><select id="payee-select" data-testid="transfer-payee"></select></div>
+                            <div class="form-row"><label for="amount">Amount (£)</label><input type="number" id="amount" data-testid="transfer-amount" step="0.01" min="0.01" placeholder="0.00" required></div>
+                            <div class="form-row"><label for="reference">Reference (optional)</label><input type="text" id="reference" data-testid="transfer-reference" placeholder="e.g. Rent August"></div>
+                            <div class="form-row"><label for="schedule-mode">When</label><select id="schedule-mode" data-testid="transfer-schedule-mode"><option value="now">Now</option><option value="date">On a date</option><option value="datetime">At a date and time</option></select></div>
+                            <div class="form-row" id="schedule-date-row" hidden><label for="schedule-date">Payment date</label><input type="date" id="schedule-date" data-testid="transfer-schedule-date"></div>
+                            <div class="form-row" id="schedule-datetime-row" hidden><label for="schedule-datetime">Payment date and time</label><input type="datetime-local" id="schedule-datetime" data-testid="transfer-schedule-datetime"></div>
+                            <button type="submit" data-testid="review-transfer">Review payment</button>
+                        </form>
+                        <section id="transfer-review" class="card review" hidden aria-labelledby="transfer-review-heading"><h2 id="transfer-review-heading">Review payment</h2><dl><dt>From</dt><dd id="review-account"></dd><dt>To</dt><dd id="review-payee"></dd><dt>Amount</dt><dd id="review-amount"></dd><dt>Reference</dt><dd id="review-reference"></dd><dt>When</dt><dd id="review-schedule"></dd></dl><div class="review-actions"><button id="confirm-transfer" data-testid="confirm-transfer" type="button">Confirm payment</button><button id="cancel-transfer" data-testid="cancel-transfer" type="button" class="secondary">Go back</button></div></section>
+                        <div id="transfer-result" role="status"></div></article>
+                    </div>
+                </section>
 
-                <div id="ohpp-disconnect-section" style="display:none; margin-top:1rem;">
-                    <button id="disconnect-btn" class="danger">Disconnect OHPP</button>
-                </div>
-            </div>
-        </section>
+                <section id="payees" data-bank-page="payees" data-testid="bank-page-payees" hidden>
+                    <div class="page-heading"><div><p class="eyebrow">Recipients</p><h1>Payees</h1><p class="muted">Manage the people and organisations you can pay.</p></div></div>
+                    <article class="card"><ul class="payee-list" id="payee-list"></ul><details><summary data-testid="show-add-payee">Add a payee</summary><form id="add-payee-form" style="margin-top:1rem;"><div class="form-row"><label for="payee-name">Name</label><input id="payee-name" data-testid="payee-name" maxlength="120" required></div><div class="form-row"><label for="payee-sort-code">Sort code</label><input id="payee-sort-code" data-testid="payee-sort-code" pattern="[0-9]{2}-[0-9]{2}-[0-9]{2}" placeholder="12-34-56" required></div><div class="form-row"><label for="payee-account-number">Account number</label><input id="payee-account-number" data-testid="payee-account-number" pattern="[0-9]{8}" placeholder="12345678" required></div><button type="submit" data-testid="add-payee">Add payee</button></form><div id="payee-result" role="status"></div></details></article>
+                </section>
+
+                <section id="history" data-bank-page="transactions" data-testid="bank-page-transactions" hidden>
+                    <div class="page-heading"><div><p class="eyebrow">Account activity</p><h1>Transactions</h1><p class="muted">Search completed, pending, denied, and scheduled payments.</p></div></div>
+                    <article class="card"><div class="filters"><label for="transaction-search">Search<input id="transaction-search" data-testid="transaction-search" type="search" placeholder="Payee or reference"></label><label for="transaction-status-filter">Status<select id="transaction-status-filter" data-testid="transaction-status-filter"><option value="All">All</option><option value="Completed">Completed</option><option value="PendingApproval">Pending</option><option value="Denied">Denied</option><option value="Expired">Expired</option><option value="Failed">Failed</option><option value="Scheduled">Scheduled</option></select></label></div><div id="transaction-list"><p class="muted">No transactions yet.</p></div></article>
+                </section>
+
+                <section id="ohpp" data-bank-page="settings" data-testid="bank-page-settings" hidden>
+                    <div class="page-heading"><div><p class="eyebrow">Security and participation</p><h1>Settings</h1><p class="muted">Connect, test, reconnect, or revoke your OHPP participation service.</p></div></div>
+                    <div class="section-stack">
+                        <article class="card connection-panel"><h2>OHPP registration</h2><p class="muted">Connect your participation service to require human approval for transfers.</p><div id="ohpp-connect-section"><button id="generate-challenge-btn" data-testid="generate-challenge">Generate connection link</button><div id="challenge-display" style="display:none;"><p class="muted">Copy this URI and paste it into Portal on Connect App.</p><textarea id="challenge-uri" data-testid="challenge-uri" readonly rows="3"></textarea><button id="copy-challenge" data-testid="copy-challenge" class="secondary">Copy to clipboard</button></div></div><div id="ohpp-result" role="status"></div><div id="ohpp-disconnect-section" style="display:none; margin-top:1rem;"><button id="disconnect-btn" data-testid="disconnect-ohpp" class="danger">Revoke connection</button></div></article>
+                        <article class="card" id="protocol-fixtures"><h2>Protocol scenarios</h2><p class="muted">Exercise each OHPP input type through a real banking scenario.</p><label for="protocol-scenario">Scenario</label><select id="protocol-scenario" data-testid="protocol-scenario"><option value="TransferDecision">Transfer decision (select)</option><option value="TransferControls">Transfer controls (multiselect)</option><option value="PaymentReference">Payment reference (text)</option><option value="TransferAmount">Transfer amount (number)</option><option value="PaymentDate">Payment date (date)</option><option value="PaymentDateTime">Payment date and time (datetime)</option><option value="HighValueAcknowledgement">High-value acknowledgement (signature)</option></select><div class="review-actions"><button id="create-protocol-scenario" data-testid="create-protocol-scenario" type="button">Request participation</button><button id="refresh-protocol-scenario" data-testid="refresh-protocol-scenario" type="button" class="secondary" hidden>Refresh result</button></div><div id="protocol-scenario-result" role="status"></div></article>
+                    </div>
+                </section>
+            </main>
+        </div>
     </div>
-
     <script type="module" src="/app.js"></script>
 </body>
 </html>

@@ -8,6 +8,7 @@ using OHPP.Presentation.Api;
 using OHPP.Presentation.Api.BackgroundServices;
 using OHPP.Presentation.Api.Middleware;
 using OHPP.Sdk.Server;
+using OHPP.Sdk;
 using OHPP.Services.Attestation;
 using OHPP.Services.Auth;
 using OHPP.Services.Participation;
@@ -82,19 +83,30 @@ builder.Services.AddOhppResolver<OhppResolverServicesAdapter, OhppAuthContextAcc
     options.BaseUrl = builder.Configuration["Resolver:BaseUrl"] ?? "http://localhost:5000";
     options.Name = builder.Configuration["Resolver:Name"] ?? "OHPP Resolver";
 });
+// The Protocol Lab is a self-contained requester app hosted by the Resolver process.
+// It registers itself through the real ceremony and uses its own token. Register the
+// SDK's HTTP client directly so the Resolver remains net8-compatible.
+builder.Services.AddHttpClient("ProtocolLabRequester");
+builder.Services.AddSingleton(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    return new EndpointDiscovery(factory.CreateClient("ProtocolLabRequester"));
+});
+builder.Services.AddSingleton<IOhppRequesterClient>(sp =>
+{
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    return new OhppRequesterClient(factory.CreateClient("ProtocolLabRequester"), sp.GetRequiredService<EndpointDiscovery>());
+});
 
 // --- Background Services ---
-builder.Services.AddHostedService<ExpiryEnforcementBackgroundService>();
-builder.Services.AddHostedService<SseHeartbeatService>();
+if (!builder.Configuration.GetValue<bool>("Startup:ContractGeneration"))
+{
+    builder.Services.AddHostedService<DatabaseInitializationHostedService>();
+    builder.Services.AddHostedService<ExpiryEnforcementBackgroundService>();
+    builder.Services.AddHostedService<SseHeartbeatService>();
+}
 
 var app = builder.Build();
-
-// --- Auto-migrate database ---
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<OHPP.Infrastructure.PostgreSQL.AppDbContext>();
-    db.Database.Migrate();
-}
 
 // --- Swagger ---
 app.UseSwagger();
@@ -105,6 +117,7 @@ app.UseSwaggerUI(options =>
 });
 
 // --- Middleware Pipeline ---
+app.UseMiddleware<ProtocolLabAvailabilityMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<GlobalExceptionHandler>();
 app.UseMiddleware<SecurityHeadersMiddleware>();

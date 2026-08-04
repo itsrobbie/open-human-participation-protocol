@@ -144,7 +144,7 @@ public sealed class FullCeremonyTests : IntegrationTestBase
         {
             requestId, attestationPayload = attestPayload, deviceSignature = sig
         });
-        second.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        second.StatusCode.Should().Be(HttpStatusCode.Conflict);
         var secondBody = await second.Content.ReadAsStringAsync();
         secondBody.Should().Contain("Resolved");
     }

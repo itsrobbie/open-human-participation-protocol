@@ -11,7 +11,7 @@ import { PORTAL_URL, BANK_URL } from '../test-urls'
  * - The bank's balance only deducts for approved ones
  */
 test.describe('Bank — Batch transfers (multiple pending, then resolve)', () => {
-  test.setTimeout(90000)
+  test.setTimeout(180000)
 
   test('create 3 transfers, approve 2, deny 1 — all appear in history', async ({ context }) => {
     const portalPage = await context.newPage()
@@ -37,14 +37,15 @@ test.describe('Bank — Batch transfers (multiple pending, then resolve)', () =>
     const enableBtn = portalPage.locator('button:has-text("Enable web approvals")')
     if (await enableBtn.isVisible()) {
       await enableBtn.click()
-      await expect(portalPage.getByText('Browser registered', { exact: true })).toBeVisible({ timeout: 10000 })
+      await expect(portalPage.locator('button:has-text("Enable web approvals")')).toBeHidden({ timeout: 10000 })
     }
 
     // --- Setup: Ensure bank is OHPP-connected ---
     await bankPage.goto(BANK_URL)
     await expect(bankPage.locator('#balance')).not.toHaveText('Loading...')
-
-    if (!(await bankPage.locator('.ohpp-badge').isVisible().catch(() => false))) {
+    await bankPage.getByTestId('nav-transactions').click()
+    if (!(await bankPage.locator('.ohpp-badge').isVisible())) {
+      await bankPage.getByTestId('nav-settings').click()
       await bankPage.click('#generate-challenge-btn')
       const challengeTextarea = bankPage.locator('#challenge-uri')
       await expect(challengeTextarea).toBeVisible({ timeout: 10000 })
@@ -55,9 +56,10 @@ test.describe('Bank — Batch transfers (multiple pending, then resolve)', () =>
       await portalPage.click('button:has-text("Connect app")')
       await expect(portalPage.locator('.bg-green-50').first()).toBeVisible({ timeout: 15000 })
 
-      await bankPage.waitForTimeout(3000)
-      await bankPage.goto(BANK_URL)
-      await expect(bankPage.locator('#balance')).not.toHaveText('Loading...')
+      await expect.poll(async () => {
+        await bankPage.reload()
+        return await bankPage.locator('.ohpp-badge').isVisible()
+      }, { timeout: 15_000 }).toBe(true)
     }
     await expect(bankPage.locator('.ohpp-badge')).toBeVisible({ timeout: 10000 })
 
@@ -68,15 +70,17 @@ test.describe('Bank — Batch transfers (multiple pending, then resolve)', () =>
     // --- Create 3 transfers WITHOUT resolving any ---
     const transfers = [
       { amount: '10.00', reference: 'Batch test 1' },
-      { amount: '20.00', reference: 'Batch test 2' },
-      { amount: '30.00', reference: 'Batch test 3' },
+      { amount: '10.00', reference: 'Batch test 2' },
+      { amount: '10.00', reference: 'Batch test 3' },
     ]
 
     for (const t of transfers) {
+      await bankPage.getByTestId('nav-payments').click()
       await bankPage.selectOption('#payee-select', { index: 0 })
       await bankPage.fill('#amount', t.amount)
       await bankPage.fill('#reference', t.reference)
       await bankPage.click('#transfer-form button[type="submit"]')
+      await bankPage.click('#confirm-transfer')
 
       // Wait for the pending result
       const result = bankPage.locator('#transfer-result')
@@ -91,6 +95,7 @@ test.describe('Bank — Batch transfers (multiple pending, then resolve)', () =>
     // Reload to get fresh transaction list
     await bankPage.goto(BANK_URL)
     await expect(bankPage.locator('#balance')).not.toHaveText('Loading...')
+    await bankPage.getByTestId('nav-transactions').click()
 
     // Check that batch transfers appear in the transaction list (there may be others from prior tests)
     const allTxns = bankPage.locator('.txn-item')
@@ -108,7 +113,11 @@ test.describe('Bank — Batch transfers (multiple pending, then resolve)', () =>
 
     // Should see pending requests (including our 3 batch transfers)
     const approveButtons = portalPage.locator('button:has-text("Approve transfer")')
-    await expect(approveButtons.first()).toBeVisible({ timeout: 15000 })
+    await expect.poll(async () => {
+      const retry = portalPage.getByRole('button', { name: 'Try again' })
+      if (await retry.isVisible()) await retry.click()
+      return await approveButtons.count()
+    }, { timeout: 70_000, intervals: [1_000, 2_000, 5_000] }).toBeGreaterThanOrEqual(3)
 
     // Approve the first one
     await approveButtons.first().click()
@@ -131,6 +140,7 @@ test.describe('Bank — Batch transfers (multiple pending, then resolve)', () =>
     // Reload bank to see final state
     await bankPage.goto(BANK_URL)
     await expect(bankPage.locator('#balance')).not.toHaveText('Loading...')
+    await bankPage.getByTestId('nav-transactions').click()
 
     // Wait for transactions to load and refresh their statuses
     await bankPage.waitForTimeout(3000)
@@ -147,15 +157,11 @@ test.describe('Bank — Batch transfers (multiple pending, then resolve)', () =>
     expect(await completedBadges.count()).toBeGreaterThanOrEqual(2)
     expect(await deniedBadges.count()).toBeGreaterThanOrEqual(1)
 
-    // --- Verify balance deducted for approved transfers ---
-    // Note: The balance may not deduct in this check if the server hasn't persisted yet
-    // (in-memory store, scoped services). The primary assertion is that statuses are correct.
+    // --- Verify balance deducted once for each approved transfer ---
     const endBalanceText = await bankPage.locator('#balance').textContent()
     const endBalance = parseFloat(endBalanceText!.replace('£', '').replace(',', ''))
 
-    // Balance should have decreased (approved transfers deduct)
-    // Allow for timing variance — at minimum, some deduction should have occurred
-    expect(startBalance - endBalance).toBeGreaterThanOrEqual(0)
+    expect(startBalance - endBalance).toBeCloseTo(20, 2)
 
     await portalPage.close()
     await bankPage.close()

@@ -4,6 +4,7 @@ using FsCheck.Xunit;
 using NSubstitute;
 using OHPP.Domain.Attestation;
 using OHPP.Domain.Shared;
+using OHPP.Infrastructure.Protocol.Local;
 using OHPP.Services.Attestation;
 
 namespace OHPP.Tests.Unit.Attestation;
@@ -78,14 +79,13 @@ public class AttestationPropertyTests
 
         if (!result.IsSuccess) return false;
 
-        var envelope = JsonSerializer.Deserialize<JsonElement>(result.Value!);
-        return envelope.TryGetProperty("innerAttestation", out _) &&
-               envelope.TryGetProperty("deviceSignature", out _) &&
-               envelope.TryGetProperty("deviceKeyId", out _) &&
-               envelope.TryGetProperty("resolverSignature", out _) &&
-               envelope.TryGetProperty("resolverKeyId", out _) &&
-               envelope.TryGetProperty("resolverAlgorithm", out _) &&
-               envelope.TryGetProperty("counterSignedAt", out _);
+        var envelope = OHPP.Protocol.Serialisation.OhppJsonSerialiser
+            .Deserialise<OHPP.Protocol.Models.AttestationEnvelope>(result.Value!);
+        return envelope is not null &&
+               envelope.InnerAttestation.Signature.Value == deviceSig &&
+               envelope.InnerAttestation.Signature.KeyId == deviceKeyId &&
+               envelope.OuterSignature.Value == "resolver-signature" &&
+               envelope.OuterSignature.KeyId == activeKey.KeyId;
     }
 
     [Property]

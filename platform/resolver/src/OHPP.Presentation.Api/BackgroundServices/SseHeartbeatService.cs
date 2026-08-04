@@ -26,7 +26,7 @@ public sealed class SseHeartbeatService : BackgroundService
         {
             try
             {
-                _channel.BroadcastHeartbeat();
+                await _channel.BroadcastHeartbeatAsync();
             }
             catch (Exception ex)
             {

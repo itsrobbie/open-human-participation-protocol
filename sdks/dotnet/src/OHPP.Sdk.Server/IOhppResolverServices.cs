@@ -86,4 +86,12 @@ public sealed class RequestStatusResponse
     /// Apps use this to determine the user's answer.
     /// </summary>
     public string? SelectedOption { get; init; }
+    /// <summary>
+    /// The selected option keys for Multiselect requests, when resolved.
+    /// </summary>
+    public IReadOnlyList<string>? SelectedOptions { get; init; }
+    /// <summary>
+    /// The submitted value for Text, Number, Date, DateTime, and Signature requests.
+    /// </summary>
+    public string? Value { get; init; }
 }

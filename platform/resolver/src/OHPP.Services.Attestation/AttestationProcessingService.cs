@@ -99,7 +99,13 @@ public sealed class AttestationProcessingService : IAttestationProcessingService
             return counterSignResult.Error!;
         }
 
-        await _pendingRequestRepo.UpdateStatusAsync(parsedRequestId, "Resolved", _clock.UtcNow, cancellationToken);
+        var resolvedAt = _clock.UtcNow;
+        var wonResolution = await _pendingRequestRepo.TryUpdateStatusAsync(
+            parsedRequestId, "Pending", "Resolved", resolvedAt, cancellationToken);
+        if (!wonResolution)
+        {
+            return Error.Conflict("Request was resolved by another attester");
+        }
 
         await _recordRepo.CreateAsync(new ParticipationRecord
         {
@@ -117,7 +123,7 @@ public sealed class AttestationProcessingService : IAttestationProcessingService
             ResolutionMethod = "Device",
             ResolvingDeviceId = deviceId,
             CreatedAt = request.CreatedAt,
-            ResolvedAt = _clock.UtcNow
+            ResolvedAt = resolvedAt
         }, cancellationToken);
 
         return counterSignResult.Value!;

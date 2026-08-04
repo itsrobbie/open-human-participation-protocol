@@ -49,6 +49,7 @@ test.describe('Bank — Transfer with OHPP (full ceremony + approval)', () => {
     // --- Step 2: Go to bank, generate connection link ---
     await bankPage.goto(BANK_URL)
     await expect(bankPage.locator('#balance')).not.toHaveText('Loading...')
+    await bankPage.getByTestId('nav-settings').click()
     await expect(bankPage.locator('#generate-challenge-btn')).toBeVisible({ timeout: 10000 })
 
     await bankPage.click('#generate-challenge-btn')
@@ -79,10 +80,12 @@ test.describe('Bank — Transfer with OHPP (full ceremony + approval)', () => {
     await expect(bankPage.locator('.ohpp-badge')).toContainText('OHPP Connected')
 
     // --- Step 5: Make a transfer — should require approval ---
+    await bankPage.getByTestId('nav-payments').click()
     await bankPage.selectOption('#payee-select', { index: 0 })
     await bankPage.fill('#amount', '50.00')
     await bankPage.fill('#reference', 'E2E full approval test')
     await bankPage.click('#transfer-form button[type="submit"]')
+    await bankPage.click('#confirm-transfer')
 
     const transferResult = bankPage.locator('#transfer-result')
     await expect(transferResult).toBeVisible({ timeout: 15000 })
@@ -93,7 +96,11 @@ test.describe('Bank — Transfer with OHPP (full ceremony + approval)', () => {
     await portalPage.click('nav >> text=Pending')
 
     // Wait for the pending request to appear — the bank sends Select options ["Approve transfer", "Deny transfer"]
-    const approveBtn = portalPage.locator('button:has-text("Approve transfer")')
+    const requestCard = portalPage.locator('div.bg-white')
+      .filter({ hasText: 'Transfer £50.00' })
+      .filter({ has: portalPage.getByRole('button', { name: 'Approve transfer' }) })
+      .first()
+    const approveBtn = requestCard.getByRole('button', { name: 'Approve transfer' })
     await expect(approveBtn).toBeVisible({ timeout: 15000 })
 
     // Verify the request summary is visible
@@ -103,7 +110,7 @@ test.describe('Bank — Transfer with OHPP (full ceremony + approval)', () => {
     await approveBtn.click()
 
     // The request should disappear (or show empty state)
-    await expect(approveBtn).not.toBeVisible({ timeout: 10000 })
+    await expect(requestCard).not.toBeVisible({ timeout: 10000 })
 
     // --- Step 7: Bank should show transfer completed ---
     // The bank polls every 2s for status updates

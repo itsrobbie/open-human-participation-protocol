@@ -18,10 +18,11 @@ test.describe('Portal — Pending error handling', () => {
     await page.click('nav >> text=Pending')
 
     // Should show either empty state or disabled message — not an error
-    await expect(
+    await expect((
       page.getByText('No pending requests')
         .or(page.getByText('Web approvals disabled').first())
-    ).toBeVisible({ timeout: 10000 })
+        .or(page.locator('button:has-text("Approve transfer")').first())
+    ).first()).toBeVisible({ timeout: 10000 })
   })
 
   test('approve button shows feedback even if request was already resolved', async ({ context }) => {
@@ -60,10 +61,10 @@ test.describe('Portal — Pending error handling', () => {
 
     // The page should load without crashing, even if there are no requests
     // or if the API returns an empty list
-    await expect(
+    await expect((
       portalPage.getByText('No pending requests')
-        .or(portalPage.locator('button:has-text("Approve transfer")'))
-    ).toBeVisible({ timeout: 10000 })
+        .or(portalPage.locator('button:has-text("Approve transfer")').first())
+    ).first()).toBeVisible({ timeout: 10000 })
 
     await portalPage.close()
     await bankPage.close()
@@ -84,11 +85,11 @@ test.describe('Portal — Pending error handling', () => {
     // 1. Empty pending requests
     // 2. Disabled message
     // 3. Actual requests to respond to
-    await expect(
+    await expect((
       page.getByText('No pending requests')
         .or(page.getByText('Web approvals disabled').first())
-        .or(page.locator('button:has-text("Approve transfer")'))
-    ).toBeVisible({ timeout: 10000 })
+        .or(page.locator('button:has-text("Approve transfer")').first())
+    ).first()).toBeVisible({ timeout: 10000 })
 
     // Should NOT show a raw error
     await expect(page.locator('text=Failed')).not.toBeVisible()

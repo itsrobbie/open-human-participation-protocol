@@ -86,7 +86,7 @@ export function Apps() {
       {revokedApps.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold text-gray-500 dark:text-slate-400 mb-3">Revoked</h2>
-          <div className="space-y-3 opacity-60">
+          <div className="space-y-3">
             {revokedApps.map((app) => (
               <AppCard key={app.id} app={app} />
             ))}
@@ -127,12 +127,12 @@ function AppCard({
       }`}
     >
       <div>
-        <p className={`font-medium ${!app.isActive ? 'text-gray-400 dark:text-slate-500' : ''}`}>{app.appName}</p>
-        <p className="text-sm text-gray-500 dark:text-slate-400">{app.appId}</p>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+        <p className={`font-medium ${!app.isActive ? 'text-gray-700 dark:text-slate-300' : ''}`}>{app.appName}</p>
+        <p className={`text-sm ${!app.isActive ? 'text-gray-600 dark:text-slate-400' : 'text-gray-500 dark:text-slate-400'}`}>{app.appId}</p>
+        <p className={`text-xs mt-1 ${!app.isActive ? 'text-gray-700 dark:text-slate-300' : 'text-gray-600 dark:text-slate-300'}`}>
           Registered {formatRelativeTime(app.registeredAt)}
           {!app.isActive && app.revokedAt && (
-            <span className="text-red-500 font-medium"> · Revoked {formatRelativeTime(app.revokedAt)}</span>
+            <span className="text-red-700 dark:text-red-400 font-medium"> · Revoked {formatRelativeTime(app.revokedAt)}</span>
           )}
         </p>
       </div>

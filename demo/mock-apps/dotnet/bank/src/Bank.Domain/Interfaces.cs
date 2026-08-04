@@ -1,5 +1,10 @@
 namespace Bank.Domain;
 
+public interface IClock
+{
+    DateTimeOffset UtcNow { get; }
+}
+
 public interface IAccountStore
 {
     Task<Account?> GetByIdAsync(string accountId, CancellationToken cancellationToken = default);
@@ -33,7 +38,15 @@ public interface IParticipationClient
 public interface ITransactionStore
 {
     Task RecordAsync(TransactionRecord record, CancellationToken cancellationToken = default);
-    Task UpdateStatusAsync(string id, TransferStatus status, CancellationToken cancellationToken = default);
+    Task<bool> TryResolveAsync(
+        string id,
+        TransferStatus status,
+        DateTimeOffset resolvedAt,
+        CancellationToken cancellationToken = default);
     Task<TransactionRecord?> GetByParticipationRequestIdAsync(string requestId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<TransactionRecord>> GetByAccountIdAsync(string accountId, CancellationToken cancellationToken = default);
+    Task<int> ExecuteDueScheduledAsync(
+        string accountId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default);
 }

@@ -165,6 +165,40 @@ public sealed class PendingRequestRepositoryTests
     }
 
     [Fact]
+    public async Task TryResolveAsync_PendingRequest_TransitionsOnce()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var sut = new PendingRequestRepository(ctx);
+        var request = CreateRequest(status: "Pending");
+        ctx.PendingRequests.Add(request);
+        await ctx.SaveChangesAsync();
+
+        var first = await sut.TryUpdateStatusAsync(request.Id, "Pending", "Resolved", DateTimeOffset.UtcNow);
+        var second = await sut.TryUpdateStatusAsync(request.Id, "Pending", "Resolved", DateTimeOffset.UtcNow);
+
+        first.Should().BeTrue();
+        second.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TryResolveAsync_ResolvedRequest_ReturnsFalseWithoutMutation()
+    {
+        using var ctx = TestDbContextFactory.Create();
+        var sut = new PendingRequestRepository(ctx);
+        var originalResolvedAt = DateTimeOffset.UtcNow.AddMinutes(-5);
+        var request = CreateRequest(status: "Resolved");
+        request.ResolvedAt = originalResolvedAt;
+        ctx.PendingRequests.Add(request);
+        await ctx.SaveChangesAsync();
+
+        var transitioned = await sut.TryUpdateStatusAsync(
+            request.Id, "Pending", "Resolved", DateTimeOffset.UtcNow);
+
+        transitioned.Should().BeFalse();
+        request.ResolvedAt.Should().Be(originalResolvedAt);
+    }
+
+    [Fact]
     public async Task CancelAllForAppRegistrationAsync_CancelsPendingOnly()
     {
         using var ctx = TestDbContextFactory.Create();

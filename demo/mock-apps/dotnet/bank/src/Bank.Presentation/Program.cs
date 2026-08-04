@@ -2,9 +2,30 @@ using System.Text.Json.Serialization;
 using Bank.Domain;
 using Bank.Infrastructure;
 using Bank.Services;
+using OHPP.Protocol.Models;
 using OHPP.Sdk;
+using Npgsql;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.OpenApi.Any;
+using Microsoft.OpenApi.Models;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var authAuthority = builder.Configuration["Auth:Keycloak:Authority"] ?? "http://keycloak:8080/realms/ohpp-bank";
+var authAudience = builder.Configuration["Auth:Keycloak:Audience"] ?? "ohpp-bank-app";
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = authAuthority;
+        options.Audience = authAudience;
+        options.RequireHttpsMetadata = false;
+        options.TokenValidationParameters.ValidateAudience = true;
+    });
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy("BankUser", policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim("ohpp_user_id")));
 
 // --- JSON serialization: enums as strings ---
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -16,7 +37,10 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    options.SupportNonNullableReferenceTypes();
+    options.NonNullableReferenceTypesAsRequired();
+    options.SchemaFilter<StringEnumSchemaFilter>();
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Demo Bank API",
         Version = "v1",
@@ -25,8 +49,14 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // --- DI ---
-builder.Services.AddSingleton<IAccountStore, InMemoryAccountStore>();
-builder.Services.AddSingleton<ITransactionStore, InMemoryTransactionStore>();
+var worldDatabaseConnectionString = builder.Configuration.GetConnectionString("WorldDatabase")
+    ?? builder.Configuration["WorldDatabase:ConnectionString"]
+    ?? "Host=postgres;Port=5432;Database=ohpp;Username=ohpp;Password=ohpp";
+builder.Services.AddSingleton(new NpgsqlDataSourceBuilder(worldDatabaseConnectionString).Build());
+builder.Services.AddSingleton<WorldDatabaseInitializer>();
+builder.Services.AddSingleton<IAccountStore, PostgresAccountStore>();
+builder.Services.AddSingleton<ITransactionStore, PostgresTransactionStore>();
+builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<TransferService>();
 
@@ -48,15 +78,27 @@ builder.Services.AddScoped<IParticipationClient>(sp =>
     var requesterClient = sp.GetRequiredService<IOhppRequesterClient>();
     return new OhppParticipationClient(requesterClient, appId);
 });
+builder.Services.AddScoped(sp => new BankProtocolScenarioClient(
+    sp.GetRequiredService<IOhppRequesterClient>(),
+    appId));
 
-// Need an IRegistrationStore for the SDK's CallbackHandler
-builder.Services.AddSingleton<IRegistrationStore, InMemoryRegistrationStore>();
+// The concrete store binds registration challenges to the originating app user.
+builder.Services.AddSingleton<PostgresRegistrationStore>();
+builder.Services.AddSingleton<IBankRegistrationStore>(serviceProvider =>
+    serviceProvider.GetRequiredService<PostgresRegistrationStore>());
+builder.Services.AddSingleton<IRegistrationStore>(serviceProvider =>
+    serviceProvider.GetRequiredService<IBankRegistrationStore>());
 
 var app = builder.Build();
+
+if (!string.Equals(builder.Configuration["WorldDatabase:RunBootstrap"], "false", StringComparison.OrdinalIgnoreCase))
+    await app.Services.GetRequiredService<WorldDatabaseInitializer>().InitializeAsync();
 
 // --- Swagger UI ---
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseAuthentication();
+app.UseAuthorization();
 
 // --- Static files (HTML UI) ---
 app.UseDefaultFiles();
@@ -64,37 +106,58 @@ app.UseStaticFiles();
 
 // --- Health ---
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", app = "Demo Bank" }));
+app.MapGet("/.well-known/ohpp/auth-config", () => Results.Ok(new BankAuthConfigResponse(
+    builder.Configuration["Auth:PublicAuthority"] ?? "http://localhost:8080/realms/ohpp-bank",
+    "ohpp-bank-app")))
+    .Produces<BankAuthConfigResponse>();
 
 // --- Account endpoints ---
-app.MapGet("/api/accounts", async (AccountService accounts) =>
+app.MapGet("/api/accounts", async (ClaimsPrincipal principal, AccountService accounts) =>
 {
     var all = await accounts.GetAllAccountsAsync();
-    return Results.Ok(all);
-});
+    return Results.Ok(all.Where(account => account.OwnerUserId == RequireUserId(principal)));
+}).RequireAuthorization("BankUser")
+    .Produces<IReadOnlyList<Account>>();
 
-app.MapGet("/api/accounts/{id}", async (string id, AccountService accounts) =>
+app.MapGet("/api/accounts/{id}", async (string id, ClaimsPrincipal principal, AccountService accounts) =>
 {
     var account = await accounts.GetAccountAsync(id);
-    return account is not null ? Results.Ok(account) : Results.NotFound();
-});
+    return account is not null && account.OwnerUserId == RequireUserId(principal)
+        ? Results.Ok(account)
+        : Results.NotFound();
+}).RequireAuthorization("BankUser")
+    .Produces<Account>()
+    .Produces(StatusCodes.Status404NotFound);
 
 // --- Transfer endpoints ---
-app.MapPost("/api/transfers", async (TransferRequest request, TransferService transfers) =>
+app.MapPost("/api/transfers", async (TransferRequest request, ClaimsPrincipal principal, AccountService accounts, TransferService transfers) =>
 {
+    if (!await OwnsAccountAsync(request.FromAccountId, principal, accounts))
+        return Results.NotFound();
     var result = await transfers.InitiateTransferAsync(request);
     return result.Success
         ? Results.Ok(result)
         : Results.BadRequest(result);
-});
+}).RequireAuthorization("BankUser")
+    .Produces<TransferResult>()
+    .Produces<TransferResult>(StatusCodes.Status400BadRequest)
+    .Produces(StatusCodes.Status404NotFound);
 
-app.MapGet("/api/transfers/{requestId}/status", async (string requestId, string accountId, TransferService transfers) =>
+app.MapGet("/api/transfers/{requestId}/status", async (string requestId, string accountId, ClaimsPrincipal principal, AccountService accounts, TransferService transfers) =>
 {
+    if (!await OwnsAccountAsync(accountId, principal, accounts))
+        return Results.NotFound();
     var result = await transfers.CompleteTransferAsync(accountId, requestId);
     return Results.Ok(result);
-});
+}).RequireAuthorization("BankUser")
+    .Produces<TransferResult>()
+    .Produces(StatusCodes.Status404NotFound);
 
-app.MapGet("/api/transactions", async (string accountId, ITransactionStore transactions, TransferService transfers) =>
+app.MapGet("/api/transactions", async (string accountId, ClaimsPrincipal principal, AccountService accounts, ITransactionStore transactions, TransferService transfers, IClock clock) =>
 {
+    if (!await OwnsAccountAsync(accountId, principal, accounts))
+        return Results.NotFound();
+    await transactions.ExecuteDueScheduledAsync(accountId, clock.UtcNow);
     var records = await transactions.GetByAccountIdAsync(accountId);
 
     // Refresh status of any pending transactions (resolves stale state after page reload)
@@ -106,59 +169,131 @@ app.MapGet("/api/transactions", async (string accountId, ITransactionStore trans
     // Re-fetch after status updates
     records = await transactions.GetByAccountIdAsync(accountId);
     return Results.Ok(records);
-});
+}).RequireAuthorization("BankUser")
+    .Produces<IReadOnlyList<TransactionRecord>>()
+    .Produces(StatusCodes.Status404NotFound);
 
 // --- Payee endpoints ---
-app.MapPost("/api/payees", async (AddPayeeRequest request, AccountService accounts) =>
+app.MapPost("/api/payees", async (AddPayeeRequest request, ClaimsPrincipal principal, AccountService accounts) =>
 {
+    if (!await OwnsAccountAsync(request.AccountId, principal, accounts))
+        return Results.NotFound();
     var success = await accounts.AddPayeeAsync(request);
     return success ? Results.Created() : Results.BadRequest();
-});
+}).RequireAuthorization("BankUser")
+    .Produces(StatusCodes.Status201Created)
+    .Produces(StatusCodes.Status400BadRequest)
+    .Produces(StatusCodes.Status404NotFound);
 
-// --- OHPP Settings ---
-app.MapPost("/api/ohpp/register", async (OhppRegistrationRequest request, AccountService accounts) =>
+app.MapDelete("/api/ohpp/disconnect", async (string accountId, ClaimsPrincipal principal, AccountService accounts) =>
 {
-    var registration = new OhppRegistration
-    {
-        ResolverUrl = request.ResolverUrl,
-        AccessToken = request.AccessToken,
-        UserId = request.UserId
-    };
-    var success = await accounts.RegisterOhppAsync(request.AccountId, registration);
-    return success ? Results.Ok() : Results.BadRequest();
-});
-
-app.MapDelete("/api/ohpp/disconnect", async (AccountService accounts) =>
-{
-    var account = await accounts.GetAccountAsync("demo-account");
-    if (account is null) return Results.NotFound();
+    var account = await accounts.GetAccountAsync(accountId);
+    if (account is null || account.OwnerUserId != RequireUserId(principal)) return Results.NotFound();
     account.OhppRegistration = null;
+    await accounts.SaveAccountAsync(account);
     return Results.Ok(new { status = "disconnected" });
-});
+}).RequireAuthorization("BankUser")
+    .Produces(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status404NotFound);
 
-app.MapPost("/api/ohpp/generate-challenge", (ChallengeGenerator challengeGen) =>
+app.MapPost("/api/ohpp/scenarios/{scenario}", async (
+    BankProtocolScenario scenario,
+    BankScenarioRequest request,
+    ClaimsPrincipal principal,
+    AccountService accounts,
+    BankProtocolScenarioClient scenarios,
+    CancellationToken cancellationToken) =>
 {
+    var account = await accounts.GetAccountAsync(request.AccountId);
+    if (account is null || account.OwnerUserId != RequireUserId(principal))
+        return Results.NotFound();
+    if (account.OhppRegistration is null)
+        return Results.BadRequest(new BankProtocolScenarioResult(false, Error: "Connect OHPP before creating a scenario."));
+    var result = await scenarios.CreateAsync(account.OhppRegistration, scenario, cancellationToken);
+    return result.Success ? Results.Ok(result) : Results.BadRequest(result);
+}).RequireAuthorization("BankUser")
+    .Produces<BankProtocolScenarioResult>()
+    .Produces<BankProtocolScenarioResult>(StatusCodes.Status400BadRequest)
+    .Produces(StatusCodes.Status404NotFound);
+
+app.MapGet("/api/ohpp/scenarios/{requestId}/status", async (
+    string requestId,
+    string accountId,
+    ClaimsPrincipal principal,
+    AccountService accounts,
+    BankProtocolScenarioClient scenarios,
+    CancellationToken cancellationToken) =>
+{
+    var account = await accounts.GetAccountAsync(accountId);
+    if (account is null || account.OwnerUserId != RequireUserId(principal))
+        return Results.NotFound();
+    if (account.OhppRegistration is null)
+        return Results.BadRequest();
+    return Results.Ok(await scenarios.GetStatusAsync(account.OhppRegistration, requestId, cancellationToken));
+}).RequireAuthorization("BankUser")
+    .Produces<BankProtocolScenarioStatus>()
+    .Produces(StatusCodes.Status400BadRequest)
+    .Produces(StatusCodes.Status404NotFound);
+
+app.MapPost("/api/ohpp/generate-challenge", async (
+    GenerateBankChallengeRequest request,
+    ChallengeGenerator challengeGen,
+    ClaimsPrincipal principal,
+    AccountService accounts,
+    IBankRegistrationStore registrations,
+    IClock clock,
+    CancellationToken cancellationToken) =>
+{
+    var appUserId = RequireUserId(principal);
+    if (!await OwnsAccountAsync(request.AccountId, principal, accounts))
+        return Results.NotFound();
     var challenge = challengeGen.CreateChallenge(TimeSpan.FromMinutes(10));
+    await registrations.RecordChallengeAsync(
+        challenge.ChallengeId,
+        request.AccountId,
+        appUserId,
+        clock.UtcNow,
+        cancellationToken);
     var uri = ChallengeGenerator.BuildChallengeUri(challenge);
-    return Results.Ok(new { challengeUri = uri, challengeId = challenge.ChallengeId, expiresAt = challenge.ExpiresAt });
-});
+    return Results.Ok(new BankChallengeResponse(uri, challenge.ChallengeId, challenge.ExpiresAt));
+}).RequireAuthorization("BankUser")
+    .Produces<BankChallengeResponse>()
+    .Produces(StatusCodes.Status404NotFound);
 
 // --- OHPP Callback (registration ceremony) ---
-app.MapPost("/ohpp/callback", async (HttpContext context, CallbackHandler handler, AccountService accounts) =>
+app.MapPost("/ohpp/callback", async (
+    HttpContext context,
+    CallbackHandler handler,
+    AccountService accounts,
+    IBankRegistrationStore registrations) =>
 {
     using var reader = new StreamReader(context.Request.Body);
     var body = await reader.ReadToEndAsync();
-    var result = await handler.HandleCallbackAsync(body);
+    RegistrationResponse? result;
+    try
+    {
+        result = await handler.HandleCallbackAsync(body);
+    }
+    catch (InvalidOperationException)
+    {
+        return Results.BadRequest();
+    }
     if (result is null) return Results.BadRequest();
 
-    // Auto-connect OHPP to the demo account when callback arrives
+    var target = await registrations.ConsumeChallengeAsync(result.ChallengeId);
+    if (target is null)
+        return Results.BadRequest();
+    var account = await accounts.GetAccountAsync(target.AccountId);
+    if (account is null || account.OwnerUserId != target.AppUserId)
+        return Results.BadRequest();
+
     var registration = new OhppRegistration
     {
         ResolverUrl = resolverInternalUrl ?? result.ResolverBaseUrl,
         AccessToken = result.AccessToken,
         UserId = result.UserId
     };
-    await accounts.RegisterOhppAsync("demo-account", registration);
+    await accounts.RegisterOhppAsync(target.AccountId, registration);
 
     return Results.Ok();
 });
@@ -175,29 +310,37 @@ app.MapGet("/.well-known/ohpp/app-metadata", () => Results.Ok(new
 
 app.Run();
 
-// --- Request DTOs ---
-public record OhppRegistrationRequest(string AccountId, string ResolverUrl, string AccessToken, string UserId);
+static string RequireUserId(ClaimsPrincipal principal) =>
+    principal.FindFirstValue("ohpp_user_id")
+    ?? throw new UnauthorizedAccessException("The access token has no ohpp_user_id claim.");
 
-// --- In-memory registration store for demo ---
-public sealed class InMemoryRegistrationStore : IRegistrationStore
+static async Task<bool> OwnsAccountAsync(string accountId, ClaimsPrincipal principal, AccountService accounts)
 {
-    private readonly List<OHPP.Protocol.Models.RegistrationResponse> _registrations = new();
+    var account = await accounts.GetAccountAsync(accountId);
+    return account is not null && account.OwnerUserId == RequireUserId(principal);
+}
 
-    public Task StoreRegistrationAsync(OHPP.Protocol.Models.RegistrationResponse response, CancellationToken cancellationToken = default)
-    {
-        _registrations.Add(response);
-        return Task.CompletedTask;
-    }
+// --- Request DTOs ---
+public sealed record GenerateBankChallengeRequest(string AccountId);
 
-    public Task<OHPP.Protocol.Models.RegistrationResponse?> GetRegistrationAsync(string userId, string resolverBaseUrl, CancellationToken cancellationToken = default)
-    {
-        var reg = _registrations.FirstOrDefault(r => r.UserId == userId && r.ResolverBaseUrl == resolverBaseUrl);
-        return Task.FromResult(reg);
-    }
+public sealed record BankScenarioRequest(string AccountId);
 
-    public Task<IReadOnlyList<OHPP.Protocol.Models.RegistrationResponse>> GetAllRegistrationsAsync(CancellationToken cancellationToken = default)
+public sealed record BankChallengeResponse(string ChallengeUri, string ChallengeId, DateTimeOffset ExpiresAt);
+
+public sealed record BankAuthConfigResponse(string Authority, string ClientId);
+
+public sealed class StringEnumSchemaFilter : Swashbuckle.AspNetCore.SwaggerGen.ISchemaFilter
+{
+    public void Apply(OpenApiSchema schema, Swashbuckle.AspNetCore.SwaggerGen.SchemaFilterContext context)
     {
-        return Task.FromResult<IReadOnlyList<OHPP.Protocol.Models.RegistrationResponse>>(_registrations);
+        if (!context.Type.IsEnum)
+            return;
+
+        schema.Type = "string";
+        schema.Format = null;
+        schema.Enum.Clear();
+        foreach (var name in Enum.GetNames(context.Type))
+            schema.Enum.Add(new OpenApiString(name));
     }
 }
 

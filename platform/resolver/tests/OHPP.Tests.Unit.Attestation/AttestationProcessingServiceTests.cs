@@ -29,6 +29,9 @@ public class AttestationProcessingServiceTests
         _clock.UtcNow.Returns(Now);
         _recordRepo.CreateAsync(Arg.Any<ParticipationRecord>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<ParticipationRecord>());
+        _pendingRequestRepo.TryUpdateStatusAsync(
+                Arg.Any<Guid>(), "Pending", "Resolved", Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>())
+            .Returns(true);
 
         _sut = new AttestationProcessingService(
             _deviceRepo,
@@ -59,7 +62,8 @@ public class AttestationProcessingServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(counterSignedEnvelope);
-        await _pendingRequestRepo.Received(1).UpdateStatusAsync(request.Id, "Resolved", Now, Arg.Any<CancellationToken>());
+        await _pendingRequestRepo.Received(1).TryUpdateStatusAsync(
+            request.Id, "Pending", "Resolved", Now, Arg.Any<CancellationToken>());
         await _recordRepo.Received(1).CreateAsync(
             Arg.Is<ParticipationRecord>(r => r.RequestId == request.Id && r.Status == "Resolved"),
             Arg.Any<CancellationToken>());
@@ -82,6 +86,30 @@ public class AttestationProcessingServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Code.Should().Be("UNAUTHORIZED");
+    }
+
+    [Fact]
+    public async Task ProcessAttestation_ConcurrentResolutionLost_ReturnsConflictWithoutRecord()
+    {
+        var request = CreatePendingRequest();
+        var device = CreateDevice(withPublicKey: true);
+        var payload = CreateAttestationPayload(request.Id, "approve", Now);
+        _deviceRepo.GetByIdAsync(_deviceId, Arg.Any<CancellationToken>()).Returns(device);
+        _pendingRequestRepo.GetByIdAsync(request.Id, Arg.Any<CancellationToken>()).Returns(request);
+        _signatureVerifier.Verify(payload, "signature", device.PublicKey!).Returns(true);
+        _counterSigningService.CounterSignAsync(payload, "signature", device.Id.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result<string>.Success("counter-signed"));
+        _pendingRequestRepo.TryUpdateStatusAsync(
+                request.Id, "Pending", "Resolved", Now, Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        var result = await _sut.ProcessDeviceAttestationAsync(
+            _deviceId, _userId, request.Id.ToString(), payload, "signature");
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Code.Should().Be("CONFLICT");
+        await _recordRepo.DidNotReceive().CreateAsync(
+            Arg.Any<ParticipationRecord>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -48,6 +48,7 @@ test.describe('Portal — Connect App error handling', () => {
     // Generate a real challenge from the bank
     const bankPage = await context.newPage()
     await bankPage.goto(BANK_URL)
+    await bankPage.getByTestId('nav-settings').click()
     await expect(bankPage.locator('#generate-challenge-btn')).toBeVisible({ timeout: 10000 })
     await bankPage.click('#generate-challenge-btn')
     const challengeTextarea = bankPage.locator('#challenge-uri')

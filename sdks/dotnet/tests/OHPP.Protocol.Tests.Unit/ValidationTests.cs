@@ -147,4 +147,91 @@ public sealed class ValidationTests
         var errors = ParticipationRequestValidator.Validate(request, Now);
         errors.Should().Contain(e => e.Contains("description"));
     }
+
+    [Theory]
+    [InlineData(RequestType.Select)]
+    [InlineData(RequestType.Multiselect)]
+    [InlineData(RequestType.Text)]
+    [InlineData(RequestType.Number)]
+    [InlineData(RequestType.Date)]
+    [InlineData(RequestType.DateTime)]
+    [InlineData(RequestType.Signature)]
+    public void RequestValidator_EachRequestType_ValidatesSuccessfully(RequestType type)
+    {
+        IReadOnlyList<RequestOption> options = type is RequestType.Select or RequestType.Multiselect
+            ? new[] { new RequestOption { Key = "a", Label = "A" }, new RequestOption { Key = "b", Label = "B" } }
+            : Array.Empty<RequestOption>();
+        var request = CreateValid(type: type, options: options);
+
+        ParticipationRequestValidator.Validate(request, Now).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RequestValidator_InputValidationWithInvertedRange_Rejects()
+    {
+        var request = WithInputValidation(CreateValid(type: RequestType.Number, options: []), new InputValidation
+        {
+            Min = 10,
+            Max = 5
+        });
+
+        ParticipationRequestValidator.Validate(request, Now)
+            .Should().Contain(error => error.Contains("min") && error.Contains("max"));
+    }
+
+    [Fact]
+    public void RequestValidator_InputValidationWithMalformedPattern_Rejects()
+    {
+        var request = WithInputValidation(CreateValid(type: RequestType.Text, options: []), new InputValidation
+        {
+            Pattern = "["
+        });
+
+        ParticipationRequestValidator.Validate(request, Now)
+            .Should().Contain(error => error.Contains("pattern"));
+    }
+
+    [Fact]
+    public void RequestValidator_OptionValidationWithInvertedRange_Rejects()
+    {
+        var request = CreateValid(type: RequestType.Select, options:
+        [
+            new RequestOption
+            {
+                Key = "a",
+                Label = "A",
+                Validation = new InputValidation { Min = 3, Max = 2 }
+            },
+            new RequestOption { Key = "b", Label = "B" }
+        ]);
+
+        ParticipationRequestValidator.Validate(request, Now)
+            .Should().Contain(error => error.Contains("options[0].validation.min") && error.Contains("max"));
+    }
+
+    [Fact]
+    public void ProtocolDeserialiser_UnknownFields_AreIgnored()
+    {
+        var json = OHPP.Protocol.Serialisation.OhppJsonSerialiser.Serialise(CreateValid());
+        json = json[..^1] + ",\"futureExtension\":{\"enabled\":true}}";
+
+        var request = OHPP.Protocol.Serialisation.OhppJsonSerialiser.Deserialise<ParticipationRequest>(json);
+
+        request.Should().NotBeNull();
+        request!.Action.Summary.Should().Be("Confirm transfer");
+    }
+
+    private static ParticipationRequest WithInputValidation(ParticipationRequest request, InputValidation validation) => new()
+    {
+        Id = request.Id,
+        Version = request.Version,
+        Requester = request.Requester,
+        Validation = request.Validation,
+        Action = request.Action,
+        Type = request.Type,
+        Options = request.Options,
+        InputValidation = validation,
+        Expiry = request.Expiry,
+        CreatedAt = request.CreatedAt
+    };
 }

@@ -3,6 +3,7 @@ namespace Bank.Domain;
 public sealed class Account
 {
     public required string Id { get; init; }
+    public string OwnerUserId { get; init; } = "demo-user";
     public required string Name { get; init; }
     public decimal Balance { get; set; }
     public List<Payee> Payees { get; init; } = new();
@@ -23,6 +24,7 @@ public sealed class TransferRequest
     public required string ToPayeeId { get; init; }
     public required decimal Amount { get; init; }
     public string? Reference { get; init; }
+    public DateTimeOffset? ScheduledFor { get; init; }
 }
 
 public sealed class AddPayeeRequest
@@ -52,6 +54,7 @@ public sealed class TransferResult
 
     public static TransferResult Completed() => new() { Success = true, Status = TransferStatus.Completed };
     public static TransferResult PendingApproval(string requestId) => new() { Success = true, Status = TransferStatus.PendingApproval, ParticipationRequestId = requestId };
+    public static TransferResult Scheduled() => new() { Success = true, Status = TransferStatus.Scheduled };
     public static TransferResult Denied(string reason) => new() { Success = false, Status = TransferStatus.Denied, Error = reason };
     public static TransferResult Failed(string error) => new() { Success = false, Status = TransferStatus.Failed, Error = error };
 }
@@ -62,7 +65,8 @@ public enum TransferStatus
     PendingApproval,
     Denied,
     Failed,
-    Expired
+    Expired,
+    Scheduled
 }
 
 /// <summary>
@@ -79,4 +83,5 @@ public sealed class TransactionRecord
     public string? ParticipationRequestId { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset? ResolvedAt { get; set; }
+    public DateTimeOffset? ScheduledFor { get; init; }
 }

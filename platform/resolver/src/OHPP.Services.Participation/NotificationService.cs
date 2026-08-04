@@ -17,14 +17,7 @@ public sealed class NotificationService : INotificationService
         PendingRequest request,
         CancellationToken cancellationToken = default)
     {
-        var payload = JsonSerializer.Serialize(new
-        {
-            requestId = request.Id,
-            appId = request.AppId,
-            actionSummary = request.ActionSummary,
-            type = request.Type,
-            expiresAt = request.ExpiresAt?.ToString("O")
-        });
+        var payload = JsonSerializer.Serialize(DeviceParticipationRequestMapper.Map(request));
 
         await _channel.NotifyDevicesAsync(userId, "new_request", payload, cancellationToken);
         return true;

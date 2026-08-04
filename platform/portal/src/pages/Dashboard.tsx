@@ -43,7 +43,7 @@ export function Dashboard() {
             </h2>
             <button
               onClick={dismiss}
-              className="text-indigo-400 dark:text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-300 text-sm"
+              className="text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 text-sm"
               aria-label="Dismiss getting started guide"
             >
               Dismiss

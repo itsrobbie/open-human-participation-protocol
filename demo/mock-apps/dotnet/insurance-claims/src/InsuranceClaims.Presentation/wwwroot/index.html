@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis Insurance</title>
+    <style>
+        :root { color-scheme: light; --emerald:#047857; --emerald-2:#065f46; --emerald-light:#d1fae5; --teal:#0d9488; --ink:#172033; --muted:#64748b; --line:#dce4ee; --surface:#fff; --canvas:#f3f6fa; --warn:#b45309; --danger:#c93636; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--canvas); color:var(--ink); }
+        button, input, select, textarea { font:inherit; }
+        button { border:0; border-radius:8px; padding:.72rem 1.1rem; background:var(--emerald); color:#fff; font-weight:700; cursor:pointer; }
+        button:hover { filter:brightness(.92); }
+        button.secondary { background:#e8eef5; color:var(--ink); }
+        button.danger { background:var(--danger); }
+        input, select, textarea { width:100%; border:1px solid #c9d4e2; border-radius:8px; padding:.72rem .8rem; background:#fff; color:var(--ink); }
+        input:focus, select:focus, textarea:focus { outline:3px solid #a7f3d0; border-color:var(--emerald); }
+        label { display:block; color:#42526a; font-size:.84rem; font-weight:650; margin-bottom:.35rem; }
+        h1, h2, h3, p { margin-top:0; }
+        textarea { min-height:5rem; resize:vertical; }
+        fieldset { border:1px solid var(--line); border-radius:8px; padding:1rem; margin:0; }
+        legend { font-weight:700; font-size:.84rem; padding:0 .5rem; }
+        [hidden] { display:none !important; }
+
+        /* --- Login --- */
+        .login-screen { min-height:100vh; display:grid; grid-template-columns:minmax(280px, 1fr) minmax(340px, 520px); background:#064e3b; }
+        .login-story { padding:clamp(3rem, 8vw, 8rem); display:flex; flex-direction:column; justify-content:center; color:#fff; background:radial-gradient(circle at 30% 30%, #0d9488, transparent 50%), linear-gradient(145deg, #064e3b, #022c22); }
+        .login-story .brand { font-weight:800; letter-spacing:.04em; margin-bottom:5rem; }
+        .login-story h1 { max-width:620px; font-size:clamp(2.4rem, 5vw, 4.8rem); line-height:1.02; letter-spacing:-.045em; }
+        .login-story p { max-width:540px; color:#a7f3d0; font-size:1.08rem; line-height:1.7; }
+        .login-panel { background:#fff; display:flex; align-items:center; padding:clamp(2rem, 7vw, 5rem); }
+        .login-card { width:100%; max-width:390px; margin:auto; }
+        .login-card h2 { font-size:2rem; margin-bottom:.5rem; }
+        .eyebrow { color:var(--emerald); font-size:.76rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+        .muted { color:var(--muted); line-height:1.55; }
+        .form-row { margin-bottom:1rem; }
+        .login-card button { width:100%; margin-top:.35rem; }
+
+        /* --- App Shell --- */
+        .app-shell { min-height:100vh; display:grid; grid-template-columns:248px minmax(0, 1fr); }
+        .sidebar { position:sticky; top:0; height:100vh; padding:1.7rem 1.15rem; background:#064e3b; color:#fff; display:flex; flex-direction:column; }
+        .sidebar-brand { font-size:1.18rem; font-weight:850; letter-spacing:.035em; padding:.4rem .8rem 1.8rem; }
+        .nav { display:flex; flex-direction:column; gap:.35rem; }
+        .nav a { color:#a7f3d0; text-decoration:none; border-radius:8px; padding:.78rem .85rem; font-weight:650; }
+        .nav a:hover, .nav a[aria-current="page"] { color:#fff; background:var(--emerald-2); }
+        .nav a[aria-current="page"] { box-shadow:inset 3px 0 var(--teal); }
+        .sidebar-foot { margin-top:auto; border-top:1px solid #166534; padding-top:1rem; }
+        .sidebar-foot button { width:100%; background:transparent; color:#d1fae5; text-align:left; }
+        .app-column { min-width:0; }
+        .topbar { height:76px; background:#fff; border-bottom:1px solid var(--line); padding:0 clamp(1.2rem, 4vw, 3.5rem); display:flex; align-items:center; justify-content:space-between; gap:1.5rem; }
+        .topbar strong { display:block; }
+        .topbar small { color:var(--muted); }
+        .workspace { max-width:1180px; margin:0 auto; padding:2.6rem clamp(1.2rem, 4vw, 3.5rem) 5rem; }
+        .page-heading { display:flex; justify-content:space-between; gap:1rem; align-items:end; margin-bottom:1.6rem; }
+        .page-heading h1 { font-size:2rem; letter-spacing:-.025em; margin-bottom:.35rem; }
+
+        /* --- Layout utilities --- */
+        .grid { display:grid; grid-template-columns:repeat(12, 1fr); gap:1rem; }
+        .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:1.35rem; box-shadow:0 6px 20px rgba(0,0,0,.04); }
+        .card h2 { font-size:1.08rem; margin-bottom:.9rem; }
+        .span-4 { grid-column:span 4; } .span-5 { grid-column:span 5; } .span-6 { grid-column:span 6; } .span-7 { grid-column:span 7; } .span-8 { grid-column:span 8; } .span-12 { grid-column:1 / -1; }
+        .section-stack { display:grid; gap:1rem; max-width:860px; }
+        .hero-policy { color:#fff; background:linear-gradient(135deg, #065f46, #0d9488); border:0; }
+        .hero-policy .muted { color:#a7f3d0; }
+        .policy-number { font-size:2rem; font-weight:800; letter-spacing:-.025em; margin:.4rem 0 .6rem; }
+        .stat-row { display:flex; flex-wrap:wrap; gap:1rem; margin-top:.8rem; }
+        .stat { flex:1; min-width:120px; background:#f0fdf4; border-radius:10px; padding:.9rem; text-align:center; }
+        .stat strong { display:block; font-size:1.4rem; color:var(--emerald); }
+        .stat small { color:var(--muted); font-size:.78rem; }
+        .badge { display:inline-block; padding:.22rem .6rem; border-radius:999px; font-size:.72rem; font-weight:750; }
+        .badge-connected { background:var(--emerald-light); color:#065f46; }
+        .badge-disconnected { background:#fef3c7; color:#92400e; }
+
+        /* --- Claims --- */
+        .claim-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:1.35rem; margin-bottom:1rem; box-shadow:0 4px 14px rgba(0,0,0,.03); border-left:5px solid var(--emerald); }
+        .claim-card h3 { margin:0 0 .3rem; font-size:1.05rem; }
+        .claim-card p { margin:.3rem 0; }
+        .claim-meta { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:.5rem; margin:.75rem 0; }
+        .claim-meta span { background:#f8fafc; padding:.55rem .8rem; border-radius:8px; font-size:.82rem; }
+        .claim-meta span strong { color:var(--muted); font-weight:700; display:block; font-size:.72rem; margin-bottom:.15rem; }
+        .claim-status { display:inline-block; padding:.22rem .65rem; border-radius:999px; font-size:.72rem; font-weight:750; }
+        .status-submitted { background:#dbeafe; color:#1e40af; }
+        .status-draft { background:#f1f5f9; color:#475569; }
+        .status-awaitingparticipation { background:#fef3c7; color:#92400e; }
+        .status-moreinformationrequired { background:#fef3c7; color:#92400e; }
+        .status-escalated { background:#fee2e2; color:#991b1b; }
+        .status-inreview { background:#e0e7ff; color:#3730a3; }
+        .status-approvedfornextstep { background:#d1fae5; color:#065f46; }
+        .status-expired { background:#f1f5f9; color:#64748b; }
+        .status-closed { background:#f1f5f9; color:#475569; }
+        .timeline { border-left:2px solid var(--line); margin:1rem 0 0 .4rem; padding-left:1rem; font-size:.82rem; color:var(--muted); }
+        .timeline strong { display:block; color:var(--ink); margin-bottom:.3rem; }
+        .answer-tag { display:inline-block; background:#f0fdf4; color:#065f46; border-radius:6px; padding:.3rem .6rem; font-size:.8rem; margin:.3rem .3rem 0 0; font-weight:600; }
+        .filters { display:grid; grid-template-columns:1fr auto; gap:.75rem; align-items:end; margin-bottom:1.2rem; }
+
+        /* --- Connection panel --- */
+        .connection-panel { border-left:4px solid var(--emerald); }
+        .challenge-box { margin-top:1rem; }
+        .challenge-box textarea { font-family:monospace; font-size:.78rem; }
+
+        /* --- Status messages --- */
+        .status { padding:.7rem 1rem; border-radius:8px; margin-top:1rem; font-size:.88rem; }
+        .status.success { background:#dcfce7; color:#166534; }
+        .status.pending { background:#fef3c7; color:#92400e; }
+        .status.error { background:#fee2e2; color:#991b1b; }
+
+        /* --- Responsive --- */
+        @media (max-width:850px) {
+            .login-screen { grid-template-columns:1fr; } .login-story { display:none; }
+            .app-shell { grid-template-columns:1fr; } .sidebar { position:static; height:auto; padding:1rem; }
+            .sidebar-brand { padding:.2rem .5rem .8rem; } .nav { flex-direction:row; overflow-x:auto; } .nav a { white-space:nowrap; }
+            .sidebar-foot { position:absolute; top:.65rem; right:.7rem; border:0; padding:0; } .sidebar-foot button { width:auto; }
+            .topbar { height:auto; padding:1rem; }
+            .workspace { padding:1.5rem 1rem 4rem; } .span-4, .span-5, .span-6, .span-7, .span-8 { grid-column:1 / -1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login -->
+    <section class="login-screen" id="login">
+        <div class="login-story">
+            <div class="brand">AEGIS INSURANCE</div>
+            <h1>Claims with a human in the loop.</h1>
+            <p>A demonstration insurer protected by the Open Human Participation Protocol. Every claim decision requires cryptographic proof of human involvement.</p>
+        </div>
+        <div class="login-panel">
+            <div class="login-card">
+                <p class="eyebrow">Policyholder portal</p>
+                <h2>Welcome back</h2>
+                <p class="muted">Sign in to the demonstration Insurance Claims portal.</p>
+                <form id="login-form">
+                    <div class="form-row"><label for="username">Username</label><input id="username" data-testid="login-username" value="demo" autocomplete="username" required></div>
+                    <div class="form-row"><label for="password">Password</label><input id="password" data-testid="login-password" type="password" value="demo" autocomplete="current-password" required></div>
+                    <button type="submit" data-testid="login-submit">Sign in securely</button>
+                </form>
+                <p id="login-result" class="error" role="alert"></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- App Shell -->
+    <div class="app-shell" id="app" hidden>
+        <aside class="sidebar">
+            <div class="sidebar-brand">AEGIS INSURANCE</div>
+            <nav class="nav" aria-label="Insurance Claims">
+                <a href="#dashboard" data-route="dashboard" data-testid="nav-dashboard">Dashboard</a>
+                <a href="#new-claim" data-route="new-claim" data-testid="nav-new-claim">New claim</a>
+                <a href="#claim-history" data-route="claim-history" data-testid="nav-claim-history">Claim history</a>
+                <a href="#ohpp-settings" data-route="ohpp-settings" data-testid="nav-ohpp-settings">OHPP settings</a>
+            </nav>
+            <div class="sidebar-foot"><button id="logout-button" data-testid="logout" type="button">Sign out</button></div>
+        </aside>
+
+        <div class="app-column">
+            <header class="topbar">
+                <div><strong>Policyholder portal</strong><small>Demo customer</small></div>
+            </header>
+            <main class="workspace">
+
+                <!-- Dashboard -->
+                <section data-page="dashboard" hidden>
+                    <div class="page-heading"><div><p class="eyebrow">Your cover at a glance</p><h1>Insurance Claims</h1><p class="muted">Track active policies, open claims, and participation protection.</p></div></div>
+                    <div class="grid">
+                        <article class="card hero-policy span-5">
+                            <p class="muted">Active policy</p>
+                            <p class="policy-number" id="policy-summary">Loading...</p>
+                            <small class="muted">Home and contents cover</small>
+                        </article>
+                        <article class="card span-7">
+                            <h2>Claims overview</h2>
+                            <p id="claim-summary">Loading claims summary...</p>
+                            <div class="stat-row" id="dashboard-stats"></div>
+                        </article>
+                        <article class="card span-4">
+                            <h2>Participation protection</h2>
+                            <p class="muted">Claim decisions are protected by OHPP.</p>
+                            <p><span id="dashboard-ohpp-status" class="badge badge-disconnected">Loading...</span></p>
+                            <button type="button" class="secondary" data-route-button="ohpp-settings" style="margin-top:.8rem;">Manage connection</button>
+                        </article>
+                        <article class="card span-8">
+                            <h2>Recent claims</h2>
+                            <div id="recent-claims"><p class="muted">No claims yet. Submit your first claim to get started.</p></div>
+                        </article>
+                    </div>
+                </section>
+
+                <!-- New Claim -->
+                <section data-page="new-claim" hidden>
+                    <div class="page-heading"><div><p class="eyebrow">Submit a claim</p><h1>New claim</h1><p class="muted">Provide full details of the incident. You can save a draft and return later.</p></div></div>
+                    <div class="section-stack">
+                        <article class="card">
+                            <form id="claim-form">
+                                <div class="form-row"><label for="policy">Policy</label><select id="policy" data-testid="claim-policy" required><option value="">Loading...</option></select></div>
+                                <div class="form-row"><label for="claimant">Claimant name</label><input id="claimant" data-testid="claim-claimant" value="Demo User" required maxlength="120"></div>
+                                <div class="form-row"><label for="date">Incident date</label><input id="date" data-testid="claim-incident-date" type="date" required></div>
+                                <div class="form-row"><label for="incident-at">Incident date and time (optional)</label><input id="incident-at" data-testid="claim-incident-at" type="datetime-local"></div>
+                                <div class="form-row"><label for="description">Incident description</label><textarea id="description" data-testid="claim-description" required maxlength="2000" placeholder="Describe what happened, where, and what was damaged."></textarea></div>
+                                <div class="form-row"><label for="claimant-note">Claimant note (optional)</label><textarea id="claimant-note" data-testid="claim-note" maxlength="2000" placeholder="Any additional context for the reviewer."></textarea></div>
+                                <fieldset>
+                                    <legend>Affected items</legend>
+                                    <div style="display:flex; flex-wrap:wrap; gap:.8rem; padding:.5rem 0;">
+                                        <label style="display:inline-flex; align-items:center; gap:.4rem; margin:0; font-weight:500;"><input id="affected-building" data-testid="claim-affected-building" type="checkbox" value="Building"> Building</label>
+                                        <label style="display:inline-flex; align-items:center; gap:.4rem; margin:0; font-weight:500;"><input id="affected-contents" data-testid="claim-affected-contents" type="checkbox" value="Contents"> Contents</label>
+                                        <label style="display:inline-flex; align-items:center; gap:.4rem; margin:0; font-weight:500;"><input id="affected-accommodation" data-testid="claim-affected-accommodation" type="checkbox" value="Temporary accommodation"> Temporary accommodation</label>
+                                    </div>
+                                </fieldset>
+                                <div class="form-row" style="margin-top:1rem;"><label for="amount">Estimated amount (£)</label><input id="amount" data-testid="claim-amount" type="number" min="1" max="10000" step=".01" placeholder="0.00" required></div>
+                                <div style="display:flex; gap:.75rem; margin-top:.5rem;">
+                                    <button id="save-draft" data-testid="save-claim-draft" type="button" class="secondary">Save draft</button>
+                                    <button type="submit" data-testid="submit-claim">Submit claim</button>
+                                </div>
+                            </form>
+                            <p id="claim-result" role="status"></p>
+                        </article>
+                    </div>
+                </section>
+
+                <!-- Claim History -->
+                <section data-page="claim-history" hidden>
+                    <div class="page-heading"><div><p class="eyebrow">All claims</p><h1>Claim history</h1><p class="muted">View, filter, and manage all submitted and draft claims.</p></div></div>
+                    <article class="card">
+                        <div class="filters">
+                            <label for="claim-status-filter">Filter by status
+                                <select id="claim-status-filter" data-testid="claim-status-filter">
+                                    <option value="All">All statuses</option>
+                                    <option value="Draft">Draft</option>
+                                    <option value="Submitted">Submitted</option>
+                                    <option value="AwaitingParticipation">Awaiting participation</option>
+                                    <option value="MoreInformationRequired">More information required</option>
+                                    <option value="Escalated">Escalated</option>
+                                    <option value="InReview">In review</option>
+                                    <option value="ApprovedForNextStep">Approved for next step</option>
+                                    <option value="Expired">Expired</option>
+                                    <option value="Closed">Closed</option>
+                                </select>
+                            </label>
+                        </div>
+                        <p id="claims-result" class="error" role="alert"></p>
+                        <div id="claims">Loading...</div>
+                        <p id="claims-empty" hidden class="muted" style="text-align:center; padding:2rem 0;">No claims match this filter.</p>
+                    </article>
+                </section>
+
+                <!-- OHPP Settings -->
+                <section data-page="ohpp-settings" hidden>
+                    <div class="page-heading"><div><p class="eyebrow">Security and participation</p><h1>OHPP settings</h1><p class="muted">Connect your participation service to require human decisions on claim actions.</p></div></div>
+                    <div class="section-stack">
+                        <article class="card connection-panel">
+                            <h2>OHPP registration</h2>
+                            <p id="ohpp-status" class="muted">Loading connection status...</p>
+                            <div style="display:flex; flex-wrap:wrap; gap:.6rem; margin-top:1rem;">
+                                <button id="generate-challenge" data-testid="generate-challenge" type="button">Generate connection link</button>
+                                <button id="refresh-connection" data-testid="refresh-connection" type="button" class="secondary">Refresh status</button>
+                                <button id="disconnect-ohpp" data-testid="disconnect-ohpp" type="button" class="danger">Revoke connection</button>
+                            </div>
+                            <div id="challenge-panel" class="challenge-box" hidden>
+                                <label for="challenge-uri">Challenge URI (paste into Portal)</label>
+                                <textarea id="challenge-uri" data-testid="challenge-uri" readonly rows="3"></textarea>
+                                <button id="copy-challenge" data-testid="copy-challenge" type="button" class="secondary" style="margin-top:.5rem;">Copy to clipboard</button>
+                            </div>
+                            <p id="ohpp-result" role="status"></p>
+                        </article>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+    <script type="module" src="/app.js"></script>
+</body>
+</html>

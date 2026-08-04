@@ -13,14 +13,24 @@ public sealed class InMemoryTransactionStore : ITransactionStore
         return Task.CompletedTask;
     }
 
-    public Task UpdateStatusAsync(string id, TransferStatus status, CancellationToken cancellationToken = default)
+    public Task<bool> TryResolveAsync(
+        string id,
+        TransferStatus status,
+        DateTimeOffset resolvedAt,
+        CancellationToken cancellationToken = default)
     {
         if (_records.TryGetValue(id, out var record))
         {
-            record.Status = status;
-            record.ResolvedAt = DateTimeOffset.UtcNow;
+            lock (record)
+            {
+                if (record.Status != TransferStatus.PendingApproval)
+                    return Task.FromResult(false);
+                record.Status = status;
+                record.ResolvedAt = resolvedAt;
+            }
+            return Task.FromResult(true);
         }
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
     public Task<TransactionRecord?> GetByParticipationRequestIdAsync(string requestId, CancellationToken cancellationToken = default)
@@ -36,5 +46,27 @@ public sealed class InMemoryTransactionStore : ITransactionStore
             .OrderByDescending(r => r.CreatedAt)
             .ToList();
         return Task.FromResult<IReadOnlyList<TransactionRecord>>(records);
+    }
+
+    public Task<int> ExecuteDueScheduledAsync(
+        string accountId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        var completed = 0;
+        foreach (var record in _records.Values.Where(record =>
+                     record.AccountId == accountId &&
+                     record.Status == TransferStatus.Scheduled &&
+                     record.ScheduledFor <= now))
+        {
+            lock (record)
+            {
+                if (record.Status != TransferStatus.Scheduled) continue;
+                record.Status = TransferStatus.Completed;
+                record.ResolvedAt = now;
+                completed++;
+            }
+        }
+        return Task.FromResult(completed);
     }
 }

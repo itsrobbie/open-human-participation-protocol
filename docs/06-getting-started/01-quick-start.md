@@ -2,10 +2,10 @@
 
 ## Run the demo
 
-The fastest way to see OHPP in action — one command, nothing else to install (besides Docker):
+The fastest way to see OHPP in action is one command, with nothing else to install besides Docker:
 
 ```bash
-docker compose up --build
+make dev
 ```
 
 This builds all images from source and starts the full ecosystem. First run takes a couple of minutes; subsequent runs are near-instant thanks to Docker layer caching.
@@ -16,18 +16,22 @@ This starts:
 |---------|-----|------------|
 | Resolver | http://localhost:5050 | OHPP Participation Service (routes requests, manages devices, issues attestations) |
 | Portal | http://localhost:3000 | Management dashboard (register devices, view history, manage apps) |
-| Bank | http://localhost:5010 | Demo bank app (make transfers, connect OHPP, see the difference) |
-| CLI | (interactive terminal) | CLI client for approving/denying requests from the terminal |
-| PostgreSQL | localhost:5432 | Backing database for the Resolver |
+| Bank | http://localhost:5010 | Demo bank with Overview, Payments, Payees, Transactions, and Settings |
+| Insurance Claims | http://localhost:5020 | Demo claims app with OHPP claim decisions |
+| CLI | `make cli` | Development attester simulator for terminal approvals |
+| PostgreSQL | localhost:5432 | The single World database for the platform and demo app schemas |
+
+`postgres` is the only database container. New volumes are initialized by the PostgreSQL entrypoint, and `make dev` runs the same idempotent World database SQL inside that container before starting the applications. The old one-shot `world-database-init` service is no longer needed.
 
 ### What to try
 
-1. Open the Bank at http://localhost:5010 — make a transfer. It completes immediately (no OHPP).
-2. Open the Resolver's Swagger UI at http://localhost:5050/swagger — explore the API.
+1. Open the Bank at http://localhost:5010 and sign in with `demo` / `demo`. Make a payment. It completes immediately without OHPP.
+2. Open the Resolver's Swagger UI at http://localhost:5050/swagger and explore the API.
 3. Register a user and device via the Portal at http://localhost:3000.
-4. Connect the Bank to OHPP via the Bank's OHPP Settings section.
-5. Make another transfer — this time it waits for your approval.
-6. Approve via the CLI container: `docker compose exec -it cli sh` then follow the prompts.
+4. Connect the Bank to OHPP from its Settings page.
+5. Make another payment. This time it waits for your approval.
+6. For terminal testing, run `make cli` and follow the setup and response prompts. This is a development simulator, not the planned mobile Client App.
+7. In a development stack, open Protocol Lab from Portal to create, resolve, and inspect all seven request types in the browser. The Lab is disabled by default in unconfigured and production builds.
 
 ---
 
@@ -39,8 +43,9 @@ This starts:
 | `/platform/resolver/` | OHPP Resolver — the reference Participation Service (.NET 8) |
 | `/platform/portal/` | Management dashboard (React + TypeScript) |
 | `/sdks/dotnet/` | .NET SDKs (OHPP.Protocol, OHPP.Sdk, OHPP.Sdk.Server) |
-| `/demo/client-cli/` | CLI Client App — approve/deny requests from a terminal (.NET 8) |
-| `/demo/mock-apps/dotnet/bank/` | Demo bank app — OHPP-enabled transfers (.NET 8) |
+| `/demo/client-cli/` | Development CLI attester simulator (.NET 8) |
+| `/demo/mock-apps/dotnet/bank/` | Demo bank app with OHPP-enabled payments (.NET 8) |
+| `/demo/mock-apps/dotnet/insurance-claims/` | Demo insurance claims app with OHPP decisions (.NET 8) |
 | `/docker-compose.yml` | One-command demo orchestration |
 
 ---

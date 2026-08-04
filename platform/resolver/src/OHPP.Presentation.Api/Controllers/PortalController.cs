@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using OHPP.Domain.Auth;
+using OHPP.Domain.Attestation;
 using OHPP.Domain.Participation;
 using OHPP.Domain.Registration;
 using OHPP.Domain.Shared;
@@ -18,6 +19,8 @@ public sealed class PortalController : OhppControllerBase
     private readonly IPendingRequestRepository _pendingRepo;
     private readonly IParticipationRecordRepository _recordRepo;
     private readonly ITokenGenerator _tokenGenerator;
+    private readonly ICounterSigningService _counterSigningService;
+    private readonly IClock _clock;
 
     public PortalController(
         IUserRepository userRepo,
@@ -25,7 +28,9 @@ public sealed class PortalController : OhppControllerBase
         IAppRegistrationRepository appRepo,
         IPendingRequestRepository pendingRepo,
         IParticipationRecordRepository recordRepo,
-        ITokenGenerator tokenGenerator)
+        ITokenGenerator tokenGenerator,
+        ICounterSigningService counterSigningService,
+        IClock clock)
     {
         _userRepo = userRepo;
         _deviceRepo = deviceRepo;
@@ -33,11 +38,13 @@ public sealed class PortalController : OhppControllerBase
         _pendingRepo = pendingRepo;
         _recordRepo = recordRepo;
         _tokenGenerator = tokenGenerator;
+        _counterSigningService = counterSigningService;
+        _clock = clock;
     }
 
     // --- User Profile ---
 
-    [HttpPost("users/me")]
+    [HttpPost("users/me", Name = "CreateOrGetProfile")]
     public async Task<IActionResult> CreateOrGetProfile()
     {
         // User is already created/updated during token resolution in AuthenticationService.
@@ -49,7 +56,7 @@ public sealed class PortalController : OhppControllerBase
         return Ok(user);
     }
 
-    [HttpGet("users/me/summary")]
+    [HttpGet("users/me/summary", Name = "GetUserSummary")]
     public async Task<IActionResult> GetSummary()
     {
         var user = await _userRepo.GetByIdAsync(UserId);
@@ -71,14 +78,14 @@ public sealed class PortalController : OhppControllerBase
 
     // --- History ---
 
-    [HttpGet("history")]
+    [HttpGet("history", Name = "GetParticipationHistory")]
     public async Task<IActionResult> GetHistory([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
     {
         var result = await _recordRepo.GetByUserIdAsync(UserId, page, pageSize);
         return Ok(result);
     }
 
-    [HttpGet("history/{id:guid}")]
+    [HttpGet("history/{id:guid}", Name = "GetParticipationHistoryDetail")]
     public async Task<IActionResult> GetHistoryDetail(Guid id)
     {
         var record = await _recordRepo.GetByRequestIdAsync(id);
@@ -90,7 +97,7 @@ public sealed class PortalController : OhppControllerBase
 
     // --- Devices ---
 
-    [HttpGet("devices")]
+    [HttpGet("devices", Name = "GetUserDevices")]
     public async Task<IActionResult> GetDevices()
     {
         var devices = await _deviceRepo.GetByUserIdAsync(UserId);
@@ -102,7 +109,7 @@ public sealed class PortalController : OhppControllerBase
         }));
     }
 
-    [HttpPost("devices")]
+    [HttpPost("devices", Name = "CreateDevice")]
     public async Task<IActionResult> CreateDevice([FromBody] CreateDeviceRequest request)
     {
         var device = new Device
@@ -120,7 +127,7 @@ public sealed class PortalController : OhppControllerBase
         return Created($"/api/devices/{device.Id}", new { device.Id, device.Name, device.DeviceToken });
     }
 
-    [HttpDelete("devices/{id:guid}")]
+    [HttpDelete("devices/{id:guid}", Name = "RevokeDevice")]
     public async Task<IActionResult> RevokeDevice(Guid id)
     {
         var device = await _deviceRepo.GetByIdAsync(id);
@@ -134,7 +141,7 @@ public sealed class PortalController : OhppControllerBase
 
     // --- Registered Apps ---
 
-    [HttpGet("registrations/apps")]
+    [HttpGet("registrations/apps", Name = "GetRegisteredApps")]
     public async Task<IActionResult> GetRegisteredApps()
     {
         var apps = await _appRepo.GetByUserIdAsync(UserId);
@@ -145,7 +152,7 @@ public sealed class PortalController : OhppControllerBase
         }));
     }
 
-    [HttpDelete("registrations/apps/{id:guid}")]
+    [HttpDelete("registrations/apps/{id:guid}", Name = "RevokeRegisteredApp")]
     public async Task<IActionResult> RevokeApp(Guid id)
     {
         var app = await _appRepo.GetByIdAsync(id);
@@ -164,7 +171,7 @@ public sealed class PortalController : OhppControllerBase
 
     // --- Web Approvals (fallback — only available when no devices with keys exist) ---
 
-    [HttpGet("web-approvals/status")]
+    [HttpGet("web-approvals/status", Name = "GetWebApprovalsStatus")]
     public async Task<IActionResult> GetWebApprovalsStatus()
     {
         var enabled = !await HasActiveDeviceWithKeyAsync();
@@ -175,7 +182,7 @@ public sealed class PortalController : OhppControllerBase
         });
     }
 
-    [HttpGet("web-approvals/pending")]
+    [HttpGet("web-approvals/pending", Name = "GetWebApprovalsPending")]
     public async Task<IActionResult> GetWebPending()
     {
         if (await HasActiveDeviceWithKeyAsync())
@@ -207,7 +214,7 @@ public sealed class PortalController : OhppControllerBase
         return Ok(enriched);
     }
 
-    [HttpPost("web-approvals/{requestId:guid}/resolve")]
+    [HttpPost("web-approvals/{requestId:guid}/resolve", Name = "ResolveWebApproval")]
     public async Task<IActionResult> WebResolve(Guid requestId, [FromBody] WebResolveRequest request)
     {
         if (await HasActiveDeviceWithKeyAsync())
@@ -226,20 +233,28 @@ public sealed class PortalController : OhppControllerBase
             return BadRequest(new { error = validationError });
 
         // Build decision payload matching the protocol's attestation structure
+        var now = _clock.UtcNow;
         var decisionPayload = JsonSerializer.Serialize(new
         {
+            requestId = pending.Id.ToString(),
             selectedOption = request.SelectedOption,
             selectedOptions = request.SelectedOptions,
             value = request.Value,
             method = "WebApproval",
-            decisionTimestamp = DateTimeOffset.UtcNow.ToString("o")
+            decisionTimestamp = now.ToString("o")
         });
+        var attestationResult = await _counterSigningService.CounterSignAsync(
+            decisionPayload,
+            "identity-provider-authenticated",
+            $"web:{UserId}");
+        if (attestationResult.IsFailure)
+            return StatusCode(503, new { error = "Could not create the participation attestation" });
 
         // Always "Resolved" — the resolver does not interpret the answer semantically.
         // The requesting app reads the decision payload to determine what the user chose.
         pending.Status = "Resolved";
-        pending.ResolvedAt = DateTimeOffset.UtcNow;
-        await _pendingRepo.UpdateStatusAsync(pending.Id, "Resolved", DateTimeOffset.UtcNow);
+        pending.ResolvedAt = now;
+        await _pendingRepo.UpdateStatusAsync(pending.Id, "Resolved", now);
 
         var record = new ParticipationRecord
         {
@@ -253,9 +268,10 @@ public sealed class PortalController : OhppControllerBase
             ActionSummary = pending.ActionSummary,
             Type = pending.Type,
             DecisionPayload = decisionPayload,
+            AttestationPayload = attestationResult.Value,
             ResolutionMethod = "WebApproval",
             CreatedAt = pending.CreatedAt,
-            ResolvedAt = DateTimeOffset.UtcNow
+            ResolvedAt = now
         };
         await _recordRepo.CreateAsync(record);
 

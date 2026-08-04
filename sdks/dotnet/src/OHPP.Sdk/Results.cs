@@ -34,15 +34,30 @@ public sealed class RequestStatusResult
     /// Available when the request has been resolved, regardless of resolution method.
     /// </summary>
     public string? SelectedOption { get; init; }
+    /// <summary>
+    /// The selected option keys for Multiselect type requests.
+    /// </summary>
+    public IReadOnlyList<string>? SelectedOptions { get; init; }
+    /// <summary>
+    /// The submitted value for typed input and Signature requests.
+    /// </summary>
+    public string? Value { get; init; }
     public string? Error { get; init; }
     public int? HttpStatusCode { get; init; }
 
-    public static RequestStatusResult Ok(RequestStatus status, AttestationEnvelope? attestation = null, string? selectedOption = null) => new()
+    public static RequestStatusResult Ok(
+        RequestStatus status,
+        AttestationEnvelope? attestation = null,
+        string? selectedOption = null,
+        IReadOnlyList<string>? selectedOptions = null,
+        string? value = null) => new()
     {
         Success = true,
         Status = status,
         Attestation = attestation,
-        SelectedOption = selectedOption
+        SelectedOption = selectedOption,
+        SelectedOptions = selectedOptions,
+        Value = value
     };
 
     public static RequestStatusResult Fail(string error, int? statusCode = null) => new()
