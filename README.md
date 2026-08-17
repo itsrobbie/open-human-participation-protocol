@@ -214,7 +214,7 @@ The token and ES256 key pair persist in the Docker `cli_config` volume between r
 
 ## License
 
-[TBD]
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
 ## Contributing
 
