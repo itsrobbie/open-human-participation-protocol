@@ -82,15 +82,75 @@ The protocol specification is complete. A working reference implementation and d
 | Additional mock apps (Python, Go) | Planned (U4-U5) |
 | Mock AI Agent | Planned (U6) |
 
+### Prerequisites
+
+You need three things installed before you can run the project:
+
+| Tool | What it is | Install |
+|------|-----------|---------|
+| **Git** | Version control (downloads the code) | [git-scm.com/downloads](https://git-scm.com/downloads) |
+| **Docker Desktop** | Runs the whole stack in containers | [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) |
+| **Make** | Runs the project commands | Already on macOS/Linux. Windows: install via [chocolatey](https://chocolatey.org/) (`choco install make`) or use Git Bash. |
+
+#### Installing Docker Desktop
+
+1. Download Docker Desktop for your OS from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/).
+2. Run the installer and follow the prompts. Accept the defaults.
+3. Once installed, open Docker Desktop. Wait until the bottom-left status indicator turns green and says "Engine running".
+4. Leave Docker Desktop running in the background whenever you work on this project.
+
+#### Verifying your setup
+
+Open a terminal (Terminal on macOS, PowerShell or Git Bash on Windows) and run:
+
+```bash
+docker --version
+docker compose version
+make --version
+git --version
+```
+
+All four should print a version number without errors. If any fail, revisit the install step for that tool.
+
+#### Common Docker problems
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `npipe:////./pipe/dockerDesktopLinuxEngine` error (Windows) | Docker Desktop is not running | Open Docker Desktop and wait for "Engine running" |
+| `Cannot connect to the Docker daemon` (macOS/Linux) | Docker Desktop is not running | Open Docker Desktop or run `open -a Docker` on macOS |
+| `permission denied` on Linux | Your user is not in the `docker` group | Run `sudo usermod -aG docker $USER` then log out and back in |
+| Image pull takes a long time | Normal on first run | The first `make dev` downloads ~2 GB of images. Subsequent runs are fast because images are cached. |
+| Port already in use | Another app is using that port | Stop the other app, or run `make dev-down` to stop a previous OHPP stack |
+
 ### Try it now
 
 ```bash
-git clone https://github.com/your-org/human-participation-protocol.git
+git clone https://github.com/itsrobbie/human-participation-protocol.git
 cd human-participation-protocol
 make dev
 ```
 
 That's it. One command builds everything from source and starts the full stack. No SDK installs, no database setup, no config files.
+
+#### What `make dev` actually does
+
+You don't need to understand this to use it, but if you're curious:
+
+1. Starts a PostgreSQL database container and runs schema migrations.
+2. Builds Docker images for each service (Resolver, Portal, Bank, Pizza, etc.) from source code.
+3. Starts all containers in the background.
+4. Prints URLs for each running service.
+
+The first run takes 3-5 minutes (downloading base images and building). After that, rebuilds only take 30-60 seconds because Docker caches layers.
+
+#### Stopping and restarting
+
+```bash
+make dev-down    # Stop everything
+make dev         # Start again (fast, uses cached builds)
+make dev-build   # Force a full rebuild if something seems stale
+make clean       # Stop and delete all data (starts fresh next time)
+```
 
 Once running, open:
 - **Bank demo**: http://localhost:5010 — sign in with `demo` / `demo`, make a transfer, and see OHPP in action
