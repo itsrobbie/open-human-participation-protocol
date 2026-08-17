@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-neon-cyan: 6 182 212;
+    --color-neon-purple: 168 85 247;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-cyan-500 ring-offset-2 dark:ring-offset-slate-950;
+  }
+}
+
+/* Skip to content link */
+.skip-to-content {
+  @apply sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-cyan-600 focus:text-white focus:px-4 focus:py-2 focus:rounded;
+}

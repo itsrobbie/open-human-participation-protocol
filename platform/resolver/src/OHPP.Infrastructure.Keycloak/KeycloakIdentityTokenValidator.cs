@@ -64,7 +64,7 @@ public sealed class KeycloakIdentityTokenValidator : IIdentityTokenValidator
             ValidateIssuerSigningKey = true,
             IssuerSigningKeys = jwks.GetSigningKeys(),
             ValidateIssuer = true,
-            ValidIssuers = new[] { _options.Authority, _options.Authority.Replace("keycloak:8080", "localhost:8080") },
+            ValidIssuers = new[] { _options.Authority, _options.Authority.Replace("keycloak:8080", "localhost:8080"), _options.Authority.Replace("keycloak:8080", "localhost:8180") },
             ValidateAudience = _options.ValidateAudience,
             ValidAudience = _options.Audience,
             ValidateLifetime = true,

@@ -100,7 +100,7 @@ public class ParticipationRequestServiceTests
     }
 
     [Fact]
-    public async Task SubmitRequest_NoActiveDevices_ReturnsError()
+    public async Task SubmitRequest_NoActiveDevices_StillAcceptsRequest()
     {
         _deviceTokenRepo.GetActiveByUserIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new List<Device>());
@@ -109,9 +109,7 @@ public class ParticipationRequestServiceTests
 
         var result = await _sut.SubmitRequestAsync(_appRegistrationId, _userId, AppId, json);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be("SERVICE_UNAVAILABLE");
-        result.Error.Message.Should().Contain("No active devices");
+        result.IsSuccess.Should().BeTrue();
     }
 
     [Fact]

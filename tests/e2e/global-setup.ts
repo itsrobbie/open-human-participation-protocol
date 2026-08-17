@@ -35,6 +35,8 @@ export default async function globalSetup() {
   waitForService('http://localhost:5150/health', 30)
   waitForService('http://localhost:5110/health', 15)
   waitForService('http://localhost:5120/health', 15)
+  waitForService('http://localhost:5130/health', 30)
+  waitForService('http://localhost:5140/health', 30)
   waitForService('http://localhost:3100/api/health', 20)
 
   await seedBankBrowserSession()
@@ -44,7 +46,7 @@ export default async function globalSetup() {
   verifySchemaIsolation()
 
   // Restart resolver + apps so all services reopen clean database connections after the reset.
-  execSync(`${COMPOSE_CMD} restart resolver bank insurance-claims`, {
+  execSync(`${COMPOSE_CMD} restart resolver bank insurance-claims pizza marketplace`, {
     cwd: __dirname,
     stdio: 'pipe',
     timeout: 60_000,
@@ -53,6 +55,8 @@ export default async function globalSetup() {
   waitForService('http://localhost:5150/health', 30)
   waitForService('http://localhost:5110/health', 15)
   waitForService('http://localhost:5120/health', 15)
+  waitForService('http://localhost:5130/health', 15)
+  waitForService('http://localhost:5140/health', 15)
 
   // Reload portal nginx to reconnect to restarted resolver
   execSync(`${COMPOSE_CMD} exec -T portal nginx -s reload`, {

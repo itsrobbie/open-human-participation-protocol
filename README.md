@@ -70,13 +70,16 @@ The protocol specification is complete. A working reference implementation and d
 | Protocol specification (`/docs/`) | Complete |
 | Resolver — Participation Service (.NET 8) | Working — `platform/resolver/` |
 | .NET SDKs (Protocol, Requester, Server) | Working — `sdks/dotnet/` |
+| Node.js SDK (TypeScript) | Working — `sdks/node/` |
 | Portal — Management dashboard (React) | Working — `platform/portal/` |
 | CLI attester simulator | Working for development and protocol testing in `demo/client-cli/` |
-| Demo Bank App (OHPP-enabled) | Working — `demo/mock-apps/dotnet/bank/` |
-| Demo Insurance Claims App | Working — `demo/mock-apps/dotnet/insurance-claims/` |
+| Demo Bank App (OHPP-enabled, .NET) | Working — `demo/mock-apps/dotnet/bank/` |
+| Demo Insurance Claims App (.NET) | Working — `demo/mock-apps/dotnet/insurance-claims/` |
+| Demo Pizza App (Node SDK, Express + React) | Working — `demo/mock-apps/node/pizza/` |
+| Demo Marketplace App (Node SDK, Express + React) | Working — `demo/mock-apps/node/marketplace/` |
 | Docker Compose demo | Working — `docker compose up` |
 | Client App (Flutter, iOS/Android) | Planned (U7) |
-| Additional mock apps (Node, Python, Go) | Planned (U3-U5) |
+| Additional mock apps (Python, Go) | Planned (U4-U5) |
 | Mock AI Agent | Planned (U6) |
 
 ### Try it now
@@ -92,6 +95,8 @@ That's it. One command builds everything from source and starts the full stack. 
 Once running, open:
 - **Bank demo**: http://localhost:5010 — sign in with `demo` / `demo`, make a transfer, and see OHPP in action
 - **Insurance Claims demo**: http://localhost:5020 — sign in with `demo` / `demo`, submit a claim, and reload to verify persistence
+- **Pizza demo**: http://localhost:5030 — sign in with `demo` / `demo`, order via menu or try the OHPP Pizza sequential flow
+- **Marketplace demo**: http://localhost:5040 — sign in with `demo` / `demo`, purchase products with signature verification for high-value items
 - **Portal**: http://localhost:3000 — register devices, manage apps, and use the development-only Protocol Lab
 - **Resolver API**: http://localhost:5050/swagger — explore the protocol
 
@@ -111,13 +116,18 @@ All common commands are in the `Makefile`. Run `make help` to see everything.
 | `make cli` | Run the interactive CLI attester simulator |
 | `make cli-reset` | Forget the CLI simulator token and signing keys |
 | `make test` | Run the complete Playwright browser gate (isolated stack, auto-teardown) |
-| `make test-unit` | Run contract, .NET, CLI, and Portal Vitest unit gates |
+| `make test-unit` | Run contract, .NET, CLI, Portal, and Node unit gates |
+| `make test-unit-node-sdk` | Run Node OHPP SDK unit + integration tests |
+| `make test-unit-pizza` | Run Pizza app unit + integration tests |
+| `make test-unit-marketplace` | Run Marketplace app unit + integration tests |
 | `make test-integration` | Run all Resolver Docker integration classes in Release |
 | `make test-unit-cli` | Run the CLI unit and infrastructure tests |
 | `make test-unit-portal` | Run Portal Vitest and Testing Library tests |
 | `make test-file FILE=26-portal-quality` | Run accessibility, refresh, concurrency, failure, and pagination browser evidence |
 | `make test-file FILE=27-portal-mobile` | Run the dedicated 375px Portal project |
-| `make build` | Build Resolver, Bank, Insurance Claims, CLI, and Portal |
+| `make build` | Build Resolver, Bank, Insurance Claims, CLI, Portal, and Node apps |
+| `make build-pizza` | Build the Pizza app (SDK + backend + frontend) |
+| `make build-marketplace` | Build the Marketplace app (SDK + backend + frontend) |
 | `make clean-cache` | Free Docker disk space |
 
 ### Running tests

@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-brand-red: 220 38 38;
+    --color-brand-amber: 245 158 11;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-red-500 ring-offset-2 dark:ring-offset-stone-950;
+  }
+}
+
+/* Skip to content link */
+.skip-to-content {
+  @apply sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-red-600 focus:text-white focus:px-4 focus:py-2 focus:rounded;
+}

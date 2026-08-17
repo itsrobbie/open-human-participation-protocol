@@ -84,10 +84,8 @@ public sealed class ParticipationRequestService : IParticipationRequestService
         if (await _rateLimitStore.IsRateLimitedAsync(rateLimitKey, MaxPendingRequestsPerUser, RateLimitWindow, cancellationToken))
             return Error.RateLimited("Participation request rate limit exceeded");
 
-        // Check active devices exist
-        var devices = await _deviceTokenRepo.GetActiveByUserIdAsync(userId, cancellationToken);
-        if (devices.Count == 0)
-            return Error.ServiceUnavailable("No active devices registered for user");
+        // Build and store PendingRequest (no device check — requests are stored regardless
+        // of whether the user has a device registered yet; they'll be delivered when one connects)
 
         // Build and store PendingRequest
         var pendingRequest = new PendingRequest

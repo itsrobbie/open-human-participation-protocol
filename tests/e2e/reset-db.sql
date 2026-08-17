@@ -45,3 +45,16 @@ ON CONFLICT (id) DO UPDATE SET
   resolver_url = NULL,
   access_token = NULL,
   user_id = NULL;
+
+-- Node app schemas (Pizza and Marketplace)
+DO $$
+BEGIN
+  -- Pizza schema reset (tables created by app bootstrap)
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'pizza' AND table_name = 'orders') THEN
+    TRUNCATE TABLE pizza.orders, pizza.ohpp_pizza_flows, pizza.registrations RESTART IDENTITY CASCADE;
+  END IF;
+  -- Marketplace schema reset (tables created by app bootstrap)
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'marketplace' AND table_name = 'purchases') THEN
+    TRUNCATE TABLE marketplace.purchases, marketplace.refund_requests, marketplace.registrations RESTART IDENTITY CASCADE;
+  END IF;
+END $$;

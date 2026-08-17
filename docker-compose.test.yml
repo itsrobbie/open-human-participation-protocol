@@ -28,7 +28,7 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_HOSTNAME_URL: http://keycloak:8080
+      KC_HOSTNAME_URL: http://localhost:8180
       KC_HOSTNAME_STRICT: "false"
     ports:
       - "8180:8080"
@@ -132,6 +132,66 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    networks:
+      - ohpp-test
+
+  pizza:
+    build:
+      context: .
+      dockerfile: demo/mock-apps/node/pizza/Dockerfile
+    ports:
+      - "5130:5030"
+    environment:
+      PORT: "5030"
+      PIZZA_APP_ID: "pizza.demo.test"
+      PIZZA_BASE_URL: "http://localhost:5130"
+      PIZZA_RESOLVER_URL: "http://resolver:8080"
+      WORLD_DATABASE_CONNECTION_STRING: "postgresql://pizza_app:ohpp_pizza_demo_password@postgres:5432/ohpp"
+      WORLD_DATABASE_RUN_BOOTSTRAP: "true"
+      AUTH_KEYCLOAK_AUTHORITY: "http://keycloak:8080/realms/ohpp-pizza"
+      AUTH_KEYCLOAK_AUDIENCE: "ohpp-pizza-app"
+      AUTH_PUBLIC_AUTHORITY: "http://localhost:8180/realms/ohpp-pizza"
+    depends_on:
+      resolver:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5030/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - ohpp-test
+
+  marketplace:
+    build:
+      context: .
+      dockerfile: demo/mock-apps/node/marketplace/Dockerfile
+    ports:
+      - "5140:5040"
+    environment:
+      PORT: "5040"
+      MARKETPLACE_APP_ID: "marketplace.demo.test"
+      MARKETPLACE_BASE_URL: "http://localhost:5140"
+      MARKETPLACE_RESOLVER_URL: "http://resolver:8080"
+      WORLD_DATABASE_CONNECTION_STRING: "postgresql://marketplace_app:ohpp_marketplace_demo_password@postgres:5432/ohpp"
+      WORLD_DATABASE_RUN_BOOTSTRAP: "true"
+      AUTH_KEYCLOAK_AUTHORITY: "http://keycloak:8080/realms/ohpp-marketplace"
+      AUTH_KEYCLOAK_AUDIENCE: "ohpp-marketplace-app"
+      AUTH_PUBLIC_AUTHORITY: "http://localhost:8180/realms/ohpp-marketplace"
+    depends_on:
+      resolver:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5040/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     networks:
       - ohpp-test
 
