@@ -217,7 +217,8 @@ Published by every Requester at `https://{appId}/.well-known/ohpp/app-metadata`.
   "name": "string (human-readable app name)",
   "icon": "string | null (URL to app icon)",
   "endpoints": {
-    "registrationCallback": "string (relative path, e.g. '/ohpp/callback')"
+    "registrationCallback": "string (relative path, e.g. '/ohpp/callback')",
+    "resolutionCallback": "string | null (proposed, relative path, e.g. '/ohpp/resolution')"
   },
   "version": "string (protocol version supported)"
 }
@@ -228,6 +229,7 @@ Published by every Requester at `https://{appId}/.well-known/ohpp/app-metadata`.
 - Must be served over HTTPS at exactly `/.well-known/ohpp/app-metadata`
 - `appId` must match the serving domain (prevents hosting someone else's metadata)
 - `registrationCallback` is a relative path - the Resolver constructs `https://{appId}{registrationCallback}`
+- `resolutionCallback` (proposed for 1.1, optional) is a relative path the Resolver uses to notify the Requester the moment a request reaches a terminal state, so the Requester does not have to rely solely on polling. When absent, the Requester polls `participate_status` as today. See [Proposals: resolution webhook](05-proposals.md).
 - Resolvers should cache with appropriate TTL (recommended 24 hours)
 
 ---
@@ -250,6 +252,37 @@ Sent by the Resolver to the Requester's registration callback.
 All fields are required.
 
 After receiving this, the Requester stores `resolverBaseUrl`, `userId`, and `accessToken` per user. If the Resolver returns 401 on a future request, the Requester must re-register.
+
+---
+
+## ResolutionNotification (proposed)
+
+> Status: proposed for 1.1, optional. See [Proposals: resolution webhook](05-proposals.md). Not part of 1.0. Requesters and Resolvers that do not implement it fall back to polling `participate_status`, which remains the baseline mechanism.
+
+Sent by the Resolver to the Requester's `resolutionCallback` (when the Requester published one) the moment a participation request reaches a terminal state. It is a lightweight signal - a doorbell that says "this request changed, go read it" - NOT the attestation itself.
+
+```json
+{
+  "notificationId": "string (UUID v4, unique per delivery attempt group)",
+  "registrationId": "string (the Requester's registration id on this Resolver)",
+  "requestId": "string (the ParticipationRequest.id that changed)",
+  "status": "string (one of: resolved, expired, cancelled)",
+  "transactionId": "string | null (the request's transaction.id, if any)",
+  "occurredAt": "string (ISO 8601, when the terminal transition happened)",
+  "signature": {
+    "algorithm": "string (ES256 or EdDSA)",
+    "value": "string (base64url, over the payload minus this field)",
+    "keyId": "string (references kid in the Resolver's JWKS)"
+  }
+}
+```
+
+### Rules
+
+- The Resolver POSTs this to `https://{appId}{resolutionCallback}` for the owning Requester when a request it owns transitions to `resolved`, `expired`, or `cancelled`.
+- The body carries NO decision, attestation, or personal data. On receipt the Requester fetches the outcome over its authenticated channel (`GET participate_status` / the attestation) and verifies the attestation signature against the JWKS, exactly as in the polling flow. The notification only removes the polling delay; it never becomes a source of truth.
+- `signature` lets the Requester cheaply reject forged notifications before doing any work. It is verified against the Resolver's JWKS (the same keys used for attestations). A Resolver MAY instead use an HMAC established at registration; the field's `algorithm`/`keyId` identify which.
+- Delivery is best-effort. The Resolver SHOULD retry with backoff and the Requester MUST NOT depend on it for correctness - polling remains the backstop. Handlers MUST be idempotent: the same `requestId` may be delivered more than once, and may arrive after the Requester already learned the outcome by polling.
 
 ---
 

@@ -10,18 +10,37 @@ make dev
 
 This builds all images from source and starts the full ecosystem. First run takes a couple of minutes; subsequent runs are near-instant thanks to Docker layer caching.
 
-This starts:
+When it's done, `make dev` prints a single URL — the **front door**:
+
+### 👉 http://localhost:8888 — OHPP World
+
+Open it and you get a get-started walkthrough plus links to everything below, grouped by
+purpose. You don't need to memorize any of the individual URLs; the landing page is the map.
+(`make urls` prints the full list in your terminal.)
+
+The full set of services `make dev` starts:
 
 | Service | URL | What it is |
 |---------|-----|------------|
+| **OHPP World (front door)** | **http://localhost:8888** | **The landing page — your map to everything below** |
 | Resolver | http://localhost:5050 | OHPP Participation Service (routes requests, manages devices, issues attestations) |
 | Portal | http://localhost:3000 | Management dashboard (register devices, view history, manage apps) |
 | Bank | http://localhost:5010 | Demo bank with Overview, Payments, Payees, Transactions, and Settings |
 | Insurance Claims | http://localhost:5020 | Demo claims app with OHPP claim decisions |
+| Pizza | http://localhost:5030 | Demo pizza app (Node SDK) with a sequential OHPP flow |
+| Marketplace | http://localhost:5040 | Demo marketplace (Node SDK) with signature verification for high-value buys |
 | CLI | `make cli` | Development attester simulator for terminal approvals |
+| Grafana | http://localhost:3001 | Single pane for logs, traces, and metrics across every service |
+| GlitchTip | http://localhost:8000 | Crash/error reporting |
+| Umami | http://localhost:8001 | Product analytics (opt-in: `make dev-analytics`; login `admin`/`umami`) |
 | PostgreSQL | localhost:5432 | The single World database for the platform and demo app schemas |
 
 `postgres` is the only database container. New volumes are initialized by the PostgreSQL entrypoint, and `make dev` runs the same idempotent World database SQL inside that container before starting the applications. The old one-shot `world-database-init` service is no longer needed.
+
+Every service-to-service hop runs over HTTPS/TLS in dev using a local Certificate Authority
+(step-ca), and each service streams logs, traces, and metrics into Grafana via OpenTelemetry.
+See `platform/observability/README.md` for the observability stack and the go-live guide at
+`aidlc-docs/construction/u7.1-dev-infrastructure-parity/go-live/` for the dev-vs-prod model.
 
 ### What to try
 

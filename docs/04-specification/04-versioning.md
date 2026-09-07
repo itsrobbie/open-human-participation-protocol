@@ -110,3 +110,4 @@ For OHPP 1.0:
 - [Message Schemas →](01-message-schemas.md)
 - [Ceremonies →](02-ceremonies.md)
 - [Security →](03-security.md)
+- [Proposals →](05-proposals.md)

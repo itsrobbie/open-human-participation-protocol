@@ -129,6 +129,37 @@ Requesters can check request status via `endpoints.participate_status`:
 
 Requesters can cancel pending requests via the same endpoint.
 
+Polling is the baseline, always-available mechanism. It is simple and requires nothing of the Requester beyond a periodic `GET`, but it trades latency (the poll interval) for that simplicity, and it means a Requester that is not actively polling learns about a resolution late or not at all.
+
+### Resolution notification (proposed for 1.1)
+
+> Status: proposed, optional, backward compatible. Not part of 1.0. See [Proposals: resolution webhook](05-proposals.md) for the full rationale and the reference application-level alternative.
+
+Today the protocol has a resolver-to-requester callback for exactly one thing: registration (`registrationCallback`). It has no equivalent for resolution, so a Requester only learns that a human answered by polling. This proposal generalises the registration-callback pattern to resolution: a Requester MAY publish an optional `resolutionCallback` in its app-metadata, and the Resolver, on a terminal transition, POSTs a small signed [ResolutionNotification](01-message-schemas.md#resolutionnotification-proposed) to `https://{appId}{resolutionCallback}`.
+
+```
+Requester                              Resolver
+    │                                     │
+    │  (request already PENDING)          │
+    │                             human answers on device
+    │                                     │  request -> RESOLVED
+    │<── POST ResolutionNotification ─────│   (doorbell: requestId + status,
+    │     (signed; no attestation)        │    NOT the attestation)
+    │                                     │
+    │── GET participate_status ──────────>│   (Requester reads the outcome over
+    │<── attestation ─────────────────────│    its authenticated channel)
+    │── verify signature (JWKS) ──────────│
+```
+
+Design principles:
+
+- **Doorbell, not payload.** The notification carries only `requestId` + `status` (+ optional `transactionId`), never the decision or attestation. The Requester still fetches and verifies the attestation exactly as in the polling flow, so a forged or replayed notification can, at worst, trigger a redundant status fetch - never a forged outcome.
+- **Signed.** The notification is signed (Resolver JWKS, or an HMAC agreed at registration) so the Requester can reject bogus calls cheaply.
+- **Complements polling, does not replace it.** Delivery is best-effort: the Resolver retries with backoff, and the Requester keeps polling (or a periodic reconcile) as a backstop so a dropped notification self-heals. Handlers must be idempotent.
+- **Backward compatible.** The callback is optional. A Resolver that does not implement it, or a Requester that does not publish one, behaves exactly as 1.0 (poll-only). This qualifies as a MINOR version change (new optional field + new optional message); see [Versioning](04-versioning.md).
+
+This does not change the request lifecycle or add a multi-step/sequential construct - each request is still independent, and any multi-step "flow" remains application-level orchestration on top of single request/attestation exchanges. The notification only reduces the latency between "human answered" and "Requester knows."
+
 ### Error handling
 
 | Condition | HTTP Response |
@@ -264,3 +295,4 @@ Terminal states: RESOLVED, EXPIRED, CANCELLED. No transitions out of terminal st
 
 - [Security →](03-security.md)
 - [Versioning →](04-versioning.md)
+- [Proposals →](05-proposals.md)

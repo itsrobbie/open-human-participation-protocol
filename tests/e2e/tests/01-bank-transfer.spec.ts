@@ -75,6 +75,23 @@ test.describe.serial('Bank — Transfer without OHPP', () => {
   })
 
   test('date and datetime transfers are scheduled without changing the balance', async ({ page }) => {
+    // Use dates in the future relative to "now" so the transfers are genuinely
+    // scheduled (not executed immediately). Computing them dynamically keeps the
+    // test correct regardless of the calendar date it runs on.
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const future = (daysAhead: number) => {
+      const d = new Date()
+      d.setDate(d.getDate() + daysAhead)
+      return { y: d.getFullYear(), m: d.getMonth() + 1, day: d.getDate() }
+    }
+    // Match the reviewed date in either M/D/YYYY or D/M/YYYY locale ordering.
+    const dateRegex = ({ y, m, day }: { y: number; m: number; day: number }) =>
+      new RegExp(`${m}\\/${day}\\/${y}|${day}\\/${m}\\/${y}`)
+
+    const d1 = future(14)
+    const d2 = future(15)
+    const isoDate = (d: { y: number; m: number; day: number }) => `${d.y}-${pad(d.m)}-${pad(d.day)}`
+
     await page.goto(BANK_URL)
     await expect(page.locator('#balance')).not.toHaveText('Loading...')
     const balanceBefore = await page.locator('#balance').textContent()
@@ -83,17 +100,17 @@ test.describe.serial('Bank — Transfer without OHPP', () => {
     await page.selectOption('#payee-select', { index: 0 })
     await page.fill('#amount', '15.00')
     await page.selectOption('#schedule-mode', 'date')
-    await page.fill('#schedule-date', '2026-08-10')
+    await page.fill('#schedule-date', isoDate(d1))
     await page.click('#transfer-form button[type="submit"]')
-    await expect(page.locator('#review-schedule')).toContainText(/8\/10\/2026|10\/08\/2026/)
+    await expect(page.locator('#review-schedule')).toContainText(dateRegex(d1))
     await page.click('#confirm-transfer')
     await expect(page.locator('#transfer-result')).toContainText('Transfer scheduled')
 
     await page.fill('#amount', '20.00')
     await page.selectOption('#schedule-mode', 'datetime')
-    await page.fill('#schedule-datetime', '2026-08-11T14:30')
+    await page.fill('#schedule-datetime', `${isoDate(d2)}T14:30`)
     await page.click('#transfer-form button[type="submit"]')
-    await expect(page.locator('#review-schedule')).toContainText(/8\/11\/2026|11\/08\/2026/)
+    await expect(page.locator('#review-schedule')).toContainText(dateRegex(d2))
     await page.click('#confirm-transfer')
     await expect(page.locator('#transfer-result')).toContainText('Transfer scheduled')
 

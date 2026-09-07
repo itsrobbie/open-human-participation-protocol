@@ -70,7 +70,12 @@ test('full flow: register pizza app then place order with OHPP', async ({ page, 
   // NOT an error like "No registration for user"
   await expect(page.locator('text=Pending').first()).toBeVisible({ timeout: 10000 })
 
-  // 5. Portal should show the pending request
+  // 5. Portal should reflect the pending request. Which channel handles it
+  // depends on shared account state: if a device with a key is registered
+  // (e.g. from another test in the suite), web approvals are disabled and the
+  // request is routed to that device; otherwise the request is answerable in
+  // the browser. Both outcomes prove the participation request was accepted
+  // and is pending, so accept either.
   const portal = await context.newPage()
   await portal.goto(`${PORTAL_URL}/login`)
   await portal.fill('input[placeholder="demo"]', 'demo')
@@ -78,6 +83,9 @@ test('full flow: register pizza app then place order with OHPP', async ({ page, 
   await portal.click('button[type="submit"]')
   await expect(portal).toHaveURL(PORTAL_URL + '/')
   await portal.click('nav >> text=Pending')
-  await expect(portal.getByText(/Confirm/).first()).toBeVisible({ timeout: 15000 })
+
+  const browserConfirm = portal.getByText(/Confirm/).first()
+  const routedToDevice = portal.getByText(/Web approvals disabled/i).first()
+  await expect(browserConfirm.or(routedToDevice)).toBeVisible({ timeout: 15000 })
   await portal.close()
 })
