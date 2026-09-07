@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OHPP World — the Open Human Participation Protocol</title>
+  <meta name="description" content="A window into the Open Human Participation Protocol demonstration: apps, platform, observability and dev tools, all in one place." />
+  <link rel="icon" type="image/svg+xml" href="/assets/ohpp-logo.svg" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="brand">
+        <img class="logo" src="/assets/ohpp-logo.svg" width="72" height="72"
+             alt="OHPP logo: two pills, the open protocol" />
+        <div class="brand-text">
+          <h1>OHPP World</h1>
+          <p class="tagline">A window into the <strong>Open Human Participation Protocol</strong> — the layer that proves a human really participated.</p>
+        </div>
+      </div>
+
+      <p class="lede">
+        The internet was built assuming a human is at the keyboard. As AI agents act on our behalf,
+        OHPP lets any application request — and cryptographically verify — that a human was
+        meaningfully involved in a decision. Everything below is running locally on your machine.
+      </p>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Start here -->
+    <section class="starthere" aria-labelledby="start-title">
+      <h2 id="start-title"><span class="dot"></span> Start here</h2>
+      <p class="section-sub">New to OHPP? Follow this two-minute path to see a full human-participation ceremony end to end.</p>
+      <ol class="steps">
+        <li>
+          <span class="step-n">1</span>
+          <div>
+            <strong>Open a demo app</strong> — sign in to the <a href="http://localhost:5010" target="_blank" rel="noopener">Bank</a> with <code>demo</code> / <code>demo</code> and make a transfer. It completes instantly, no OHPP.
+          </div>
+        </li>
+        <li>
+          <span class="step-n">2</span>
+          <div>
+            <strong>Connect it to OHPP</strong> — from the Bank's Settings, connect to OHPP, then manage the connection in the <a href="http://localhost:3000" target="_blank" rel="noopener">Portal</a>.
+          </div>
+        </li>
+        <li>
+          <span class="step-n">3</span>
+          <div>
+            <strong>Act like a human</strong> — make another transfer. This time it waits for approval. Approve it from the Portal's Pending page (or run the CLI attester: <code>make cli</code>).
+          </div>
+        </li>
+        <li>
+          <span class="step-n">4</span>
+          <div>
+            <strong>Watch it flow</strong> — open <a href="http://localhost:3001" target="_blank" rel="noopener">Grafana</a> and follow the ceremony as a single trace across every service.
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Demo apps -->
+    <section aria-labelledby="apps-title">
+      <div class="group-head">
+        <h2 id="apps-title">Demo apps <span class="pill pill-indigo">the world</span></h2>
+        <p class="section-sub">Independent third-party apps that integrate OHPP. Sign in to any with <code>demo</code> / <code>demo</code>.</p>
+      </div>
+      <div class="grid">
+        <a class="card" href="http://localhost:5010" target="_blank" rel="noopener">
+          <h3>Bank <span class="ext">↗</span></h3>
+          <p>A demo bank. Make transfers that require human approval for high-value or risky actions.</p>
+          <span class="link">localhost:5010</span>
+        </a>
+        <a class="card" href="http://localhost:5020" target="_blank" rel="noopener">
+          <h3>Insurance Claims <span class="ext">↗</span></h3>
+          <p>Submit and decide insurance claims, with OHPP participation on claim decisions.</p>
+          <span class="link">localhost:5020</span>
+        </a>
+        <a class="card" href="http://localhost:5030" target="_blank" rel="noopener">
+          <h3>Pizza <span class="ext">↗</span></h3>
+          <p>Order a pizza. Try the sequential OHPP flow where each step needs a human nod.</p>
+          <span class="link">localhost:5030</span>
+        </a>
+        <a class="card" href="http://localhost:5040" target="_blank" rel="noopener">
+          <h3>Marketplace <span class="ext">↗</span></h3>
+          <p>Buy products; high-value purchases require a cryptographically signed human approval.</p>
+          <span class="link">localhost:5040</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Platform -->
+    <section aria-labelledby="platform-title">
+      <div class="group-head">
+        <h2 id="platform-title">Platform <span class="pill pill-emerald">the protocol</span></h2>
+        <p class="section-sub">The core OHPP services that route requests and let humans respond.</p>
+      </div>
+      <div class="grid">
+        <a class="card" href="http://localhost:3000" target="_blank" rel="noopener">
+          <h3>Portal <span class="ext">↗</span></h3>
+          <p>Manage devices and connected apps, review history, and approve pending requests in the browser.</p>
+          <span class="link">localhost:3000</span>
+        </a>
+        <a class="card" href="http://localhost:5050/swagger" target="_blank" rel="noopener">
+          <h3>Resolver API <span class="ext">↗</span></h3>
+          <p>The Participation Service — routes requests, manages devices, issues attestations. Explore via Swagger.</p>
+          <span class="link">localhost:5050/swagger</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Observability -->
+    <section aria-labelledby="obs-title">
+      <div class="group-head">
+        <h2 id="obs-title">Observability <span class="pill pill-slate">the single pane</span></h2>
+        <p class="section-sub">Every service streams telemetry here. Grafana is the one dashboard for logs, traces and metrics.</p>
+      </div>
+      <div class="grid">
+        <a class="card card-feature" href="http://localhost:3001" target="_blank" rel="noopener">
+          <h3>Grafana <span class="ext">↗</span></h3>
+          <p>The single pane of glass: logs (Loki), traces (Tempo) and metrics (Prometheus), correlated. Start with the "Follow a ceremony" dashboard.</p>
+          <span class="link">localhost:3001</span>
+        </a>
+        <a class="card" href="http://localhost:9090" target="_blank" rel="noopener">
+          <h3>Prometheus <span class="ext">↗</span></h3>
+          <p>Raw metrics store and query UI for every service (by <code>job</code>).</p>
+          <span class="link">localhost:9090</span>
+        </a>
+        <a class="card" href="http://localhost:8000" target="_blank" rel="noopener">
+          <h3>GlitchTip <span class="ext">↗</span></h3>
+          <p>Crash and error reporting (Sentry-compatible). Where app exceptions surface.</p>
+          <span class="link">localhost:8000</span>
+        </a>
+        <a class="card" href="http://localhost:8001" target="_blank" rel="noopener" data-profile="analytics">
+          <h3>Umami <span class="ext">↗</span></h3>
+          <p>Product analytics — events, funnels, retention. Opt-in: <code>make dev-analytics</code>. Sign in with <code>admin</code> / <code>umami</code>.</p>
+          <span class="link">localhost:8001</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- Dev tools -->
+    <section aria-labelledby="tools-title">
+      <div class="group-head">
+        <h2 id="tools-title">Dev tools</h2>
+        <p class="section-sub">Run from your terminal at the repo root. See <code>make help</code> for everything.</p>
+      </div>
+      <div class="grid">
+        <div class="card card-static">
+          <h3>CLI attester</h3>
+          <p>A terminal stand-in for the mobile app: registers a device, receives requests, signs attestations.</p>
+          <span class="cmd">make cli</span>
+        </div>
+        <div class="card card-static">
+          <h3>Verify observability</h3>
+          <p>Drives real world-actions and confirms every backend's data lands in the dashboards.</p>
+          <span class="cmd">make verify-observability</span>
+        </div>
+        <div class="card card-static">
+          <h3>Verify analytics</h3>
+          <p>Emits an event and confirms it is ingested by Umami.</p>
+          <span class="cmd">make verify-analytics</span>
+        </div>
+        <div class="card card-static">
+          <h3>Verify cert pinning</h3>
+          <p>Confirms the app accepts the real Resolver cert and rejects a wrong one (fail-closed).</p>
+          <span class="cmd">make flutter-verify-pinning</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>
+      Everything here runs locally over HTTPS with a local certificate authority, and needs no
+      vendor accounts. This page is the front door — <code>make help</code> lists every command.
+    </p>
+    <p class="muted">Open Human Participation Protocol · dev environment</p>
+  </footer>
+</body>
+</html>

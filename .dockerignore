@@ -1,0 +1,32 @@
+# Build artifacts and caches excluded from all Docker build contexts (U7.1).
+# The Flutter .dart_tool cache has read-only files that break `COPY . .`;
+# none of these belong in any service image, and excluding them speeds builds.
+
+# Flutter / Dart
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+platform/client-app/ios/Pods/
+platform/client-app/android/.gradle/
+
+# .NET
+**/bin/
+**/obj/
+
+# Node
+**/node_modules/
+**/dist/
+**/.next/
+
+# VCS / IDE / OS
+.git/
+.vscode/
+.idea/
+**/.DS_Store
+
+# AI-DLC docs (not needed in any image)
+aidlc-docs/
+
+# Tooling
+.tools/
