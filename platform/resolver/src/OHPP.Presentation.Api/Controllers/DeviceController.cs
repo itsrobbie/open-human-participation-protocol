@@ -43,6 +43,22 @@ public sealed class DeviceController : OhppControllerBase
         return Ok(new { deviceId = device.Id, keyRegistered = true });
     }
 
+    [HttpPost("push-token", Name = "RegisterPushToken")]
+    public async Task<IActionResult> RegisterPushToken([FromBody] RegisterPushTokenRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token))
+            return BadRequest(new { error = "token is required" });
+
+        var device = await _deviceRepo.GetByIdAsync(Principal!.DeviceId!.Value);
+        if (device is null)
+            return NotFound();
+
+        device.PushToken = request.Token;
+        await _deviceRepo.UpdateAsync(device);
+
+        return Ok(new { deviceId = device.Id, pushTokenRegistered = true });
+    }
+
     [HttpGet("events", Name = "SubscribeDeviceEvents")]
     public async Task Events(CancellationToken cancellationToken)
     {
@@ -105,4 +121,5 @@ public sealed class DeviceController : OhppControllerBase
 }
 
 public sealed record RegisterKeyRequest(string PublicKey, string Algorithm);
+public sealed record RegisterPushTokenRequest(string Token);
 public sealed record SubmitAttestationRequest(Guid RequestId, string AttestationPayload, string DeviceSignature);

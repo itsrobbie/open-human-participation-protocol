@@ -228,20 +228,26 @@ public class RegistrationCeremonyOrchestratorTests
     }
 
     [Fact]
-    public async Task ProcessChallenge_ExistingRegistration_RevokesOldAndCreatesNew()
+    public async Task ProcessChallenge_ExistingRegistration_UpdatesInPlace()
     {
+        // Re-registering an app the user already has must UPDATE the existing
+        // registration (rotate token, refresh metadata, keep the same row and
+        // keep it active), NOT revoke it and create a duplicate.
         var userId = Guid.NewGuid();
         var existingReg = new AppRegistration { Id = Guid.NewGuid(), UserId = userId, AppId = "bank.test", AppName = "Old", AccessToken = "old_token", ResolverBaseUrl = "http://old", RegisteredAt = _clock.UtcNow.AddDays(-30) };
         _registrationRepo.GetActiveByUserAndAppIdAsync(userId, "bank.test", Arg.Any<CancellationToken>()).Returns(existingReg);
         SetupValidChallengeAndMetadata();
         _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponseData>(), Arg.Any<CancellationToken>()).Returns(true);
-        _registrationRepo.CreateAsync(Arg.Any<AppRegistration>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo => callInfo.Arg<AppRegistration>());
 
         var result = await _sut.ProcessChallengeAsync(userId, "validPayload");
 
         result.IsSuccess.Should().BeTrue();
-        await _registrationRepo.Received(1).UpdateAsync(Arg.Is<AppRegistration>(r => r.RevokedAt != null), Arg.Any<CancellationToken>());
+        // Same row, still active, no new row created.
+        result.Value!.Id.Should().Be(existingReg.Id);
+        await _registrationRepo.Received(1).UpdateAsync(
+            Arg.Is<AppRegistration>(r => r.Id == existingReg.Id && r.RevokedAt == null),
+            Arg.Any<CancellationToken>());
+        await _registrationRepo.DidNotReceive().CreateAsync(Arg.Any<AppRegistration>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -1,3 +1,8 @@
+// Telemetry must be imported and started first so auto-instrumentation can
+// patch express/pg/http before they are loaded below.
+import { startTelemetry } from './telemetry.js';
+startTelemetry();
+
 import express from 'express';
 import pg from 'pg';
 import { OhppRequesterClient, ChallengeGenerator } from '@ohpp/sdk';

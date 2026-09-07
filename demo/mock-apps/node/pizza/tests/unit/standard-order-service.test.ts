@@ -13,7 +13,8 @@ function mockOrderStore(): IOrderStore {
     getById: vi.fn(async (id: string, userId: string) => {
       const o = orders.get(id); return o && o.userId === userId ? o : null;
     }),
-    getByUserId: vi.fn(async () => []),
+    getByUserId: vi.fn(async (userId: string) =>
+      [...orders.values()].filter((o) => o.userId === userId)),
     getByParticipationRequestId: vi.fn(async () => null),
     updateStatus: vi.fn(),
   };
@@ -119,5 +120,40 @@ describe('StandardOrderService', () => {
     const result = await service.resolveOrder(checkout.order!.id, 'user-1');
     expect(result.success).toBe(true);
     expect(result.order?.status).toBe('cancelled');
+  });
+
+  // Reconcile-on-read: a request answered on another surface (e.g. the phone)
+  // must settle the order the next time the app reads it, without the user
+  // sitting on the order-status polling screen.
+  it('reconcilePendingOhppOrders_settlesAnsweredOrder', async () => {
+    const client = mockOhppClient();
+    const store = mockOrderStore();
+    const orderService = new OrderService(store, mockClock());
+    service = new StandardOrderService(orderService, client, mockRegistrationStore());
+
+    // Order created pending; the user then answered "cancel" on their device.
+    const checkout = await service.checkout({ userId: 'user-1', items: validItems, deliveryAddress: validAddress });
+    expect(checkout.order?.status).toBe('pending_confirmation');
+    (client.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true, status: 'resolved', selectedOption: 'cancel' });
+
+    const settled = await service.reconcilePendingOhppOrders('user-1');
+
+    expect(settled.map((o) => o.status)).toContain('cancelled');
+    // And re-reading history returns the settled state.
+    const history = await orderService.getHistory('user-1');
+    expect(history.find((o) => o.id === checkout.order!.id)?.status).toBe('cancelled');
+  });
+
+  it('reconcilePendingOhppOrders_leavesStillPendingUntouched', async () => {
+    const client = mockOhppClient(); // getStatus defaults to pending
+    const store = mockOrderStore();
+    const orderService = new OrderService(store, mockClock());
+    service = new StandardOrderService(orderService, client, mockRegistrationStore());
+
+    const checkout = await service.checkout({ userId: 'user-1', items: validItems, deliveryAddress: validAddress });
+    const settled = await service.reconcilePendingOhppOrders('user-1');
+
+    // Still pending: unchanged, not errored.
+    expect(settled.find((o) => o.id === checkout.order!.id)?.status).toBe('pending_confirmation');
   });
 });

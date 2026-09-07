@@ -160,7 +160,12 @@ public sealed class CliCeremonyTests : IntegrationTestBase
             validation = new { userId = userId.ToString() },
             action = new { summary = "Pre-existing request" },
             type = "select",
-            options = new[] { new { key = "ok", label = "OK" } },
+            // A "select" request requires at least two options (protocol validation).
+            options = new[]
+            {
+                new { key = "ok", label = "OK" },
+                new { key = "cancel", label = "Cancel" }
+            },
             createdAt = DateTimeOffset.UtcNow.ToString("O")
         });
         var submitted = await appClient.PostAsJsonAsync("/api/participate", new { payload = requestPayload });

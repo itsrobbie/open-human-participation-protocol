@@ -79,4 +79,18 @@ public sealed class DiResolutionTests : IntegrationTestBase
         var service = scope.ServiceProvider.GetService(serviceType);
         service.Should().NotBeNull($"because {serviceType.Name} must be registered in DI");
     }
+
+    [Fact]
+    public void PushDispatcher_DefaultsToNoOp_WhenNoFirebaseCredentials()
+    {
+        // The push dispatcher seam must always resolve. In this test environment
+        // (Keycloak auth, no Firebase credentials) it must be the no-op default,
+        // not the FCM sender - proving the TryAddScoped default wiring works.
+        using var scope = Factory.Services.CreateScope();
+        var sender = scope.ServiceProvider.GetService<IPushNotificationSender>();
+
+        sender.Should().NotBeNull("the push dispatcher seam is always registered (at least a no-op)");
+        sender.Should().BeOfType<NoOpPushNotificationSender>(
+            "dev/test has no Firebase credentials, so FCM must not be registered");
+    }
 }

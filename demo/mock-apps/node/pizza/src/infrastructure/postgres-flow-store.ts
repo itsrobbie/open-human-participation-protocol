@@ -54,6 +54,13 @@ export class PostgresFlowStore implements IOhppPizzaFlowStore {
     return result.rows.length > 0 ? this.mapRow(result.rows[0]) : null;
   }
 
+  async getAllActive(): Promise<OhppPizzaFlow[]> {
+    const result = await this.pool.query(
+      `SELECT * FROM pizza.ohpp_pizza_flows WHERE status = 'in_progress' ORDER BY created_at ASC`,
+    );
+    return result.rows.map((row) => this.mapRow(row));
+  }
+
   private mapRow(row: Record<string, unknown>): OhppPizzaFlow {
     return {
       id: row.id as string,

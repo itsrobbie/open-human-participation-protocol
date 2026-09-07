@@ -38,10 +38,20 @@ export class OhppPizzaFlowController {
       return { success: false, error: 'OHPP not connected' };
     }
 
-    // Check for existing active flow
-    const existing = await this.flowStore.getActiveByUserId(userId);
+    // Check for existing active flow. A flow can be stuck: the user answered
+    // the current step on their device but left the ordering screen, so the
+    // frontend never polled advanceFlow and the flow is frozen at a step whose
+    // request is already resolved/expired/cancelled. Before rejecting, try to
+    // advance/reconcile it — that settles a dead flow (advancing or abandoning
+    // it) and frees the slot. Only a flow that is GENUINELY still waiting (its
+    // current-step request is still pending) blocks a new flow.
+    let existing = await this.flowStore.getActiveByUserId(userId);
     if (existing) {
-      return { success: false, error: 'An OHPP Pizza flow is already in progress' };
+      await this.advanceFlow(existing.id, userId);
+      existing = await this.flowStore.getActiveByUserId(userId);
+      if (existing) {
+        return { success: false, error: 'An OHPP Pizza flow is already in progress' };
+      }
     }
 
     const transactionId = `txn-ohpp-pizza-${uuid().replace(/-/g, '')}`;

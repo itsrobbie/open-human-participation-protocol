@@ -142,7 +142,7 @@ public sealed class RegistrationCeremonyTests : IClassFixture<TestWebApplication
     }
 
     [Fact]
-    public async Task Registration_DuplicateApp_OldRevoked()
+    public async Task Registration_DuplicateApp_UpdatesInPlace()
     {
         // Setup WireMock for duplicate.test
         _wireMock.Given(Request.Create().WithPath("/.well-known/ohpp/app-metadata").UsingGet())
@@ -166,20 +166,36 @@ public sealed class RegistrationCeremonyTests : IClassFixture<TestWebApplication
             new { challengePayload = challenge1 });
         response1.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // Second registration — should revoke old
+        Guid firstId;
+        string firstToken;
+        using (var scope1 = _factory.Services.CreateScope())
+        {
+            var repo = scope1.ServiceProvider.GetRequiredService<IAppRegistrationRepository>();
+            var first = (await repo.GetByUserIdAsync(_userId))
+                .Single(a => a.AppId == "duplicate.test");
+            firstId = first.Id;
+            firstToken = first.AccessToken;
+        }
+
+        // Second registration — re-registering the same app must UPDATE the
+        // existing registration in place (rotate token, keep the same row),
+        // NOT leave a revoked duplicate behind.
         var challenge2 = BuildChallengePayload("duplicate.test");
         var response2 = await _client.PostAsJsonAsync("/api/registrations/process-challenge",
             new { challengePayload = challenge2 });
         response2.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // Verify old is revoked — user should see two registrations, one revoked
         using var scope = _factory.Services.CreateScope();
         var appRepo = scope.ServiceProvider.GetRequiredService<IAppRegistrationRepository>();
         var apps = await appRepo.GetByUserIdAsync(_userId);
         var duplicateApps = apps.Where(a => a.AppId == "duplicate.test").ToList();
-        duplicateApps.Should().HaveCount(2);
-        duplicateApps.Count(a => a.RevokedAt.HasValue).Should().Be(1);
-        duplicateApps.Count(a => !a.RevokedAt.HasValue).Should().Be(1);
+
+        // Exactly one row, still active, same Id, with a rotated access token.
+        duplicateApps.Should().HaveCount(1);
+        duplicateApps[0].Id.Should().Be(firstId);
+        duplicateApps[0].RevokedAt.Should().BeNull();
+        duplicateApps[0].AccessToken.Should().NotBe(firstToken,
+            "re-registration must rotate the access token");
     }
 
     [Fact]

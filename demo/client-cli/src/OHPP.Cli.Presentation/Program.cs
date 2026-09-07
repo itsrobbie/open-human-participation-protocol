@@ -3,6 +3,10 @@ using OHPP.Cli.Infrastructure;
 using OHPP.Cli.Presentation;
 using OHPP.Cli.Services;
 
+// --- Observability (OpenTelemetry -> OTel Collector; fail-open when unset) ---
+// Kept alive for the process lifetime; disposal flushes on shutdown.
+using var telemetry = Observability.Init("ohpp.cli");
+
 var configStore = new FileConfigStore();
 var keyPairGenerator = new Es256KeyPairGenerator();
 var configService = new ConfigurationService(configStore, keyPairGenerator);

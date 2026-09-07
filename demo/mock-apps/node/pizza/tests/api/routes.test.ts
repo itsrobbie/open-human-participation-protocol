@@ -71,6 +71,10 @@ function createMockStandardOrderService() {
       return { success: true, order: { id: 'ord-new', status: 'confirmed', items: params.items, total: 1298 } };
     }),
     resolveOrder: vi.fn(async () => ({ success: true, order: { id: 'ord-1', status: 'confirmed' } })),
+    reconcilePendingOhppOrders: vi.fn(async () => [
+      { id: 'ord-1', items: [{ name: 'Margherita' }], total: 1298, status: 'confirmed', createdAt: '2026-08-01T12:00:00Z' },
+      { id: 'ord-2', items: [{ name: 'Cola' }], total: 179, status: 'delivered', createdAt: '2026-07-30T10:00:00Z' },
+    ]),
   } as unknown as StandardOrderService;
 }
 
@@ -241,8 +245,34 @@ describe('Pizza API Routes', () => {
   });
 
   describe('OHPP Connection routes', () => {
-    it('POST /api/ohpp/generate-challenge returns URI', async () => {
+    it('POST /api/ohpp/generate-challenge returns 409 when already connected', async () => {
+      // The default mock is connected; re-connecting is guarded to avoid
+      // spawning redundant registration ceremonies.
       const res = await request(app).post('/api/ohpp/generate-challenge');
+      expect(res.status).toBe(409);
+      expect(res.body.connected).toBe(true);
+    });
+
+    it('POST /api/ohpp/generate-challenge returns a URI when NOT connected', async () => {
+      // Build an app whose registration store reports "not connected".
+      const notConnectedStore = createMockRegistrationStore();
+      (notConnectedStore.hasRegistration as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+      const freshApp = express();
+      freshApp.use(express.json());
+      freshApp.use(
+        '/api',
+        mockAuthMiddleware('test-user'),
+        createApiRoutes({
+          menuStore: createMockMenuStore(),
+          orderService: createMockOrderService(),
+          standardOrderService: createMockStandardOrderService(),
+          flowController: createMockFlowController(),
+          registrationStore: notConnectedStore,
+          challengeGenerator: new ChallengeGenerator({ appId: 'pizza.demo.test' }),
+        }),
+      );
+
+      const res = await request(freshApp).post('/api/ohpp/generate-challenge');
       expect(res.status).toBe(200);
       expect(res.body.uri).toContain('ohpp://register?challenge=');
       expect(res.body).toHaveProperty('challengeId');

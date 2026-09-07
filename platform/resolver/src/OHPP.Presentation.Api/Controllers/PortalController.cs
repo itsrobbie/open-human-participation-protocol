@@ -100,7 +100,9 @@ public sealed class PortalController : OhppControllerBase
     [HttpGet("devices", Name = "GetUserDevices")]
     public async Task<IActionResult> GetDevices()
     {
-        var devices = await _deviceRepo.GetByUserIdAsync(UserId);
+        // Only show active devices: a revoked device is not a "connected" device
+        // and should not clutter the portal.
+        var devices = await _deviceRepo.GetActiveByUserIdAsync(UserId);
         return Ok(devices.Select(d => new
         {
             d.Id, d.Name, d.DeviceType, d.IsActive,
@@ -112,12 +114,38 @@ public sealed class PortalController : OhppControllerBase
     [HttpPost("devices", Name = "CreateDevice")]
     public async Task<IActionResult> CreateDevice([FromBody] CreateDeviceRequest request)
     {
+        // Idempotent registration keyed on (user, stable install id): the same
+        // physical device must never appear twice. When the client supplies a
+        // DeviceIdentifier and a device already exists for it, reactivate and
+        // return the existing device (rotating its token) instead of inserting
+        // a duplicate. Clients that don't yet send an identifier fall back to
+        // create (legacy behaviour).
+        if (!string.IsNullOrWhiteSpace(request.DeviceIdentifier))
+        {
+            var existing = await _deviceRepo.GetByUserAndDeviceIdentifierAsync(
+                UserId, request.DeviceIdentifier);
+            if (existing is not null)
+            {
+                existing.Name = request.Name;
+                existing.DeviceType = request.DeviceType;
+                existing.IsActive = true;
+                existing.DeviceToken = _tokenGenerator.GenerateDeviceToken();
+                existing.LastSeenAt = DateTimeOffset.UtcNow;
+                await _deviceRepo.UpdateAsync(existing);
+                return Created($"/api/devices/{existing.Id}",
+                    new { existing.Id, existing.Name, existing.DeviceToken });
+            }
+        }
+
         var device = new Device
         {
             Id = Guid.NewGuid(),
             UserId = UserId,
             Name = request.Name,
             DeviceType = request.DeviceType,
+            DeviceIdentifier = string.IsNullOrWhiteSpace(request.DeviceIdentifier)
+                ? null
+                : request.DeviceIdentifier,
             DeviceToken = _tokenGenerator.GenerateDeviceToken(),
             IsActive = true,
             RegisteredAt = DateTimeOffset.UtcNow
@@ -144,12 +172,17 @@ public sealed class PortalController : OhppControllerBase
     [HttpGet("registrations/apps", Name = "GetRegisteredApps")]
     public async Task<IActionResult> GetRegisteredApps()
     {
+        // Only show active (non-revoked) registrations: a revoked app is not a
+        // "connected" app and should not appear in the portal. Revoked rows are
+        // retained for history but filtered from this list.
         var apps = await _appRepo.GetByUserIdAsync(UserId);
-        return Ok(apps.Select(a => new
-        {
-            a.Id, a.AppId, a.AppName, a.AppIcon,
-            a.RegisteredAt, a.RevokedAt, a.IsActive
-        }));
+        return Ok(apps
+            .Where(a => a.IsActive)
+            .Select(a => new
+            {
+                a.Id, a.AppId, a.AppName, a.AppIcon,
+                a.RegisteredAt, a.RevokedAt, a.IsActive
+            }));
     }
 
     [HttpDelete("registrations/apps/{id:guid}", Name = "RevokeRegisteredApp")]
@@ -333,7 +366,7 @@ public sealed class PortalController : OhppControllerBase
     }
 }
 
-public sealed record CreateDeviceRequest(string Name, string DeviceType);
+public sealed record CreateDeviceRequest(string Name, string DeviceType, string? DeviceIdentifier = null);
 
 public sealed record WebResolveRequest(
     string? SelectedOption,

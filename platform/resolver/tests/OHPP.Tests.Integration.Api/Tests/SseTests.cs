@@ -89,26 +89,53 @@ public sealed class SseTests : IntegrationTestBase
         var (_, userId) = await CreateAuthenticatedUserAsync();
         var (deviceClient, deviceId, _) = await CreateAuthenticatedDeviceAsync(userId);
 
-        // Start and immediately cancel the SSE connection
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        using var scope = Factory.Services.CreateScope();
+        var sseChannel = scope.ServiceProvider.GetRequiredService<SseNotificationChannel>();
 
+        // Open the SSE stream and read from it (this is what actually registers the
+        // server-side connection and holds the request open). Cancelling mid-read and
+        // disposing the response signals the request pipe as aborted, which fires the
+        // controller's RequestAborted token and runs its finally-block cleanup. Simply
+        // awaiting SendAsync without reading/disposing the body does not propagate the
+        // abort through the in-process TestServer, so we must exercise the real path.
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
         try
         {
             var request = new HttpRequestMessage(HttpMethod.Get, "/api/devices/me/events");
-            await deviceClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+            using var response = await deviceClient.SendAsync(
+                request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+
+            // The connection should now be registered while the stream is open.
+            sseChannel.HasActiveConnections(userId).Should().BeTrue(
+                "the SSE connection is active while the client is connected");
+
+            using var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+            using var reader = new StreamReader(stream);
+            while (!cts.IsCancellationRequested)
+            {
+                var line = await reader.ReadLineAsync(cts.Token);
+                if (line is null) break;
+            }
         }
         catch (OperationCanceledException)
         {
-            // Expected
+            // Expected when the client cancels the stream.
+        }
+        catch (IOException)
+        {
+            // Expected when the connection terminates.
         }
 
-        // Give cleanup a moment
-        await Task.Delay(200);
+        // Cleanup runs in the controller's finally block once the aborted request
+        // unwinds. That is asynchronous, so poll (bounded) instead of a fixed delay.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (sseChannel.HasActiveConnections(userId) && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+        }
 
-        // Verify the connection was cleaned up by checking the SseNotificationChannel
-        using var scope = Factory.Services.CreateScope();
-        var sseChannel = scope.ServiceProvider.GetRequiredService<SseNotificationChannel>();
-        sseChannel.HasActiveConnections(userId).Should().BeFalse();
+        sseChannel.HasActiveConnections(userId).Should().BeFalse(
+            "the SSE connection must be cleaned up after the client disconnects");
     }
 
     private static async Task<List<string>> ReadSseEventsAsync(HttpClient client, CancellationToken cancellationToken)

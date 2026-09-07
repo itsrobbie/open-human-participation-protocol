@@ -1,3 +1,8 @@
+// Import telemetry FIRST (bare side-effect import). ES imports are hoisted and
+// run in order before any other statement, so this guarantees browser OTel
+// patches window.fetch before React, the router, or the API client evaluate.
+import './telemetry'
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'

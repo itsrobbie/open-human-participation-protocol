@@ -20,6 +20,8 @@ export interface IOhppPizzaFlowStore {
   getById(id: string, userId: string): Promise<OhppPizzaFlow | null>;
   getActiveByUserId(userId: string): Promise<OhppPizzaFlow | null>;
   getByTransactionId(transactionId: string): Promise<OhppPizzaFlow | null>;
+  /** All in_progress flows across all users, for the background sequencer. */
+  getAllActive(): Promise<OhppPizzaFlow[]>;
 }
 
 export interface IClock {

@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/devices/me/push-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RegisterPushToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/devices/me/events": {
         parameters: {
             query?: never;
@@ -93,6 +109,38 @@ export interface paths {
         };
         get: operations["GetHealthReady"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetNotificationPreferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notification-preferences/{appId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["UpdateNotificationPreference"];
         post?: never;
         delete?: never;
         options?: never;
@@ -468,13 +516,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetRules"];
+        put?: never;
+        post: operations["CreateRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["UpdateRule"];
+        post?: never;
+        delete: operations["DeleteRule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rules/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["ReorderRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ConditionDto: {
+            field?: string | null;
+            operator?: string | null;
+            value?: string | null;
+        };
+        ConditionResponse: {
+            /** Format: uuid */
+            id?: string;
+            field?: string | null;
+            operator?: string | null;
+            value?: string | null;
+        };
         CreateDeviceRequest: {
             name?: string | null;
             deviceType?: string | null;
+        };
+        CreateRuleRequest: {
+            name?: string | null;
+            appId?: string | null;
+            authLevel?: string | null;
+            autoRespondEnabled?: boolean;
+            autoRespondOption?: string | null;
+            autoRespondValue?: string | null;
+            enabled?: boolean | null;
+            conditions?: components["schemas"]["ConditionDto"][] | null;
         };
         DeviceParticipationRequest: {
             /** Format: uuid */
@@ -505,12 +623,54 @@ export interface components {
             registrationId?: string | null;
             createdAt?: string | null;
         };
+        NotificationPreferenceResponse: {
+            appId?: string | null;
+            pushEnabled?: boolean;
+            soundEnabled?: boolean;
+            badgeEnabled?: boolean;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        ProblemDetails: {
+            type?: string | null;
+            title?: string | null;
+            /** Format: int32 */
+            status?: number | null;
+            detail?: string | null;
+            instance?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         ProcessChallengeRequest: {
             challengePayload?: string | null;
         };
         RegisterKeyRequest: {
             publicKey?: string | null;
             algorithm?: string | null;
+        };
+        RegisterPushTokenRequest: {
+            token?: string | null;
+        };
+        ReorderRulesRequest: {
+            ruleIds?: string[] | null;
+        };
+        RuleResponse: {
+            /** Format: uuid */
+            id?: string;
+            name?: string | null;
+            appId?: string | null;
+            /** Format: int32 */
+            priority?: number;
+            authLevel?: string | null;
+            autoRespondEnabled?: boolean;
+            autoRespondOption?: string | null;
+            autoRespondValue?: string | null;
+            enabled?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            conditions?: components["schemas"]["ConditionResponse"][] | null;
         };
         SendLabRequest: {
             payload?: string | null;
@@ -520,6 +680,21 @@ export interface components {
             requestId?: string;
             attestationPayload?: string | null;
             deviceSignature?: string | null;
+        };
+        UpdateNotificationPreferenceRequest: {
+            pushEnabled?: boolean;
+            soundEnabled?: boolean;
+            badgeEnabled?: boolean;
+        };
+        UpdateRuleRequest: {
+            name?: string | null;
+            appId?: string | null;
+            authLevel?: string | null;
+            autoRespondEnabled?: boolean;
+            autoRespondOption?: string | null;
+            autoRespondValue?: string | null;
+            enabled?: boolean | null;
+            conditions?: components["schemas"]["ConditionDto"][] | null;
         };
         WebResolveRequest: {
             selectedOption?: string | null;
@@ -547,6 +722,30 @@ export interface operations {
                 "application/json": components["schemas"]["RegisterKeyRequest"];
                 "text/json": components["schemas"]["RegisterKeyRequest"];
                 "application/*+json": components["schemas"]["RegisterKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RegisterPushToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RegisterPushTokenRequest"];
+                "text/json": components["schemas"]["RegisterPushTokenRequest"];
+                "application/*+json": components["schemas"]["RegisterPushTokenRequest"];
             };
         };
         responses: {
@@ -656,6 +855,80 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    GetNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["NotificationPreferenceResponse"][];
+                    "application/json": components["schemas"]["NotificationPreferenceResponse"][];
+                    "text/json": components["schemas"]["NotificationPreferenceResponse"][];
+                };
+            };
+        };
+    };
+    UpdateNotificationPreference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateNotificationPreferenceRequest"];
+                "text/json": components["schemas"]["UpdateNotificationPreferenceRequest"];
+                "application/*+json": components["schemas"]["UpdateNotificationPreferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["NotificationPreferenceResponse"];
+                    "application/json": components["schemas"]["NotificationPreferenceResponse"];
+                    "text/json": components["schemas"]["NotificationPreferenceResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
             };
         };
     };
@@ -1135,6 +1408,185 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    GetRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["RuleResponse"][];
+                    "application/json": components["schemas"]["RuleResponse"][];
+                    "text/json": components["schemas"]["RuleResponse"][];
+                };
+            };
+        };
+    };
+    CreateRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateRuleRequest"];
+                "text/json": components["schemas"]["CreateRuleRequest"];
+                "application/*+json": components["schemas"]["CreateRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["RuleResponse"];
+                    "application/json": components["schemas"]["RuleResponse"];
+                    "text/json": components["schemas"]["RuleResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateRuleRequest"];
+                "text/json": components["schemas"]["UpdateRuleRequest"];
+                "application/*+json": components["schemas"]["UpdateRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["RuleResponse"];
+                    "application/json": components["schemas"]["RuleResponse"];
+                    "text/json": components["schemas"]["RuleResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReorderRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReorderRulesRequest"];
+                "text/json": components["schemas"]["ReorderRulesRequest"];
+                "application/*+json": components["schemas"]["ReorderRulesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
             };
         };
     };

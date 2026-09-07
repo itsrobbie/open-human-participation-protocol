@@ -3,9 +3,64 @@
 # Spun up by global-setup.ts, torn down by global-teardown.ts.
 
 services:
+  # Local CA one-shot (U7.1, Phase 6) - mirrors the dev stack so the E2E suite
+  # genuinely exercises the HTTPS-converted hops. Issues root + per-service leaf
+  # certs into the shared ca_certs volume.
+  cert-init:
+    profiles: ["backing"]
+    image: smallstep/step-ca:0.27.4
+    user: root
+    restart: "no"
+    entrypoint: ["/bin/sh", "/usr/local/bin/issue-certs.sh"]
+    environment:
+      STEPCA_PASSWORD: ohpp-dev-ca-password
+      CA_DIR: /home/step/ca
+      OUT_DIR: /certs
+    volumes:
+      - ./platform/ca/issue-certs.sh:/usr/local/bin/issue-certs.sh:ro
+      - stepca_data:/home/step/ca
+      - ca_certs:/certs
+    networks:
+      - ohpp-test
+
+  # --- Observability backbone (test-isolated; validates U7.1 telemetry end-to-end) ---
+  otel-collector:
+    profiles: ["backing"]
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./platform/observability/otel-collector-config.yaml:/etc/otel/config.yaml:ro
+      # TLS (U7.1): the gRPC receiver terminates TLS with the collector leaf cert.
+      - ca_certs:/certs:ro
+    ports:
+      - "4328:4318"   # OTLP HTTP (test-isolated host port; browser + probes reach it here)
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
+      tempo:
+        condition: service_started
+    networks:
+      - ohpp-test
+
+  tempo:
+    profiles: ["backing"]
+    image: grafana/tempo:2.5.0
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./platform/observability/tempo-config.yaml:/etc/tempo/tempo.yaml:ro
+    ports:
+      - "3210:3200"   # Tempo query API (test-isolated host port; the spec queries here)
+    networks:
+      - ohpp-test
+
   # --- Backing services ---
   postgres:
+    profiles: ["backing"]
     image: postgres:16-alpine
+    # TLS (U7.1): entrypoint wrapper installs the postgres leaf cert/key with
+    # postgres-owned 0600 perms and enables ssl (mirrors the dev stack).
+    entrypoint: ["/usr/local/bin/ssl-entrypoint.sh"]
+    command: ["postgres"]
     environment:
       POSTGRES_USER: ohpp
       POSTGRES_PASSWORD: ohpp_test_password
@@ -14,15 +69,21 @@ services:
       - "5532:5432"
     volumes:
       - ./platform/world-database/init:/docker-entrypoint-initdb.d:ro
+      - ./platform/world-database/ssl-entrypoint.sh:/usr/local/bin/ssl-entrypoint.sh:ro
+      - ca_certs:/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ohpp"]
       interval: 3s
       timeout: 2s
       retries: 10
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
     networks:
       - ohpp-test
 
   keycloak:
+    profiles: ["backing"]
     image: quay.io/keycloak/keycloak:24.0
     command: start-dev --import-realm
     environment:
@@ -30,41 +91,66 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_HOSTNAME_URL: http://localhost:8180
       KC_HOSTNAME_STRICT: "false"
+      # TLS (U7.1): serve HTTPS on 8443 with the keycloak leaf cert (chain) in
+      # addition to HTTP on 8080. Server-to-server calls use HTTPS; the browser
+      # login flow keeps using http://localhost:8180 during the migration.
+      KC_HTTPS_CERTIFICATE_FILE: /certs/keycloak.chain.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /certs/keycloak.key
     ports:
       - "8180:8080"
+      - "8543:8443"
     volumes:
       - ./platform/resolver/keycloak:/opt/keycloak/data/import:ro
+      - ca_certs:/certs:ro
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080"]
       interval: 10s
       timeout: 5s
       retries: 30
       start_period: 60s
+    depends_on:
+      cert-init:
+        condition: service_completed_successfully
     networks:
       - ohpp-test
 
   # --- Platform ---
   resolver:
+    profiles: ["apps"]
     build:
       context: .
       dockerfile: platform/resolver/Dockerfile
     ports:
       - "5150:8080"
+      - "5453:8443"
+    volumes:
+      - ca_certs:/certs:ro
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
-      ConnectionStrings__PostgreSQL: "Host=postgres;Database=ohpp;Username=ohpp;Password=ohpp_test_password"
+      ConnectionStrings__PostgreSQL: "Host=postgres;Database=ohpp;Username=ohpp;Password=ohpp_test_password;SSL Mode=VerifyFull;Root Certificate=/certs/root_ca.crt"
       Resolver__BaseUrl: "http://localhost:5150"
       Resolver__InternalBaseUrl: "http://resolver:8080"
       Resolver__Name: "OHPP Test Resolver"
       Resolver__EncryptionKey: "test-encryption-key-min-32-chars!!"
       Auth__Provider: "Keycloak"
-      Auth__Keycloak__Authority: "http://keycloak:8080/realms/ohpp"
+      Auth__Keycloak__Authority: "https://keycloak:8443/realms/ohpp"
       Features__ProtocolLab: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+      OTEL_SERVICE_NAME: "ohpp.resolver"
+      OHPP_TLS_CERT_PATH: /certs/resolver.chain.crt
+      OHPP_TLS_KEY_PATH: /certs/resolver.key
+      OHPP_TLS_PORT: "8443"
+      SSL_CERT_FILE: /certs/root_ca.crt
     depends_on:
+      cert-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 5s
@@ -75,14 +161,24 @@ services:
       - ohpp-test
 
   portal:
+    profiles: ["apps"]
     build:
       context: platform/portal
       dockerfile: Dockerfile
       args:
         VITE_ENABLE_PROTOCOL_LAB: "true"
+        # Browser exports OTLP/HTTP to the test Collector's host-published port.
+        VITE_OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4328"
+        VITE_OTEL_SERVICE_NAME: "ohpp.portal"
+        # Verbose OTel diagnostics in the test build to make failures observable.
+        VITE_OTEL_DEBUG: "1"
     ports:
       - "3100:80"
+    volumes:
+      - ca_certs:/certs:ro
     depends_on:
+      cert-init:
+        condition: service_completed_successfully
       resolver:
         condition: service_healthy
     networks:
@@ -90,72 +186,105 @@ services:
 
   # --- Demo apps ---
   bank:
+    profiles: ["apps"]
     build:
       context: .
       dockerfile: demo/mock-apps/dotnet/bank/Dockerfile
     ports:
       - "5110:5010"
+    volumes:
+      - ca_certs:/certs:ro
     environment:
       Bank__AppId: "bank.demo.test"
       Bank__BaseUrl: "http://localhost:5110"
-      Bank__ResolverInternalUrl: "http://resolver:8080"
-      WorldDatabase__ConnectionString: "Host=postgres;Port=5432;Database=ohpp;Username=bank_app;Password=ohpp_bank_demo_password"
+      Bank__ResolverInternalUrl: "https://resolver:8443"
+      WorldDatabase__ConnectionString: "Host=postgres;Port=5432;Database=ohpp;Username=bank_app;Password=ohpp_bank_demo_password;SSL Mode=VerifyFull;Root Certificate=/certs/root_ca.crt"
       WorldDatabase__RunBootstrap: "true"
-      Auth__Keycloak__Authority: "http://keycloak:8080/realms/ohpp-bank"
+      Auth__Keycloak__Authority: "https://keycloak:8443/realms/ohpp-bank"
       Auth__Keycloak__Audience: "ohpp-bank-app"
       Auth__PublicAuthority: "http://localhost:8180/realms/ohpp-bank"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+      OTEL_SERVICE_NAME: "ohpp.bank"
+      SSL_CERT_FILE: /certs/root_ca.crt
     depends_on:
+      cert-init:
+        condition: service_completed_successfully
       resolver:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ohpp-test
 
   insurance-claims:
+    profiles: ["apps"]
     build:
       context: .
       dockerfile: demo/mock-apps/dotnet/insurance-claims/Dockerfile
     ports:
       - "5120:5020"
+    volumes:
+      - ca_certs:/certs:ro
     environment:
       Insurance__AppId: "insurance-claims.demo.test"
       Insurance__BaseUrl: "http://localhost:5120"
-      Insurance__ResolverUrl: "http://resolver:8080"
-      WorldDatabase__ConnectionString: "Host=postgres;Port=5432;Database=ohpp;Username=insurance_claims_app;Password=ohpp_insurance_demo_password"
+      Insurance__ResolverUrl: "https://resolver:8443"
+      WorldDatabase__ConnectionString: "Host=postgres;Port=5432;Database=ohpp;Username=insurance_claims_app;Password=ohpp_insurance_demo_password;SSL Mode=VerifyFull;Root Certificate=/certs/root_ca.crt"
       WorldDatabase__RunBootstrap: "true"
-      Auth__Keycloak__Authority: "http://keycloak:8080/realms/ohpp-insurance"
+      Auth__Keycloak__Authority: "https://keycloak:8443/realms/ohpp-insurance"
       Auth__Keycloak__Audience: "ohpp-insurance-app"
       Auth__PublicAuthority: "http://localhost:8180/realms/ohpp-insurance"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+      OTEL_SERVICE_NAME: "ohpp.insurance"
+      SSL_CERT_FILE: /certs/root_ca.crt
     depends_on:
+      cert-init:
+        condition: service_completed_successfully
       resolver:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ohpp-test
 
   pizza:
+    profiles: ["apps"]
     build:
       context: .
       dockerfile: demo/mock-apps/node/pizza/Dockerfile
     ports:
       - "5130:5030"
+    volumes:
+      - ca_certs:/certs:ro
     environment:
       PORT: "5030"
       PIZZA_APP_ID: "pizza.demo.test"
       PIZZA_BASE_URL: "http://localhost:5130"
-      PIZZA_RESOLVER_URL: "http://resolver:8080"
-      WORLD_DATABASE_CONNECTION_STRING: "postgresql://pizza_app:ohpp_pizza_demo_password@postgres:5432/ohpp"
+      PIZZA_RESOLVER_URL: "https://resolver:8443"
+      WORLD_DATABASE_CONNECTION_STRING: "postgresql://pizza_app:ohpp_pizza_demo_password@postgres:5432/ohpp?sslmode=verify-full"
       WORLD_DATABASE_RUN_BOOTSTRAP: "true"
-      AUTH_KEYCLOAK_AUTHORITY: "http://keycloak:8080/realms/ohpp-pizza"
+      AUTH_KEYCLOAK_AUTHORITY: "https://keycloak:8443/realms/ohpp-pizza"
       AUTH_KEYCLOAK_AUDIENCE: "ohpp-pizza-app"
       AUTH_PUBLIC_AUTHORITY: "http://localhost:8180/realms/ohpp-pizza"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
+      OTEL_SERVICE_NAME: "ohpp.pizza"
+      # Trust the dev CA root for the outbound TLS call to the resolver (Node).
+      NODE_EXTRA_CA_CERTS: /certs/root_ca.crt
     depends_on:
+      cert-init:
+        condition: service_completed_successfully
       resolver:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:5030/health || exit 1"]
       interval: 5s
@@ -166,26 +295,37 @@ services:
       - ohpp-test
 
   marketplace:
+    profiles: ["apps"]
     build:
       context: .
       dockerfile: demo/mock-apps/node/marketplace/Dockerfile
     ports:
       - "5140:5040"
+    volumes:
+      - ca_certs:/certs:ro
     environment:
       PORT: "5040"
       MARKETPLACE_APP_ID: "marketplace.demo.test"
       MARKETPLACE_BASE_URL: "http://localhost:5140"
-      MARKETPLACE_RESOLVER_URL: "http://resolver:8080"
-      WORLD_DATABASE_CONNECTION_STRING: "postgresql://marketplace_app:ohpp_marketplace_demo_password@postgres:5432/ohpp"
+      MARKETPLACE_RESOLVER_URL: "https://resolver:8443"
+      WORLD_DATABASE_CONNECTION_STRING: "postgresql://marketplace_app:ohpp_marketplace_demo_password@postgres:5432/ohpp?sslmode=verify-full"
       WORLD_DATABASE_RUN_BOOTSTRAP: "true"
-      AUTH_KEYCLOAK_AUTHORITY: "http://keycloak:8080/realms/ohpp-marketplace"
+      AUTH_KEYCLOAK_AUTHORITY: "https://keycloak:8443/realms/ohpp-marketplace"
       AUTH_KEYCLOAK_AUDIENCE: "ohpp-marketplace-app"
       AUTH_PUBLIC_AUTHORITY: "http://localhost:8180/realms/ohpp-marketplace"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
+      OTEL_SERVICE_NAME: "ohpp.marketplace"
+      # Trust the dev CA root for the outbound TLS call to the resolver (Node).
+      NODE_EXTRA_CA_CERTS: /certs/root_ca.crt
     depends_on:
+      cert-init:
+        condition: service_completed_successfully
       resolver:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:5040/health || exit 1"]
       interval: 5s
@@ -206,6 +346,10 @@ services:
         condition: service_healthy
     networks:
       - ohpp-test
+
+volumes:
+  stepca_data:
+  ca_certs:
 
 networks:
   ohpp-test:

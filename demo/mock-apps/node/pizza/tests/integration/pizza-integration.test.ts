@@ -45,6 +45,7 @@ function createInMemoryFlowStore(): IOhppPizzaFlowStore {
       flows.find((f) => f.userId === userId && f.status === 'in_progress') ?? null),
     getByTransactionId: vi.fn(async (txnId: string) =>
       flows.find((f) => f.transactionId === txnId) ?? null),
+    getAllActive: vi.fn(async () => flows.filter((f) => f.status === 'in_progress')),
   };
 }
 

@@ -1,3 +1,8 @@
+// Telemetry must be imported and started first so auto-instrumentation can
+// patch express/pg/http before they are loaded below.
+import { startTelemetry } from './telemetry.js';
+startTelemetry();
+
 import express from 'express';
 import pg from 'pg';
 import { OhppRequesterClient, ChallengeGenerator } from '@ohpp/sdk';
@@ -12,7 +17,7 @@ import {
   authMiddleware,
   type AuthConfig,
 } from './infrastructure/index.js';
-import { OrderService, StandardOrderService, OhppPizzaFlowController } from './services/index.js';
+import { OrderService, StandardOrderService, OhppPizzaFlowController, FlowSequencer } from './services/index.js';
 import { createApiRoutes } from './presentation/index.js';
 
 const PORT = parseInt(process.env.PORT ?? '5030', 10);
@@ -68,6 +73,14 @@ async function main() {
     flowStore, orderStore, ohppClient, registrationStore, clock,
   );
 
+  // Background sequencer: keeps multi-step OHPP flows advancing device-to-device
+  // without the user parked on the ordering screen (the protocol has no
+  // resolver->requester push, so the requester must poll-and-advance). Interval
+  // configurable via PIZZA_FLOW_SEQUENCER_INTERVAL_MS.
+  const flowSequencer = new FlowSequencer(flowStore, flowController, {
+    intervalMs: parseInt(process.env.PIZZA_FLOW_SEQUENCER_INTERVAL_MS ?? '3000', 10),
+  });
+
   // Express app
   const app = express();
   app.use(express.json());
@@ -121,6 +134,9 @@ async function main() {
     console.log(`${APP_NAME} running on port ${PORT}`);
     console.log(`  App ID: ${APP_ID}`);
     console.log(`  Resolver: ${RESOLVER_URL}`);
+    // Start advancing in-progress OHPP flows in the background.
+    flowSequencer.start();
+    console.log('  Flow sequencer: started');
   });
 }
 

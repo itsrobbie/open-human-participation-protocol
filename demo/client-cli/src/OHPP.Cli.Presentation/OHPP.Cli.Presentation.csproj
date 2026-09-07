@@ -2,12 +2,24 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- NU1902: OTLP exporter 1.9.0 advisory; dev-only demo app, same suppression as resolver. -->
+    <NoWarn>$(NoWarn);NU1902</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\OHPP.Cli.Domain\OHPP.Cli.Domain.csproj" />
     <ProjectReference Include="..\OHPP.Cli.Services\OHPP.Cli.Services.csproj" />
     <ProjectReference Include="..\OHPP.Cli.Infrastructure\OHPP.Cli.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <!-- Observability: self-contained OpenTelemetry for a console app.
+       No ASP.NET; HttpClient instrumentation propagates W3C trace context on
+       outbound calls to the Resolver so the CLI joins the cross-service trace. -->
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
   </ItemGroup>
 
 </Project>

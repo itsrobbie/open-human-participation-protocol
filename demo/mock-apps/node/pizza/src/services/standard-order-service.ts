@@ -99,6 +99,29 @@ export class StandardOrderService {
   }
 
   /**
+   * Reconcile every pending OHPP order for a user against the resolver.
+   *
+   * There is no push channel back to a requester app: the resolver only pushes
+   * resolution events to DEVICES. So when the user answers a request on their
+   * phone (or any surface other than the order-status screen), the order only
+   * catches up the next time the app reads it. Call this on order-list and
+   * order-detail reads so those views reflect answers made elsewhere.
+   *
+   * Returns the user's orders after reconciliation.
+   */
+  async reconcilePendingOhppOrders(userId: string): Promise<Order[]> {
+    const orders = await this.orderService.getHistory(userId);
+    for (const order of orders) {
+      if (order.status === 'pending_confirmation' && order.participationRequestId) {
+        // resolveOrder is a no-op when still pending, and settles the order
+        // (confirmed/cancelled/expired) once the request has been answered.
+        await this.resolveOrder(order.id, userId);
+      }
+    }
+    return this.orderService.getHistory(userId);
+  }
+
+  /**
    * Resolves an order based on OHPP status poll result.
    */
   async resolveOrder(orderId: string, userId: string): Promise<CheckoutResult> {

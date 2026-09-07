@@ -12,6 +12,14 @@
     "lint": "eslint . --ext ts,tsx"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.9.0",
+    "@opentelemetry/context-zone": "1.27.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.54.2",
+    "@opentelemetry/instrumentation": "0.54.2",
+    "@opentelemetry/instrumentation-fetch": "0.54.2",
+    "@opentelemetry/resources": "1.27.0",
+    "@opentelemetry/sdk-trace-web": "1.27.0",
+    "@opentelemetry/semantic-conventions": "1.27.0",
     "@radix-ui/react-dialog": "^1.1.1",
     "@radix-ui/react-dropdown-menu": "^2.1.1",
     "@radix-ui/react-separator": "^1.1.0",

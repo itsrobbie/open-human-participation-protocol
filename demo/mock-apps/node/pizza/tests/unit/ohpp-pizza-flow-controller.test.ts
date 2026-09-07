@@ -19,6 +19,8 @@ function mockFlowStore(): IOhppPizzaFlowStore {
       return null;
     }),
     getByTransactionId: vi.fn(async () => null),
+    getAllActive: vi.fn(async () =>
+      [...flows.values()].filter((f) => f.status === 'in_progress')),
   };
 }
 
@@ -81,11 +83,41 @@ describe('OhppPizzaFlowController', () => {
     expect(result.error).toContain('not connected');
   });
 
-  it('startFlow_existingActiveFlow_returnsError', async () => {
+  it('startFlow_existingActiveFlow_stillPending_returnsError', async () => {
+    // The existing flow's step-1 request is still pending (default mock), so a
+    // second flow is correctly rejected.
     await controller.startFlow('user-1');
     const result = await controller.startFlow('user-1');
     expect(result.success).toBe(false);
     expect(result.error).toContain('already in progress');
+  });
+
+  it('startFlow_existingFlowRequestExpired_reconcilesAndStartsNew', async () => {
+    // Simulate a stuck flow: the current-step request has expired but the flow
+    // was never advanced (user left the screen). Starting a new flow must
+    // reconcile the dead flow (abandon it) and proceed rather than block.
+    await controller.startFlow('user-1');
+    (ohppClient.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true, status: 'expired' });
+    (ohppClient.sendRequest as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true, requestId: 'req-fresh' });
+
+    const result = await controller.startFlow('user-1');
+
+    expect(result.success).toBe(true);
+    expect(result.flow?.currentStep).toBe(1);
+    expect(result.flow?.status).toBe('in_progress');
+  });
+
+  it('startFlow_existingFlowRequestCancelled_reconcilesAndStartsNew', async () => {
+    // A stuck flow whose current-step request was answered with a cancel-style
+    // resolution that abandons the flow must not block a new one.
+    await controller.startFlow('user-1');
+    (ohppClient.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true, status: 'cancelled' });
+    (ohppClient.sendRequest as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true, requestId: 'req-fresh-2' });
+
+    const result = await controller.startFlow('user-1');
+
+    expect(result.success).toBe(true);
+    expect(result.flow?.status).toBe('in_progress');
   });
 
   it('advanceFlow_step1Resolved_movesToStep2', async () => {

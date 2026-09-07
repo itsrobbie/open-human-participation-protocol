@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Bank.Presentation;
 using Bank.Domain;
 using Bank.Infrastructure;
 using Bank.Services;
@@ -12,15 +13,29 @@ using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- Observability (OpenTelemetry -> OTel Collector; fail-open when unset) ---
+builder.AddBankObservability("ohpp.bank");
+
 var authAuthority = builder.Configuration["Auth:Keycloak:Authority"] ?? "http://keycloak:8080/realms/ohpp-bank";
 var authAudience = builder.Configuration["Auth:Keycloak:Audience"] ?? "ohpp-bank-app";
+// The browser-facing authority is where end users obtain their tokens; the token's
+// issuer claim reflects that host. The internal authority (above) may differ during
+// the HTTPS migration (e.g. https://keycloak:8443 for the server-to-server metadata
+// fetch while the browser still uses http://localhost:8080), so accept both issuers.
+var authPublicAuthority = builder.Configuration["Auth:PublicAuthority"] ?? "http://localhost:8080/realms/ohpp-bank";
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // Fetch OIDC metadata (JWKS) over the internal authority; trust the dev root
+        // via SSL_CERT_FILE so the HTTPS metadata call validates.
         options.Authority = authAuthority;
+        options.MetadataAddress = $"{authAuthority.TrimEnd('/')}/.well-known/openid-configuration";
         options.Audience = authAudience;
         options.RequireHttpsMetadata = false;
         options.TokenValidationParameters.ValidateAudience = true;
+        // Accept tokens issued by either the internal or the browser-facing authority.
+        options.TokenValidationParameters.ValidateIssuer = true;
+        options.TokenValidationParameters.ValidIssuers = new[] { authAuthority, authPublicAuthority };
     });
 builder.Services.AddAuthorization(options =>
     options.AddPolicy("BankUser", policy => policy

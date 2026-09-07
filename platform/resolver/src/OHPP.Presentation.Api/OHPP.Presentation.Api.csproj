@@ -23,6 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
   </ItemGroup>
 
@@ -31,9 +35,7 @@
     <PropertyGroup>
       <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../../..'))</RepoRoot>
     </PropertyGroup>
-    <Exec
-      Command="&quot;$(RepoRoot)/.tools/swagger&quot; tofile --output &quot;$(RepoRoot)/platform/resolver/swagger.json&quot; &quot;$(TargetPath)&quot; v1"
-      EnvironmentVariables="Startup__ContractGeneration=true" />
+    <Exec Command="&quot;$(RepoRoot)/.tools/swagger&quot; tofile --output &quot;$(RepoRoot)/platform/resolver/swagger.json&quot; &quot;$(TargetPath)&quot; v1" EnvironmentVariables="Startup__ContractGeneration=true" />
   </Target>
 
 </Project>

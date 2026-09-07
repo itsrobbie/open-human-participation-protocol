@@ -4,7 +4,11 @@ import { test, expect } from '@playwright/test'
 import { BANK_URL, PORTAL_URL } from '../test-urls'
 
 const composeFile = resolve(__dirname, '../../../docker-compose.test.yml')
-const composeCmd = `docker compose -p ohpp-test -f ${composeFile}`
+// Activate every profile the CLI touches: it lives in "tools" but depends_on the
+// resolver ("apps"), which in turn depends on backing services. Without these,
+// Compose rejects the command with "no such service: resolver".
+const PROFILES = '--profile backing --profile apps --profile tools'
+const composeCmd = `docker compose -p ohpp-test -f ${composeFile} ${PROFILES}`
 
 test.describe.serial('CLI attester simulator', () => {
   test.describe.configure({ timeout: 180_000 })
@@ -26,7 +30,8 @@ test.describe.serial('CLI attester simulator', () => {
     // --- Start the CLI as a long-running process with piped stdin ---
     const cli = spawn('docker', [
       'compose', '-p', 'ohpp-test', '-f', composeFile,
-      '--profile', 'tools', 'run', '--rm', '-T', 'cli'
+      '--profile', 'backing', '--profile', 'apps', '--profile', 'tools',
+      'run', '--rm', '-T', 'cli'
     ], { cwd: resolve(__dirname, '../../..') })
 
     let cliOutput = ''

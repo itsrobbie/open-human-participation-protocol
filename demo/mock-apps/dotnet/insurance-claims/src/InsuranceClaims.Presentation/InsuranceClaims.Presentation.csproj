@@ -1,11 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- NU1902: OTLP exporter 1.9.0 advisory; dev-only demo app, same suppression as resolver. -->
+    <NoWarn>$(NoWarn);NU1902</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\InsuranceClaims.Domain\InsuranceClaims.Domain.csproj" />
     <ProjectReference Include="..\InsuranceClaims.Services\InsuranceClaims.Services.csproj" />
     <ProjectReference Include="..\InsuranceClaims.Infrastructure\InsuranceClaims.Infrastructure.csproj" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- Observability: self-contained OpenTelemetry (traces + metrics + logs) to the OTel Collector. -->
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.9.0" />
   </ItemGroup>
   <Target Name="GenerateSwagger" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
     <PropertyGroup>

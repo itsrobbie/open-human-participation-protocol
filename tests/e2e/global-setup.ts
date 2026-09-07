@@ -5,7 +5,11 @@ import { request as playwrightRequest } from '@playwright/test'
 
 const COMPOSE_FILE = resolve(__dirname, '../../docker-compose.test.yml')
 const PROJECT_NAME = 'ohpp-test'
-const COMPOSE_CMD = `docker compose -p ${PROJECT_NAME} -f ${COMPOSE_FILE}`
+const COMPOSE_CMD = `docker compose --progress quiet -p ${PROJECT_NAME} -f ${COMPOSE_FILE}`
+// Both profiles are activated on every invocation so apps' depends_on links to
+// backing services resolve; lifecycle is controlled by naming services.
+const COMPOSE = `${COMPOSE_CMD} --profile backing --profile apps`
+const APP_SERVICES = 'resolver portal bank insurance-claims pizza marketplace'
 
 /**
  * Global setup: starts an isolated test stack and resets state.
@@ -20,10 +24,29 @@ const COMPOSE_CMD = `docker compose -p ${PROJECT_NAME} -f ${COMPOSE_FILE}`
 export default async function globalSetup() {
   console.log('Starting isolated test stack...')
 
-  // Always rebuild the isolated stack so browser and server tests execute the
-  // workspace state under test. --wait blocks until healthchecks pass.
-  console.log('Building test stack images...')
-  execSync(`${COMPOSE_CMD} up --build -d --wait`, {
+  // Backing tier (postgres, keycloak, otel-collector, tempo) persists across
+  // runs - start it if it isn't already up. It's rarely rebuilt, so this is a
+  // fast no-op on repeat runs.
+  console.log('Ensuring backing tier is up...')
+  // Run the CA one-shot to completion first so leaf certs exist before apps
+  // start (HTTPS hops depend on them). It's a one-shot (restart: no) so it must
+  // not be part of the --wait set.
+  execSync(`${COMPOSE_CMD} --profile backing up cert-init`, {
+    cwd: __dirname,
+    stdio: 'inherit',
+    timeout: 300_000,
+  })
+  execSync(`${COMPOSE_CMD} --profile backing up -d --wait postgres keycloak otel-collector tempo`, {
+    cwd: __dirname,
+    stdio: 'inherit',
+    timeout: 300_000,
+  })
+
+  // Always rebuild the apps tier so browser and server tests execute the
+  // workspace state under test. --wait blocks until healthchecks pass. Backing
+  // services already running are reused, not recreated.
+  console.log('Building + starting apps tier...')
+  execSync(`${COMPOSE} up --build -d --wait ${APP_SERVICES}`, {
     cwd: __dirname,
     // Stream build and health-check progress so a slow image or service is
     // diagnosable instead of appearing as a silent Playwright stall.
@@ -46,7 +69,7 @@ export default async function globalSetup() {
   verifySchemaIsolation()
 
   // Restart resolver + apps so all services reopen clean database connections after the reset.
-  execSync(`${COMPOSE_CMD} restart resolver bank insurance-claims pizza marketplace`, {
+  execSync(`${COMPOSE} restart resolver bank insurance-claims pizza marketplace`, {
     cwd: __dirname,
     stdio: 'pipe',
     timeout: 60_000,

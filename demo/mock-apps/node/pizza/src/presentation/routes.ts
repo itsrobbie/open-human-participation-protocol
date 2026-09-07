@@ -60,11 +60,16 @@ export function createApiRoutes(deps: RoutesDeps): Router {
   });
 
   router.get('/orders', async (req, res: Response) => {
-    const orders = await deps.orderService.getHistory(getUserId(req));
+    // Reconcile any pending OHPP orders first, so answers made on the device
+    // (or any surface other than the status screen) are reflected here.
+    const orders = await deps.standardOrderService.reconcilePendingOhppOrders(getUserId(req));
     res.json(orders);
   });
 
   router.get('/orders/:id', async (req, res: Response) => {
+    // Settle this order against the resolver if it's still awaiting an answer,
+    // so opening an order reflects a decision made elsewhere.
+    await deps.standardOrderService.resolveOrder(req.params.id, getUserId(req));
     const order = await deps.orderService.getById(req.params.id, getUserId(req));
     if (!order) {
       res.status(404).json({ error: 'Order not found' });
@@ -130,6 +135,15 @@ export function createApiRoutes(deps: RoutesDeps): Router {
 
   // --- OHPP Connection ---
   router.post('/ohpp/generate-challenge', async (req, res: Response) => {
+    // Guard against re-connecting an already-connected app: without this, each
+    // click spawns a fresh registration ceremony. The resolver now updates in
+    // place, but short-circuiting here avoids the pointless round-trip and a
+    // confusing "reconnected" UX.
+    const alreadyConnected = await deps.registrationStore.hasRegistration(getUserId(req));
+    if (alreadyConnected) {
+      res.status(409).json({ error: 'Already connected to OHPP', connected: true });
+      return;
+    }
     const challenge = deps.challengeGenerator.createChallenge(10 * 60 * 1000);
     const uri = ChallengeGenerator.buildChallengeUri(challenge);
     // Record which app user generated this challenge so we can link them on callback

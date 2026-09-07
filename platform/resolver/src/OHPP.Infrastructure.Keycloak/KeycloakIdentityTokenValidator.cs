@@ -64,7 +64,7 @@ public sealed class KeycloakIdentityTokenValidator : IIdentityTokenValidator
             ValidateIssuerSigningKey = true,
             IssuerSigningKeys = jwks.GetSigningKeys(),
             ValidateIssuer = true,
-            ValidIssuers = new[] { _options.Authority, _options.Authority.Replace("keycloak:8080", "localhost:8080"), _options.Authority.Replace("keycloak:8080", "localhost:8180") },
+            ValidIssuers = BuildValidIssuers(_options.Authority),
             ValidateAudience = _options.ValidateAudience,
             ValidAudience = _options.Audience,
             ValidateLifetime = true,
@@ -72,5 +72,38 @@ public sealed class KeycloakIdentityTokenValidator : IIdentityTokenValidator
         };
 
         return _validationParams;
+    }
+
+    /// <summary>
+    /// Derives the set of acceptable token issuers from the configured authority.
+    /// The internal JWKS-fetch authority and the browser-facing issuer can differ
+    /// (e.g. the resolver talks to Keycloak internally over https://keycloak:8443
+    /// while the browser obtained its token via http://localhost:8080). Tokens
+    /// carry the issuer the *browser* used, so we accept the configured authority
+    /// plus the browser-facing host variants of the same realm path, regardless of
+    /// the internal scheme/host. This is derived by realm path rather than by a
+    /// brittle host-string replacement so it survives the HTTP-to-HTTPS migration.
+    /// </summary>
+    internal static string[] BuildValidIssuers(string authority)
+    {
+        var trimmed = authority.TrimEnd('/');
+        var issuers = new List<string> { trimmed };
+
+        // Extract the realm path (everything from "/realms/..." onward) so we can
+        // reattach it to the browser-facing hosts.
+        var realmIndex = trimmed.IndexOf("/realms/", StringComparison.Ordinal);
+        if (realmIndex >= 0)
+        {
+            var realmPath = trimmed[realmIndex..];
+            // Browser-facing hosts Keycloak may stamp into the issuer claim in dev.
+            foreach (var host in new[] { "http://localhost:8080", "http://localhost:8180" })
+            {
+                var candidate = host + realmPath;
+                if (!issuers.Contains(candidate))
+                    issuers.Add(candidate);
+            }
+        }
+
+        return issuers.ToArray();
     }
 }

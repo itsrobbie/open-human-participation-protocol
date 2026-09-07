@@ -8,21 +8,35 @@ using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using Npgsql;
 using OHPP.Sdk;
+using InsuranceClaims.Presentation;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- Observability (OpenTelemetry -> OTel Collector; fail-open when unset) ---
+builder.AddInsuranceObservability("ohpp.insurance");
+
 var authority = builder.Configuration["Auth:Keycloak:Authority"]
     ?? "http://keycloak:8080/realms/ohpp-insurance";
 var audience = builder.Configuration["Auth:Keycloak:Audience"]
     ?? "ohpp-insurance-app";
+// Browser-facing authority: the token's issuer claim reflects the host the end user
+// logged in through. It may differ from the internal metadata authority during the
+// HTTPS migration (internal https://keycloak:8443 vs browser http://localhost:8080),
+// so accept both issuers.
+var publicAuthority = builder.Configuration["Auth:PublicAuthority"]
+    ?? "http://localhost:8080/realms/ohpp-insurance";
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.Authority = authority;
+        options.MetadataAddress = $"{authority.TrimEnd('/')}/.well-known/openid-configuration";
         options.Audience = audience;
         options.RequireHttpsMetadata = false;
         options.TokenValidationParameters.ValidateAudience = true;
+        options.TokenValidationParameters.ValidateIssuer = true;
+        options.TokenValidationParameters.ValidIssuers = new[] { authority, publicAuthority };
     });
 builder.Services.AddAuthorization(options =>
     options.AddPolicy("AppUser", policy => policy
@@ -248,6 +262,12 @@ api.MapPost("/ohpp/generate-challenge", async (
     CancellationToken cancellationToken) =>
 {
     var userId = RequireUserId(principal);
+    // Guard against re-connecting an already-connected app: each challenge that
+    // completes would otherwise drive another registration ceremony. Short-
+    // circuit so a connected user cannot spawn redundant registrations.
+    if (await registrations.HasRegistrationAsync(userId, cancellationToken))
+        return Results.Conflict(new { error = "Already connected to OHPP", connected = true });
+
     var challenge = challengeGenerator.CreateChallenge(TimeSpan.FromMinutes(10));
     await registrations.RecordChallengeAsync(challenge.ChallengeId, userId, clock.UtcNow, cancellationToken);
     return Results.Ok(new RegistrationChallengeResponse(

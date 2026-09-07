@@ -77,8 +77,12 @@ The protocol specification is complete. A working reference implementation and d
 | Demo Insurance Claims App (.NET) | Working — `demo/mock-apps/dotnet/insurance-claims/` |
 | Demo Pizza App (Node SDK, Express + React) | Working — `demo/mock-apps/node/pizza/` |
 | Demo Marketplace App (Node SDK, Express + React) | Working — `demo/mock-apps/node/marketplace/` |
-| Docker Compose demo | Working — `docker compose up` |
-| Client App (Flutter, iOS/Android) | Planned (U7) |
+| Docker Compose demo | Working — `make dev` |
+| OHPP World landing page (single front door) | Working — `platform/landing/` (http://localhost:8888) |
+| Client App (Flutter, iOS/Android) | Working — `platform/client-app/` |
+| Repo-wide observability (OTel → Grafana/Loki/Tempo/Prometheus) | Working — `platform/observability/` |
+| Crash reporting (GlitchTip) + product analytics (Umami, opt-in) | Working — `make dev` / `make dev-analytics` |
+| HTTPS everywhere in dev (local step-ca) + app cert pinning | Working — `platform/ca/` |
 | Additional mock apps (Python, Go) | Planned (U4-U5) |
 | Mock AI Agent | Planned (U6) |
 
@@ -101,16 +105,15 @@ You need three things installed before you can run the project:
 
 #### Verifying your setup
 
-Open a terminal (Terminal on macOS, PowerShell or Git Bash on Windows) and run:
+Open a terminal (Terminal on macOS, PowerShell or Git Bash on Windows), clone the repo, and run:
 
 ```bash
-docker --version
-docker compose version
-make --version
-git --version
+make check
 ```
 
-All four should print a version number without errors. If any fail, revisit the install step for that tool.
+It checks Docker, Docker Compose, Make, and Git are installed and that the Docker daemon is
+running, printing a ✓ or a ✗ (with a fix) for each. When everything is ✓, you're ready for
+`make dev`.
 
 #### Common Docker problems
 
@@ -127,19 +130,29 @@ All four should print a version number without errors. If any fail, revisit the 
 ```bash
 git clone https://github.com/itsrobbie/human-participation-protocol.git
 cd human-participation-protocol
-make dev
+make check   # confirm you have Docker + the tools (first time)
+make dev     # build + start everything
 ```
 
-That's it. One command builds everything from source and starts the full stack. No SDK installs, no database setup, no config files.
+That's it. One command builds everything from source and starts the full stack, then prints a
+single URL — the **front door** at http://localhost:8888 — that maps the whole demo. No SDK
+installs, no database setup, no config files.
 
 #### What `make dev` actually does
 
 You don't need to understand this to use it, but if you're curious:
 
-1. Starts a PostgreSQL database container and runs schema migrations.
-2. Builds Docker images for each service (Resolver, Portal, Bank, Pizza, etc.) from source code.
-3. Starts all containers in the background.
-4. Prints URLs for each running service.
+1. Issues a local dev Certificate Authority (step-ca) and per-service certificates, so every
+   service-to-service hop runs over HTTPS/TLS - no proprietary certs or accounts needed.
+2. Starts a PostgreSQL database container and runs schema migrations.
+3. Starts the observability backbone (OpenTelemetry Collector → Loki/Tempo/Prometheus →
+   Grafana) plus GlitchTip for crash reporting - all local, all open-source.
+4. Builds Docker images for each service (Resolver, Portal, Bank, Pizza, the landing page, etc.) from source code.
+5. Starts all containers in the background.
+6. Prints a single URL — the front door at http://localhost:8888 — which maps every service. (`make urls` prints the full list.)
+
+Everything runs offline from any vendor account. Product analytics (Umami) is opt-in via
+`make dev-analytics` and is not started by the default `make dev`.
 
 The first run takes 3-5 minutes (downloading base images and building). After that, rebuilds only take 30-60 seconds because Docker caches layers.
 
@@ -152,13 +165,18 @@ make dev-build   # Force a full rebuild if something seems stale
 make clean       # Stop and delete all data (starts fresh next time)
 ```
 
-Once running, open:
-- **Bank demo**: http://localhost:5010 — sign in with `demo` / `demo`, make a transfer, and see OHPP in action
-- **Insurance Claims demo**: http://localhost:5020 — sign in with `demo` / `demo`, submit a claim, and reload to verify persistence
-- **Pizza demo**: http://localhost:5030 — sign in with `demo` / `demo`, order via menu or try the OHPP Pizza sequential flow
-- **Marketplace demo**: http://localhost:5040 — sign in with `demo` / `demo`, purchase products with signature verification for high-value items
-- **Portal**: http://localhost:3000 — register devices, manage apps, and use the development-only Protocol Lab
-- **Resolver API**: http://localhost:5050/swagger — explore the protocol
+Once running, open **one URL — the front door:**
+
+### 👉 http://localhost:8888 — OHPP World
+
+That landing page is your map to the whole demo. It has a get-started walkthrough and links to
+every app, dashboard, and tool, grouped by purpose:
+- **Demo apps** — Bank, Insurance Claims, Pizza, Marketplace (sign in with `demo` / `demo`)
+- **Platform** — Portal (devices/apps), Resolver API (Swagger)
+- **Observability** — Grafana (single pane for logs/traces/metrics), Prometheus, GlitchTip, Umami
+- **Dev tools** — the CLI attester and the `make verify-*` checks
+
+Prefer the terminal? `make urls` prints every service URL, and `make help` lists every command.
 
 The stack has one World database container named `postgres`. The database entrypoint creates schemas and roles for a new volume. `make dev` also runs the same idempotent SQL inside that container, so an existing development volume is upgraded before the applications start. There is no second database or database initializer container.
 
@@ -172,7 +190,12 @@ All common commands are in the `Makefile`. Run `make help` to see everything.
 
 | Command | What it does |
 |---------|-------------|
-| `make dev` | Start the dev stack |
+| `make dev` | Start the dev stack (HTTPS everywhere, observability, crash reporting); prints the front door URL |
+| `make dev-analytics` | Start the dev stack plus the opt-in analytics profile (Umami + stubs) |
+| `make urls` | Print every service URL (the front door at :8888 shows these too) |
+| `make verify-analytics` | Emit an event and confirm it lands in Umami (reviewable live check) |
+| `make ca-verify` | Verify the local CA issued leaf certs with correct SANs and a trusted root |
+| `make flutter-verify-pinning` | Live check: the app accepts the real resolver cert, rejects a wrong one (fail-closed) |
 | `make cli` | Run the interactive CLI attester simulator |
 | `make cli-reset` | Forget the CLI simulator token and signing keys |
 | `make test` | Run the complete Playwright browser gate (isolated stack, auto-teardown) |
@@ -207,7 +230,7 @@ The CLI is a development attester simulator, not the planned iOS and Android Cli
 1. Start the development stack with `make dev`.
 2. In Portal, register a device and copy its device token.
 3. Run `make cli`.
-4. At the first prompt, paste the device token and enter `http://resolver:8080` as the Resolver URL. That internal URL is reachable from the CLI container.
+4. At the first prompt, paste the device token and enter `https://resolver:8443` as the Resolver URL (the CLI container trusts the dev CA root). The plain `http://resolver:8080` endpoint is also still reachable as a transitional fallback.
 5. Create a participation request from a demo application. Leave the CLI running, then select an option or enter the requested value at its prompt.
 
 The token and ES256 key pair persist in the Docker `cli_config` volume between runs. `make cli-reset` removes only the CLI configuration file. The next `make cli` run prompts for a new token and creates a new key pair. See [the CLI guide](demo/client-cli/README.md) for its scope and limitations.

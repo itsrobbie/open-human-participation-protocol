@@ -52,7 +52,10 @@ for (const composeFile of ['docker-compose.yml', 'docker-compose.test.yml']) {
 
     assert.doesNotMatch(compose, /^\s{2}world-database-init:/m)
     assert.equal((compose.match(/^\s{2}postgres:/gm) ?? []).length, 1)
-    assert.doesNotMatch(compose, /condition:\s*service_completed_successfully/)
+    // No service may wait on a world-database-init one-shot. (Other legitimate
+    // one-shots - cert-init, glitchtip-init - do use service_completed_successfully,
+    // so the guard is scoped to the world-database-init dependency specifically.)
+    assert.doesNotMatch(compose, /world-database-init:\s*\n\s*condition:\s*service_completed_successfully/)
   })
 }
 
