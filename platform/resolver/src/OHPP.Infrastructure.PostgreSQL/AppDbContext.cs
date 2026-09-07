@@ -15,6 +15,9 @@ public sealed class AppDbContext : DbContext
     public DbSet<PendingRequest> PendingRequests => Set<PendingRequest>();
     public DbSet<ParticipationRecord> ParticipationRecords => Set<ParticipationRecord>();
     public DbSet<SigningKey> SigningKeys => Set<SigningKey>();
+    public DbSet<ParticipationRule> ParticipationRules => Set<ParticipationRule>();
+    public DbSet<RuleCondition> RuleConditions => Set<RuleCondition>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {

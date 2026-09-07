@@ -56,3 +56,41 @@ public sealed class ParticipationRecord
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? ResolvedAt { get; set; }
 }
+
+public sealed class ParticipationRule
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public required string Name { get; set; }
+    public string? AppId { get; set; }
+    public required int Priority { get; set; }
+    public required string AuthLevel { get; set; }
+    public bool AutoRespondEnabled { get; set; }
+    public string? AutoRespondOption { get; set; }
+    public string? AutoRespondValue { get; set; }
+    public bool Enabled { get; set; } = true;
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+
+    public ICollection<RuleCondition> Conditions { get; set; } = new List<RuleCondition>();
+}
+
+public sealed class RuleCondition
+{
+    public Guid Id { get; set; }
+    public Guid RuleId { get; set; }
+    public required string Field { get; set; }
+    public required string Operator { get; set; }
+    public required string Value { get; set; }
+}
+
+public sealed class NotificationPreference
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public required string AppId { get; set; }
+    public bool PushEnabled { get; set; } = true;
+    public bool SoundEnabled { get; set; } = true;
+    public bool BadgeEnabled { get; set; } = true;
+    public DateTimeOffset UpdatedAt { get; set; }
+}

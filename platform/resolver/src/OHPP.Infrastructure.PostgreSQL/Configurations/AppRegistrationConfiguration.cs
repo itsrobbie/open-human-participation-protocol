@@ -36,6 +36,13 @@ internal sealed class AppRegistrationConfiguration : IEntityTypeConfiguration<Ap
 
         builder.HasIndex(r => new { r.UserId, r.AppId, r.RevokedAt });
 
+        // Natural key: at most one ACTIVE registration per (user, app). Partial
+        // so revoked rows (history) don't collide. Enforces the update-in-place
+        // ceremony behaviour at the database level.
+        builder.HasIndex(r => new { r.UserId, r.AppId })
+            .IsUnique()
+            .HasFilter("\"RevokedAt\" IS NULL");
+
         builder.Ignore(r => r.IsActive);
     }
 }

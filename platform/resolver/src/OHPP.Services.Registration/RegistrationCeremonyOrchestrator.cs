@@ -77,14 +77,18 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
         if (metadataValidation.IsFailure)
             return metadataValidation.Error!;
 
-        // Keep the current registration active until the requester accepts the
-        // replacement callback. A replayed or failed challenge must not break
-        // a working app connection.
+        // A device/app connection is keyed on (user, appId): re-registering the
+        // same app must UPDATE the existing registration in place, not create a
+        // duplicate row. Keep the current registration active until the
+        // requester accepts the replacement callback, so a replayed or failed
+        // challenge never breaks a working connection.
         var existing = await _registrationRepo.GetActiveByUserAndAppIdAsync(userId, challenge.RequesterAppId, cancellationToken);
 
-        // Generate access token
+        // Generate access token. Reuse the existing registration's Id when one
+        // exists so the requester's stored registration (keyed on that Id via
+        // ON CONFLICT) is updated rather than duplicated.
         var accessToken = _tokenGenerator.GenerateAppAccessToken();
-        var registrationId = Guid.NewGuid();
+        var registrationId = existing?.Id ?? Guid.NewGuid();
 
         // Build registration response
         var response = new RegistrationResponseData
@@ -111,27 +115,34 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
         if (!callbackSuccess)
             return Error.ServiceUnavailable("Registration callback to requester failed");
 
+        AppRegistration registration;
         if (existing is not null)
         {
-            existing.RevokedAt = _clock.UtcNow;
+            // Update in place: rotate the token, refresh metadata, keep one row.
+            existing.AppName = metadata.Name;
+            existing.AppIcon = metadata.Icon;
+            existing.AccessToken = accessToken;
+            existing.ResolverBaseUrl = _resolverConfig.BaseUrl;
+            existing.RegisteredAt = _clock.UtcNow;
+            existing.RevokedAt = null;
             await _registrationRepo.UpdateAsync(existing, cancellationToken);
-            await _pendingRequestRepo.CancelAllForAppRegistrationAsync(existing.Id, cancellationToken);
+            registration = existing;
         }
-
-        // Store registration
-        var registration = new AppRegistration
+        else
         {
-            Id = registrationId,
-            UserId = userId,
-            AppId = challenge.RequesterAppId,
-            AppName = metadata.Name,
-            AppIcon = metadata.Icon,
-            AccessToken = accessToken,
-            ResolverBaseUrl = _resolverConfig.BaseUrl,
-            RegisteredAt = _clock.UtcNow
-        };
-
-        registration = await _registrationRepo.CreateAsync(registration, cancellationToken);
+            registration = new AppRegistration
+            {
+                Id = registrationId,
+                UserId = userId,
+                AppId = challenge.RequesterAppId,
+                AppName = metadata.Name,
+                AppIcon = metadata.Icon,
+                AccessToken = accessToken,
+                ResolverBaseUrl = _resolverConfig.BaseUrl,
+                RegisteredAt = _clock.UtcNow
+            };
+            registration = await _registrationRepo.CreateAsync(registration, cancellationToken);
+        }
 
         // Increment rate limit counter
         await _rateLimitStore.IncrementAsync(rateLimitKey, TimeSpan.FromHours(1), cancellationToken);

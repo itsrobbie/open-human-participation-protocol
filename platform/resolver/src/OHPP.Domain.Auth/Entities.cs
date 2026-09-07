@@ -16,9 +16,18 @@ public sealed class Device
     public Guid UserId { get; set; }
     public required string Name { get; set; }
     public required string DeviceType { get; set; }
+    /// <summary>
+    /// Stable per-install identifier supplied by the client (e.g. a UUID kept
+    /// in the device's secure storage). Combined with <see cref="UserId"/> this
+    /// is the device's natural key: re-registering the same install updates the
+    /// existing row instead of creating a duplicate. Nullable for rows created
+    /// before this field existed.
+    /// </summary>
+    public string? DeviceIdentifier { get; set; }
     public string? PublicKey { get; set; }
     public string? KeyAlgorithm { get; set; }
     public required string DeviceToken { get; set; }
+    public string? PushToken { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset RegisteredAt { get; set; }
     public DateTimeOffset? LastSeenAt { get; set; }

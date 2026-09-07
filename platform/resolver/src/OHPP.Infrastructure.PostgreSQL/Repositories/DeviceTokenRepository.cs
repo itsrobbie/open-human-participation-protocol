@@ -23,6 +23,17 @@ public sealed class DeviceTokenRepository : IDeviceTokenRepository
             .FirstOrDefaultAsync(d => d.DeviceToken == deviceToken, cancellationToken);
     }
 
+    public async Task<Device?> GetByUserAndDeviceIdentifierAsync(Guid userId, string deviceIdentifier, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(deviceIdentifier))
+            return null;
+
+        return await _db.Devices
+            .FirstOrDefaultAsync(
+                d => d.UserId == userId && d.DeviceIdentifier == deviceIdentifier,
+                cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Device>> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _db.Devices

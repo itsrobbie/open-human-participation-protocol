@@ -31,6 +31,8 @@ public static class ServiceCollectionExtensions
         // Participation repositories
         services.AddScoped<IPendingRequestRepository, PendingRequestRepository>();
         services.AddScoped<IParticipationRecordRepository, ParticipationRecordRepository>();
+        services.AddScoped<IRuleRepository, RuleRepository>();
+        services.AddScoped<INotificationPreferenceRepository, NotificationPreferenceRepository>();
 
         // Attestation repositories
         services.AddScoped<IKeyStore, KeyStoreRepository>();

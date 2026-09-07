@@ -63,6 +63,10 @@ namespace OHPP.Infrastructure.PostgreSQL.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("DeviceIdentifier")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("DeviceToken")
                         .IsRequired()
                         .HasMaxLength(512)
@@ -92,6 +96,10 @@ namespace OHPP.Infrastructure.PostgreSQL.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
 
+                    b.Property<string>("PushToken")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
                     b.Property<DateTimeOffset>("RegisteredAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -102,6 +110,10 @@ namespace OHPP.Infrastructure.PostgreSQL.Migrations
 
                     b.HasIndex("DeviceToken")
                         .IsUnique();
+
+                    b.HasIndex("UserId", "DeviceIdentifier")
+                        .IsUnique()
+                        .HasFilter("\"DeviceIdentifier\" IS NOT NULL");
 
                     b.HasIndex("UserId", "IsActive");
 
@@ -143,6 +155,40 @@ namespace OHPP.Infrastructure.PostgreSQL.Migrations
                         .IsUnique();
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("OHPP.Domain.Participation.NotificationPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AppId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("BadgeEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("PushEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SoundEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "AppId")
+                        .IsUnique();
+
+                    b.ToTable("notification_preferences", (string)null);
                 });
 
             modelBuilder.Entity("OHPP.Domain.Participation.ParticipationRecord", b =>
@@ -218,6 +264,59 @@ namespace OHPP.Infrastructure.PostgreSQL.Migrations
                     b.ToTable("participation_records", (string)null);
                 });
 
+            modelBuilder.Entity("OHPP.Domain.Participation.ParticipationRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AppId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("AuthLevel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("AutoRespondEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("AutoRespondOption")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("AutoRespondValue")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Priority");
+
+                    b.ToTable("participation_rules", (string)null);
+                });
+
             modelBuilder.Entity("OHPP.Domain.Participation.PendingRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -274,6 +373,37 @@ namespace OHPP.Infrastructure.PostgreSQL.Migrations
                     b.ToTable("pending_requests", (string)null);
                 });
 
+            modelBuilder.Entity("OHPP.Domain.Participation.RuleCondition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Field")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Operator")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RuleId");
+
+                    b.ToTable("rule_conditions", (string)null);
+                });
+
             modelBuilder.Entity("OHPP.Domain.Registration.AppRegistration", b =>
                 {
                     b.Property<Guid>("Id")
@@ -317,6 +447,10 @@ namespace OHPP.Infrastructure.PostgreSQL.Migrations
 
                     b.HasIndex("AccessToken")
                         .IsUnique();
+
+                    b.HasIndex("UserId", "AppId")
+                        .IsUnique()
+                        .HasFilter("\"RevokedAt\" IS NULL");
 
                     b.HasIndex("UserId", "AppId", "RevokedAt");
 
@@ -363,6 +497,20 @@ namespace OHPP.Infrastructure.PostgreSQL.Migrations
                     b.HasIndex("UserId", "IsCompleted");
 
                     b.ToTable("registration_challenges", (string)null);
+                });
+
+            modelBuilder.Entity("OHPP.Domain.Participation.RuleCondition", b =>
+                {
+                    b.HasOne("OHPP.Domain.Participation.ParticipationRule", null)
+                        .WithMany("Conditions")
+                        .HasForeignKey("RuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OHPP.Domain.Participation.ParticipationRule", b =>
+                {
+                    b.Navigation("Conditions");
                 });
 #pragma warning restore 612, 618
         }

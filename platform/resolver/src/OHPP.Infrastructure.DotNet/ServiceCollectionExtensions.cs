@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using OHPP.Domain.Attestation;
 using OHPP.Domain.Participation;
 using OHPP.Domain.Registration;
@@ -39,6 +40,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INotificationChannel>(sp => sp.GetRequiredService<SseNotificationChannel>());
         services.AddSingleton<InMemoryEventBroadcaster>();
         services.AddSingleton<IEventBroadcaster>(sp => sp.GetRequiredService<InMemoryEventBroadcaster>());
+
+        // Push dispatcher seam: default to a no-op (SSE + polling are the real dev
+        // delivery paths). TryAdd is order-independent - if the Firebase provider
+        // already registered FcmPushNotificationSender (production, when Google
+        // credentials resolve), that wins; otherwise this no-op default applies.
+        services.TryAddScoped<IPushNotificationSender, NoOpPushNotificationSender>();
 
         // Rate limiting
         services.AddSingleton<IRateLimitStore, InMemoryRateLimitStore>();

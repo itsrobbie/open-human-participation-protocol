@@ -2,11 +2,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OHPP.Domain.Auth\OHPP.Domain.Auth.csproj" />
+    <ProjectReference Include="..\OHPP.Domain.Participation\OHPP.Domain.Participation.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FirebaseAdmin" Version="3.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
