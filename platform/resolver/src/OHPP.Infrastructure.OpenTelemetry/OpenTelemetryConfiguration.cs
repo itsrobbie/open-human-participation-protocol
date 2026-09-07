@@ -1,4 +1,9 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using OpenTelemetry;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -7,16 +12,26 @@ namespace OHPP.Infrastructure.OpenTelemetry;
 public static class OpenTelemetryConfiguration
 {
     /// <summary>
-    /// Configures OpenTelemetry tracing for the OHPP Resolver.
+    /// Configures OpenTelemetry (traces + metrics + logs) for the Resolver.
+    ///
+    /// Exporter selection is config-driven and fail-open (NFR-A1, NFR-Rel1):
+    /// - If OTEL_EXPORTER_OTLP_ENDPOINT is set, export via OTLP to that endpoint
+    ///   (the OTel Collector in dev).
+    /// - If unset, no OTLP exporter is added (safe default for unit tests / offline);
+    ///   a console exporter is used for traces so local runs still show activity.
     /// </summary>
-    public static IServiceCollection AddOhppOpenTelemetry(this IServiceCollection services)
+    public static IServiceCollection AddOhppOpenTelemetry(
+        this IServiceCollection services,
+        string serviceName = "OHPP.Resolver")
     {
+        var otlpEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
+        var hasOtlp = !string.IsNullOrWhiteSpace(otlpEndpoint);
+        var version = typeof(OpenTelemetryConfiguration).Assembly.GetName().Version?.ToString() ?? "0.0.0";
+
         services.AddOpenTelemetry()
             .ConfigureResource(resource =>
             {
-                resource.AddService(
-                    serviceName: "OHPP.Resolver",
-                    serviceVersion: typeof(OpenTelemetryConfiguration).Assembly.GetName().Version?.ToString() ?? "0.0.0");
+                resource.AddService(serviceName: serviceName, serviceVersion: version);
             })
             .WithTracing(tracing =>
             {
@@ -26,10 +41,76 @@ public static class OpenTelemetryConfiguration
                         options.RecordException = true;
                         options.Filter = context =>
                             !context.Request.Path.StartsWithSegments("/health");
+                        // Stamp the OHPP request id onto the server span when present
+                        // in the route, so a ceremony is filterable by ohpp.request_id.
+                        options.EnrichWithHttpRequest = (activity, request) =>
+                        {
+                            var requestId = ExtractRequestId(request);
+                            if (!string.IsNullOrWhiteSpace(requestId))
+                            {
+                                activity.SetTag(OhppTelemetryEnrichment.RequestIdKey, requestId);
+                            }
+                        };
                     })
-                    .AddConsoleExporter();
+                    .AddHttpClientInstrumentation();
+
+                if (hasOtlp)
+                {
+                    tracing.AddOtlpExporter();
+                }
+                else
+                {
+                    tracing.AddConsoleExporter();
+                }
+            })
+            .WithMetrics(metrics =>
+            {
+                metrics
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddRuntimeInstrumentation();
+
+                if (hasOtlp)
+                {
+                    metrics.AddOtlpExporter();
+                }
             });
 
+        // Logs: route through OpenTelemetry to OTLP when configured.
+        services.AddLogging(logging =>
+        {
+            logging.AddOpenTelemetry(otelLogging =>
+            {
+                otelLogging.SetResourceBuilder(
+                    ResourceBuilder.CreateDefault().AddService(serviceName, serviceVersion: version));
+                otelLogging.IncludeScopes = true;
+                otelLogging.IncludeFormattedMessage = true;
+                if (hasOtlp)
+                {
+                    otelLogging.AddOtlpExporter();
+                }
+            });
+        });
+
         return services;
+    }
+
+    /// <summary>
+    /// Extracts the OHPP request id from a request's route values when the route
+    /// defines a {requestId} or {id} guid parameter. Returns null when absent.
+    /// Kept internal-simple and null-safe; never throws.
+    /// </summary>
+    private static string? ExtractRequestId(HttpRequest request)
+    {
+        var routeValues = request.HttpContext.Request.RouteValues;
+        if (routeValues.TryGetValue("requestId", out var rid) && rid is not null)
+        {
+            return rid.ToString();
+        }
+        if (routeValues.TryGetValue("id", out var id) && id is not null)
+        {
+            return id.ToString();
+        }
+        return null;
     }
 }
