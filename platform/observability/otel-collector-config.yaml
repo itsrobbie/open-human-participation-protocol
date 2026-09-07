@@ -1,0 +1,97 @@
+# OpenTelemetry Collector configuration for the OHPP dev stack (U7.1).
+# Single ingest point: every service exports OTLP here; the Collector fans out
+# to Loki (logs), Tempo (traces), and Prometheus (metrics).
+#
+# NFR-S1: a redaction processor strips disallowed attributes as a safety net,
+# on top of the source-level allowlist in each service.
+
+receivers:
+  otlp:
+    protocols:
+      # Backend services export over gRPC with TLS (U7.1, Phase 6). The collector
+      # presents its step-ca leaf (chain) cert; clients trust the dev root.
+      grpc:
+        endpoint: 0.0.0.0:4317
+        tls:
+          cert_file: /certs/otel-collector.chain.crt
+          key_file: /certs/otel-collector.key
+      # The browser SPA (Portal) POSTs spans directly via OTLP/HTTP. This path is
+      # kept plaintext on 4318 because the browser cannot easily trust the dev root
+      # CA; it is a documented dev-only exception (see deployment-architecture.md)
+      # and the collector is not exposed outside localhost.
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "http://localhost:3000"
+            - "http://localhost:*"
+          allowed_headers:
+            - "*"
+
+processors:
+  batch:
+    # Fail-open, low-overhead batching (NFR-P1, NFR-Rel1).
+    timeout: 5s
+    send_batch_size: 512
+
+  # Safety-net redaction (NFR-S1). Services should already only emit allowed
+  # attributes; this deletes anything sensitive that slips through.
+  attributes/redact:
+    actions:
+      - key: authorization
+        action: delete
+      - key: access_token
+        action: delete
+      - key: refresh_token
+        action: delete
+      - key: device_token
+        action: delete
+      - key: attestation_payload
+        action: delete
+      - key: password
+        action: delete
+      - key: email
+        action: delete
+
+  # Keep the resource service.name and the OHPP correlation attributes.
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: dev
+        action: upsert
+
+exporters:
+  # Logs -> Loki (OTLP-native ingestion path)
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+  # Traces -> Tempo
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Metrics -> Prometheus (remote write)
+  prometheusremotewrite:
+    endpoint: http://prometheus:9090/api/v1/write
+    tls:
+      insecure: true
+
+  # Dev visibility of what the collector receives
+  debug:
+    verbosity: normal
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [attributes/redact, resource, batch]
+      exporters: [otlp/tempo, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [prometheusremotewrite]
+    logs:
+      receivers: [otlp]
+      processors: [attributes/redact, resource, batch]
+      exporters: [otlphttp/loki, debug]

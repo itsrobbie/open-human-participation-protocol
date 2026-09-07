@@ -1,0 +1,64 @@
+{
+  "uid": "ohpp-overview",
+  "title": "OHPP Overview",
+  "tags": ["ohpp"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Log volume by service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "ohpp-loki" },
+      "targets": [
+        {
+          "expr": "sum by (service_name) (count_over_time({service_name=~\".+\"} [1m]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Recent errors (all services)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "ohpp-loki" },
+      "targets": [
+        {
+          "expr": "{service_name=~\".+\"} |= \"error\"",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Request duration (p95) by service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "ohpp-prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, job) (rate(http_server_request_duration_seconds_bucket[5m])))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Request rate by service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "ohpp-prometheus" },
+      "targets": [
+        {
+          "expr": "sum by (job) (rate(http_server_request_duration_seconds_count[5m]))",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

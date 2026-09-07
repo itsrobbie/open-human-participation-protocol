@@ -1,0 +1,38 @@
+# Grafana data source provisioning for the OHPP dev stack (U7.1).
+# Auto-wires Loki (logs), Tempo (traces), and Prometheus (metrics) so Grafana
+# is a ready-to-use single pane on first `make dev`.
+
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    uid: ohpp-loki
+    url: http://loki:3100
+    jsonData:
+      # Pivot from a log line to its trace via the trace_id/request_id.
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '"trace_id":"(\w+)"'
+          url: '$${__value.raw}'
+          datasourceUid: ohpp-tempo
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    uid: ohpp-tempo
+    url: http://tempo:3200
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: ohpp-loki
+        filterByTraceID: true
+      tracesToMetrics:
+        datasourceUid: ohpp-prometheus
+
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    uid: ohpp-prometheus
+    url: http://prometheus:9090
+    isDefault: true

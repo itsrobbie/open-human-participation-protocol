@@ -1,0 +1,49 @@
+{
+  "uid": "ohpp-follow-ceremony",
+  "title": "Follow a Ceremony",
+  "tags": ["ohpp"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "request_id",
+        "label": "OHPP Request ID",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Logs for this ceremony (all services)",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "ohpp-loki" },
+      "targets": [
+        {
+          "expr": "{service_name=~\".+\"} | json | ohpp_request_id=\"$request_id\"",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Traces for this ceremony",
+      "type": "traces",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "tempo", "uid": "ohpp-tempo" },
+      "targets": [
+        {
+          "queryType": "traceql",
+          "query": "{ .ohpp.request_id = \"$request_id\" }",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

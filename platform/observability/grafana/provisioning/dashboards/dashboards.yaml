@@ -1,0 +1,14 @@
+# Grafana dashboard provider for the OHPP dev stack (U7.1).
+# Loads the starter dashboards committed under ./dashboards.
+
+apiVersion: 1
+
+providers:
+  - name: OHPP
+    orgId: 1
+    folder: OHPP
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
