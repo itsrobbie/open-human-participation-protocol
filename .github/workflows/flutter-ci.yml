@@ -1,0 +1,83 @@
+name: Flutter Client App CI
+
+on:
+  push:
+    paths:
+      - 'platform/client-app/**'
+      - '.github/workflows/flutter-ci.yml'
+  pull_request:
+    paths:
+      - 'platform/client-app/**'
+      - '.github/workflows/flutter-ci.yml'
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform/client-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: 'stable'
+      - run: flutter pub get
+      - run: flutter analyze
+
+  test:
+    name: Unit + Widget + Integration Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform/client-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: 'stable'
+      - run: flutter pub get
+      - run: flutter test
+
+  golden:
+    name: Golden Tests (Visual Regression)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform/client-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: 'stable'
+      - run: flutter pub get
+      - name: Run golden tests
+        run: flutter test --update-goldens
+      - name: Check for uncommitted golden changes
+        run: |
+          if [ -n "$(git status --porcelain '*/goldens/*.png')" ]; then
+            echo "::error::Golden baselines changed. Run 'flutter test --update-goldens' locally, review the diffs, and commit."
+            git diff --stat '*/goldens/*.png'
+            exit 1
+          fi
+
+  # E2E tests run on a schedule or manual trigger only (requires device + Docker stack)
+  # e2e:
+  #   name: E2E Device Tests (FINAL GATE)
+  #   runs-on: macos-latest
+  #   if: github.event_name == 'workflow_dispatch' || github.event.schedule
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: subosito/flutter-action@v2
+  #       with:
+  #         flutter-version: '3.47.0'
+  #     - name: Start E2E infrastructure
+  #       run: docker compose -f platform/client-app/docker-compose.e2e-flutter.yml up -d --wait
+  #     - name: Run E2E tests
+  #       run: flutter test platform/client-app/test_e2e/
+  #     - name: Teardown
+  #       if: always()
+  #       run: docker compose -f platform/client-app/docker-compose.e2e-flutter.yml down -v

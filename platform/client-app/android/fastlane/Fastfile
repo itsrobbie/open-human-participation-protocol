@@ -1,0 +1,24 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build the Android app bundle"
+  lane :build do
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      project_dir: ".",
+    )
+  end
+
+  desc "Upload to Play Console (internal track)"
+  lane :beta do
+    build
+    upload_to_play_store(
+      track: "internal",
+      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+  end
+end

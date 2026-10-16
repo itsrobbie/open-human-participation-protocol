@@ -1,0 +1,91 @@
+name: ohpp_client
+description: OHPP Client App - Mobile participation client for the Open Human Participation Protocol.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.0
+  flutter: ^3.47.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Routing
+  go_router: ^14.8.1
+
+  # HTTP
+  dio: ^5.7.0
+
+  # Local database (sqflite with SQLCipher for encryption)
+  sqflite: ^2.4.1
+  sqflite_common_ffi: ^2.3.4
+  sqlcipher_flutter_libs: ^0.6.5
+
+  # Secure storage
+  flutter_secure_storage: ^9.2.4
+
+  # Biometric auth
+  local_auth: ^2.3.0
+
+  # Push notifications (requires GoogleService-Info.plist for device builds)
+  # Uncomment when Firebase project is configured:
+  # firebase_core: ^3.12.1
+  # firebase_messaging: ^15.2.4
+  # firebase_analytics: ^11.4.4
+  # firebase_crashlytics: ^4.3.4
+
+  # QR scanning (disabled for simulator builds - no camera available)
+  # mobile_scanner: ^6.0.5
+
+  # Markdown rendering
+  flutter_markdown: ^0.7.6
+
+  # Connectivity
+  connectivity_plus: ^6.1.4
+
+  # Image caching
+  cached_network_image: ^3.4.1
+
+  # Signature canvas
+  hand_signature: ^3.0.2
+
+  # Utilities
+  intl: ^0.19.0
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+  # Hashing (certificate pinning SPKI hashes)
+  crypto: ^3.0.3
+
+  # Pure-Dart crypto (P-256 ECDSA) for the agent-friendly signer used on
+  # simulators and automated tests, where the Secure Enclave is unavailable.
+  # Release/device builds use the native Secure Enclave path instead.
+  pointycastle: ^4.0.0
+
+  # Observability (U7.1)
+  # Crash reporting via Sentry SDK -> self-hosted GlitchTip (Sentry-API-compatible);
+  # DSN supplied at build time via --dart-define=CRASH_DSN (no-op when unset).
+  sentry_flutter: ^8.9.0
+  # Product analytics via self-hosted Umami: events POSTed to /api/send using
+  # dart:io HttpClient (Umami has no Flutter SDK), so no extra package needed.
+  # host/key via --dart-define (ANALYTICS_HOST / ANALYTICS_KEY = website UUID);
+  # no-op when unset.
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  sqflite_common_ffi: ^2.3.4
+  mockito: ^5.4.4
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
