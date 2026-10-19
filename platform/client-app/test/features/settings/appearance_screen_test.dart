@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ohpp_client/core/theme/app_theme.dart';
 import 'package:ohpp_client/features/settings/appearance_screen.dart';
-import 'package:ohpp_client/shared/providers/appearance_provider.dart';
 
 void main() {
   Widget buildAppearance({ThemeData? theme}) {

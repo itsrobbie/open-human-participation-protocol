@@ -8,10 +8,10 @@ import 'package:ohpp_client/core/telemetry/otlp_telemetry_service.dart';
 /// convention rather than mockito codegen).
 class _RecordingPoster {
   final List<({Uri url, String body})> calls = [];
-  int statusToReturn;
+  int statusToReturn = 200;
   bool throwOnPost;
 
-  _RecordingPoster({this.statusToReturn = 200, this.throwOnPost = false});
+  _RecordingPoster({this.throwOnPost = false});
 
   Future<int> post(Uri url, Map<String, String> headers, String body) async {
     calls.add((url: url, body: body));

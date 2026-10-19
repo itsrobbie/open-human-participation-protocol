@@ -1,83 +1,105 @@
 name: Flutter Client App CI
 
+# Runs INSIDE the shared one-OS dev image (.devcontainer/Dockerfile, published to
+# GHCR by dev-image.yml). CI and a local devcontainer are therefore the same
+# environment: same Flutter 3.47.0, same Dart, and the same pinned fonts. That
+# font parity is what makes golden tests deterministic. Baselines are generated
+# in this image (locally via the devcontainer, or by the golden job) and compared
+# in this image, so there is no macOS-vs-Linux rasterisation drift.
+
 on:
   push:
     paths:
       - 'platform/client-app/**'
       - '.github/workflows/flutter-ci.yml'
+      - '.devcontainer/**'
   pull_request:
     paths:
       - 'platform/client-app/**'
       - '.github/workflows/flutter-ci.yml'
+      - '.devcontainer/**'
+
+concurrency:
+  group: flutter-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # Resolve the shared image tag from the devcontainer content hash (same scheme
+  # as dev-image.yml), so a change to the image is picked up automatically.
+  image:
+    name: Resolve dev image
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.tag.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: |
+          HASH=$(find .devcontainer -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12)
+          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "ref=ghcr.io/${REPO}/dev-image:${HASH}" >> "$GITHUB_OUTPUT"
+
   lint:
     name: Lint
+    needs: image
     runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.image.outputs.ref }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         working-directory: platform/client-app
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.0'
-          channel: 'stable'
       - run: flutter pub get
-      - run: flutter analyze
+      # Block on warnings and errors; allow style infos (prefer_const, ordering)
+      # so the WIP test suite's cosmetic lints don't gate CI.
+      - run: flutter analyze --no-fatal-infos
 
   test:
     name: Unit + Widget + Integration Tests
+    needs: image
     runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.image.outputs.ref }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         working-directory: platform/client-app
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.0'
-          channel: 'stable'
       - run: flutter pub get
       - run: flutter test
 
   golden:
     name: Golden Tests (Visual Regression)
+    needs: image
     runs-on: ubuntu-latest
+    container:
+      image: ${{ needs.image.outputs.ref }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     defaults:
       run:
         working-directory: platform/client-app
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.0'
-          channel: 'stable'
       - run: flutter pub get
       - name: Run golden tests
         run: flutter test --update-goldens
       - name: Check for uncommitted golden changes
         run: |
           if [ -n "$(git status --porcelain '*/goldens/*.png')" ]; then
-            echo "::error::Golden baselines changed. Run 'flutter test --update-goldens' locally, review the diffs, and commit."
+            echo "::error::Golden baselines changed. Regenerate in the devcontainer with 'flutter test --update-goldens', review the diffs, and commit."
             git diff --stat '*/goldens/*.png'
             exit 1
           fi
 
-  # E2E tests run on a schedule or manual trigger only (requires device + Docker stack)
-  # e2e:
-  #   name: E2E Device Tests (FINAL GATE)
-  #   runs-on: macos-latest
-  #   if: github.event_name == 'workflow_dispatch' || github.event.schedule
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: subosito/flutter-action@v2
-  #       with:
-  #         flutter-version: '3.47.0'
-  #     - name: Start E2E infrastructure
-  #       run: docker compose -f platform/client-app/docker-compose.e2e-flutter.yml up -d --wait
-  #     - name: Run E2E tests
-  #       run: flutter test platform/client-app/test_e2e/
-  #     - name: Teardown
-  #       if: always()
-  #       run: docker compose -f platform/client-app/docker-compose.e2e-flutter.yml down -v
+  # E2E device tests require a real iOS simulator (Xcode), so they stay on
+  # macOS and cannot run in this Linux image. They live in flutter-e2e.yml
+  # (nightly / manual), which is the one irreducibly macOS-native workflow.

@@ -86,8 +86,9 @@ check: ## Check the tools you need are installed (run this first)
 	else \
 	  printf '  \033[31m✗\033[0m %-16s missing — comes with Docker Desktop (Compose v2)\n' "Docker Compose"; ok=0; \
 	fi; \
-	check_cmd "Make"    make    "macOS/Linux: preinstalled; Windows: 'choco install make' or use Git Bash"; \
+	check_cmd "Make"    make    "macOS/Linux: preinstalled; Windows: use the devcontainer (see README) or WSL2/Git Bash"; \
 	check_cmd "Git"     git     "install Git: https://git-scm.com/downloads"; \
+	check_cmd "Python 3" python3 "needed by 'make dev' (Keycloak redirect generator); install from https://www.python.org/ — or just use the devcontainer"; \
 	printf '\n'; \
 	if docker info >/dev/null 2>&1; then \
 	  printf '  \033[32m✓\033[0m %-16s running\n' "Docker daemon"; \

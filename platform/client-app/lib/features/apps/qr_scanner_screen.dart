@@ -45,6 +45,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     _errorMessage = widget.errorMessage;
   }
 
+  // Wired to MobileScanner's onDetect once the camera view is implemented
+  // (see _buildCameraView). Retained as the QR result handler.
+  // ignore: unused_element
   void _onDetected(String rawValue) {
     if (_state != QrScannerState.scanning) return;
 

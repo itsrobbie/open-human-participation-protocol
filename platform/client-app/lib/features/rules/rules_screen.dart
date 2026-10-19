@@ -88,7 +88,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     rules[index] = Map<String, dynamic>.from(rules[index]);
     rules[index]['enabled'] = !(rules[index]['enabled'] as bool? ?? true);
     // Update state directly for UI responsiveness
-    ref.read(rulesProvider.notifier).state = ref.read(rulesProvider).copyWith(rules: rules);
+    ref.read(rulesProvider.notifier).setRules(rules);
   }
 
   void _confirmDelete(Map<String, dynamic> rule) {

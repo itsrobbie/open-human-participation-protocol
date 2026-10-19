@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:ohpp_client/core/telemetry/otlp_telemetry_service.dart';
-import 'package:ohpp_client/core/telemetry/telemetry_service.dart';
 
 /// U7.1 Phase 5 live verification: the app's real OTLP exporter reaches the
 /// OpenTelemetry Collector. Runs on the simulator against `make dev` and posts

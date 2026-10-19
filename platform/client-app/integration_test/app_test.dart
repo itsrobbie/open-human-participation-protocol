@@ -68,6 +68,7 @@ void main() {
 
   /// Helper: seed a participation request via the Bank transfer API.
   /// Returns the transfer ID if successful.
+  // ignore: unused_element
   Future<String?> seedPendingRequest(String token) async {
     final client = HttpClient();
     try {

@@ -1,0 +1,53 @@
+{
+  "name": "OHPP (one-OS dev)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+
+  // Share the HOST Docker daemon. `make dev` runs `docker compose` here, but the
+  // containers it starts are siblings on the host's daemon, so the demo's ports
+  // publish to the host's localhost and open in the user's normal browser.
+  // This is the lightweight model: no nested daemon, no docker-in-docker.
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
+
+  // Give the in-container user access to the mounted socket. 'docker' group gid
+  // differs across hosts; the onCreate step below reconciles it at runtime.
+  "containerUser": "root",
+
+  // Bind the repo at the SAME absolute path the host uses is not required here,
+  // because all compose bind mounts in this repo are repo-relative and the host
+  // daemon resolves them against the paths in the compose files, which are
+  // relative to the compose file's own directory. We mount the workspace at a
+  // fixed path and run compose from there.
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+
+  // The demo front door + the identity-port services (STACK_ID=0). Forwarded so
+  // they open on the user's host localhost regardless of OS.
+  "forwardPorts": [8888, 3000, 5010, 5020, 5030, 5040, 5050, 8080, 3001, 9090, 16686],
+  "portsAttributes": {
+    "8888": { "label": "Front door (OHPP World)", "onAutoForward": "notify" },
+    "5050": { "label": "Resolver API" },
+    "3000": { "label": "Portal" },
+    "8080": { "label": "Keycloak" },
+    "3001": { "label": "Grafana" }
+  },
+
+  // Reconcile the docker socket group so the Docker CLI can reach the daemon,
+  // then confirm the toolchain. Runs once when the container is created.
+  "onCreateCommand": "bash .devcontainer/on-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "dart-code.dart-code",
+        "dart-code.flutter",
+        "ms-dotnettools.csdevkit"
+      ]
+    }
+  }
+}

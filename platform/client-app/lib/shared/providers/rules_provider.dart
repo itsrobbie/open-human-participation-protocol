@@ -53,6 +53,13 @@ class RulesNotifier extends StateNotifier<RulesState> {
     }
   }
 
+  /// Replace the rules list in place (used for local UI toggles such as
+  /// enabling/disabling a rule without a round-trip).
+  void setRules(List<Map<String, dynamic>> rules) {
+    if (!mounted) return;
+    state = state.copyWith(rules: rules);
+  }
+
   /// Optimistic create: add locally first, sync to server, rollback on failure.
   Future<bool> create(Map<String, dynamic> ruleData) async {
     final optimistic = {...ruleData, 'id': 'temp-${DateTime.now().millisecondsSinceEpoch}'};

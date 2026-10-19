@@ -88,6 +88,43 @@ The protocol specification is complete. A working reference implementation and d
 
 ### Prerequisites
 
+#### Recommended: one environment, every OS (devcontainer)
+
+The whole project is built to run from a single Linux shell, so Windows, macOS,
+and Linux all work the same way. A devcontainer (`.devcontainer/`) defines that
+one Linux environment with every tool pinned: .NET 8, Node 20, Flutter 3.47.0,
+Python 3, and the Docker CLI. You enter it the same way on any OS and run the
+same `make` commands inside it.
+
+You need two things on the host:
+
+| Tool | Why |
+|------|-----|
+| **Docker Desktop** | Runs the containers. On Windows this uses the WSL2 backend, which the devcontainer rides on, so there is no separate Windows path. |
+| **VS Code** with the **Dev Containers** extension (or the `devcontainer` CLI) | Opens the folder in the Linux environment. |
+
+Then: open the repo in VS Code and choose **Reopen in Container** (or run
+`devcontainer up`). When it finishes, you are in the Linux shell:
+
+```bash
+make check   # confirms the toolchain inside the container
+make dev     # builds + starts everything; front door at http://localhost:8888
+```
+
+The container shares the host Docker socket, so the services `make dev` starts
+publish to your normal `localhost` and open in your usual browser. CI runs the
+Flutter checks inside this same image, so "passes locally" and "passes in CI"
+mean the same thing, including the golden visual-regression tests.
+
+The one thing the Linux environment cannot do is build or run the iOS app: that
+needs macOS + Xcode and is handled by the nightly macOS workflow, not the
+devcontainer.
+
+#### Alternative: run natively on the host
+
+If you prefer not to use the devcontainer, you can run everything on the host
+directly. You need three things installed:
+
 You need three things installed before you can run the project:
 
 | Tool | What it is | Install |

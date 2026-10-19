@@ -8,10 +8,8 @@ import 'package:ohpp_client/features/pending/attestation_builder.dart';
 import 'package:ohpp_client/features/pending/offline_queue_manager.dart';
 import 'package:ohpp_client/features/rules/rule_engine.dart';
 import 'package:ohpp_client/shared/models/attestation.dart';
-import 'package:ohpp_client/shared/models/enums.dart';
 import 'package:ohpp_client/shared/models/models.dart';
 import 'package:ohpp_client/shared/models/participation_rule.dart';
-import 'package:ohpp_client/shared/providers/pending_provider.dart';
 
 /// Result of an attestation submission attempt.
 class SubmitResult {
@@ -125,7 +123,7 @@ class AttestationService {
     } on ConnectivityException {
       // Offline: queue for later delivery
       if (_offlineQueue != null) {
-        await _offlineQueue!.enqueue(signed, expiresAt: request.expiry);
+        await _offlineQueue.enqueue(signed, expiresAt: request.expiry);
         await _analytics.capture(AnalyticsEvent.requestResponded,
             properties: {...baseProps, 'queued': true});
         return const SubmitResult(success: true, queued: true);
@@ -140,7 +138,7 @@ class AttestationService {
     } on ApiException catch (e) {
       // Other API errors: try to queue
       if (_offlineQueue != null) {
-        await _offlineQueue!.enqueue(signed, expiresAt: request.expiry);
+        await _offlineQueue.enqueue(signed, expiresAt: request.expiry);
         await _analytics.capture(AnalyticsEvent.requestResponded,
             properties: {...baseProps, 'queued': true});
         return const SubmitResult(success: true, queued: true);
