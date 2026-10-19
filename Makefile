@@ -1,4 +1,4 @@
-.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android
+.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android ci-image ci-flutter ci-flutter-goldens
 
 # Developer-local overrides (git-ignored). Put machine-specific values here, e.g.
 # the iOS simulator to run the Flutter E2E on:
@@ -413,6 +413,32 @@ flutter-test-golden: ## Verify Flutter golden baselines are up to date
 
 flutter-golden-update: ## Update golden baselines (after intentional visual changes)
 	cd platform/client-app && flutter test --update-goldens
+
+# ---- Local = CI: run the Flutter CI gate in the SAME image GitHub builds ------
+# These mirror .github/workflows/flutter-ci.yml exactly. CI builds the image
+# from .devcontainer/Dockerfile and runs the same docker run commands, so a
+# green `make ci-flutter` locally means a green CI run. No registry involved.
+CI_IMAGE ?= ohpp-dev-image:ci
+CI_RUN = docker run --rm -v "$(PWD)":/workspace -w /workspace/platform/client-app $(CI_IMAGE)
+
+ci-image: ## Build the one-OS CI image from .devcontainer/Dockerfile (what CI builds)
+	docker build -f .devcontainer/Dockerfile -t $(CI_IMAGE) .
+
+ci-flutter: ci-image ## Run the full Flutter CI gate locally in the CI image (lint + test + goldens)
+	@echo "== Lint =="
+	$(CI_RUN) bash -c "flutter pub get && flutter analyze --no-fatal-infos"
+	@echo "== Test =="
+	$(CI_RUN) bash -c "flutter pub get && flutter test"
+	@echo "== Goldens (regenerate + verify no drift) =="
+	$(CI_RUN) bash -c "flutter pub get && flutter test --update-goldens"
+	@if [ -n "$$(git status --porcelain 'platform/client-app/test/**/goldens/*.png')" ]; then \
+		echo "FAIL: golden baselines drifted — run 'make ci-flutter-goldens', review, commit."; \
+		git diff --stat 'platform/client-app/test/**/goldens/*.png'; exit 1; \
+	else echo "PASS: all three CI jobs green (lint + test + goldens)."; fi
+
+ci-flutter-goldens: ci-image ## Regenerate golden baselines in the CI image (authoritative) and leave them staged for review
+	$(CI_RUN) bash -c "flutter pub get && flutter test --update-goldens"
+	@echo "Goldens regenerated in the CI image. Review 'git diff' and commit."
 
 # Observability --dart-define values for the Flutter app (U7.1). Empty by
 # default => the app runs with no-op seams. Override on the command line to

@@ -1,11 +1,10 @@
 name: Flutter Client App CI
 
-# Runs INSIDE the shared one-OS dev image (.devcontainer/Dockerfile, published to
-# GHCR by dev-image.yml). CI and a local devcontainer are therefore the same
-# environment: same Flutter 3.47.0, same Dart, and the same pinned fonts. That
-# font parity is what makes golden tests deterministic. Baselines are generated
-# in this image (locally via the devcontainer, or by the golden job) and compared
-# in this image, so there is no macOS-vs-Linux rasterisation drift.
+# Builds the one-OS image from .devcontainer/Dockerfile INSIDE the CI run, then
+# runs lint / test / golden in it. No registry, no cross-workflow dependency:
+# the image is a pure function of the committed Dockerfile, so what CI runs is
+# byte-identical to what `make ci-flutter` runs locally. Font parity with the
+# image is what makes the golden tests deterministic across macOS/Linux/CI.
 
 on:
   push:
@@ -24,78 +23,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Resolve the shared image tag from the devcontainer content hash (same scheme
-  # as dev-image.yml), so a change to the image is picked up automatically.
-  image:
-    name: Resolve dev image
+  flutter:
+    name: Lint + Test + Goldens (one-OS image)
     runs-on: ubuntu-latest
-    outputs:
-      ref: ${{ steps.tag.outputs.ref }}
     steps:
       - uses: actions/checkout@v4
-      - id: tag
-        run: |
-          HASH=$(find .devcontainer -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12)
-          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "ref=ghcr.io/${REPO}/dev-image:${HASH}" >> "$GITHUB_OUTPUT"
 
-  lint:
-    name: Lint
-    needs: image
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.image.outputs.ref }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    defaults:
-      run:
-        working-directory: platform/client-app
-    steps:
-      - uses: actions/checkout@v4
-      - run: flutter pub get
-      # Block on warnings and errors; allow style infos (prefer_const, ordering)
-      # so the WIP test suite's cosmetic lints don't gate CI.
-      - run: flutter analyze --no-fatal-infos
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
 
-  test:
-    name: Unit + Widget + Integration Tests
-    needs: image
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.image.outputs.ref }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    defaults:
-      run:
-        working-directory: platform/client-app
-    steps:
-      - uses: actions/checkout@v4
-      - run: flutter pub get
-      - run: flutter test
+      # Build the image from the committed Dockerfile. gha cache keeps repeat
+      # runs fast; the first run pays the full Flutter/dotnet/node build once.
+      - name: Build one-OS image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Dockerfile
+          tags: ohpp-dev-image:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  golden:
-    name: Golden Tests (Visual Regression)
-    needs: image
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ needs.image.outputs.ref }}
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    defaults:
-      run:
-        working-directory: platform/client-app
-    steps:
-      - uses: actions/checkout@v4
-      - run: flutter pub get
-      - name: Run golden tests
-        run: flutter test --update-goldens
+      - name: Lint (analyze, no-fatal-infos)
+        run: >
+          docker run --rm -v "$PWD":/workspace -w /workspace/platform/client-app
+          ohpp-dev-image:ci bash -c "flutter pub get && flutter analyze --no-fatal-infos"
+
+      - name: Unit + Widget + Integration tests
+        run: >
+          docker run --rm -v "$PWD":/workspace -w /workspace/platform/client-app
+          ohpp-dev-image:ci bash -c "flutter pub get && flutter test"
+
+      - name: Golden tests (regenerate + verify no drift)
+        run: >
+          docker run --rm -v "$PWD":/workspace -w /workspace/platform/client-app
+          ohpp-dev-image:ci bash -c "flutter pub get && flutter test --update-goldens"
+
       - name: Check for uncommitted golden changes
         run: |
           if [ -n "$(git status --porcelain '*/goldens/*.png')" ]; then
-            echo "::error::Golden baselines changed. Regenerate in the devcontainer with 'flutter test --update-goldens', review the diffs, and commit."
+            echo "::error::Golden baselines changed. Run 'make ci-flutter-goldens' locally, review the diffs, and commit."
             git diff --stat '*/goldens/*.png'
             exit 1
           fi
