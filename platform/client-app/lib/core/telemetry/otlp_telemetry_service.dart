@@ -25,7 +25,7 @@ typedef OtlpPoster = Future<int> Function(
 /// never surfaces to the user. Enabled only when constructed with a non-empty
 /// endpoint (main.dart passes OTEL_ENDPOINT).
 class OtlpTelemetryService implements TelemetryService {
-  /// Base collector endpoint, e.g. http://192.168.68.60:4318. Spans are POSTed
+  /// Base collector endpoint, e.g. http://<host-lan-ip>:4318. Spans are POSTed
   /// to "$endpoint/v1/traces".
   final String endpoint;
   final String serviceName;

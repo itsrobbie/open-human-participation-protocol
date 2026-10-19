@@ -12,7 +12,7 @@ test.describe.serial('Marketplace — Auth, Navigation & Purchases', () => {
     await page.fill('#password', 'demo')
     await page.click('#kc-login')
 
-    await page.waitForURL(new RegExp('localhost:5140'), { timeout: 15000 })
+    await page.waitForURL(new RegExp(`${MARKETPLACE_URL.replace('http://', '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*`), { timeout: 15000 })
     await expect(page.getByTestId('hero-section')).toBeVisible({ timeout: 10000 })
   })
 
@@ -130,6 +130,6 @@ async function signIn(page: import('@playwright/test').Page) {
   await page.fill('#username', 'demo')
   await page.fill('#password', 'demo')
   await page.click('#kc-login')
-  await page.waitForURL(new RegExp('localhost:5140'), { timeout: 15000 })
+  await page.waitForURL(new RegExp(`${MARKETPLACE_URL.replace('http://', '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*`), { timeout: 15000 })
   await expect(hero).toBeVisible({ timeout: 10000 })
 }

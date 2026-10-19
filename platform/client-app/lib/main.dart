@@ -66,7 +66,7 @@ const _keycloakClientId = String.fromEnvironment(
 // no-op seams unless explicitly configured at build time via --dart-define. ---
 
 /// OpenTelemetry Collector base endpoint for app traces (OTLP/HTTP), e.g.
-/// http://192.168.68.60:4318. Empty => telemetry export disabled.
+/// http://<host-lan-ip>:4318. Empty => telemetry export disabled.
 const _otelEndpoint = String.fromEnvironment('OTEL_ENDPOINT', defaultValue: '');
 
 /// GlitchTip DSN (Sentry-compatible) for crash reporting. Empty => disabled.

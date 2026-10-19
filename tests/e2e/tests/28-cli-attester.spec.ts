@@ -3,12 +3,13 @@ import { resolve } from 'path'
 import { test, expect } from '@playwright/test'
 import { BANK_URL, PORTAL_URL } from '../test-urls'
 
-const composeFile = resolve(__dirname, '../../../docker-compose.test.yml')
-// Activate every profile the CLI touches: it lives in "tools" but depends_on the
-// resolver ("apps"), which in turn depends on backing services. Without these,
-// Compose rejects the command with "no such service: resolver".
-const PROFILES = '--profile backing --profile apps --profile tools'
-const composeCmd = `docker compose -p ohpp-test -f ${composeFile} ${PROFILES}`
+const composeFile = resolve(__dirname, '../../../docker-compose.apps.yml')
+const OHPP_PROJECT = process.env.OHPP_PROJECT ?? 'ohpp-0'
+// The CLI lives in "tools" and depends_on the resolver ("apps"); backing is a
+// separate shared project, reached over the ohpp-shared network, so only the
+// app-tier profiles are needed here.
+const PROFILES = '--profile apps --profile tools'
+const composeCmd = `docker compose -p ${OHPP_PROJECT} -f ${composeFile} ${PROFILES}`
 
 test.describe.serial('CLI attester simulator', () => {
   test.describe.configure({ timeout: 180_000 })

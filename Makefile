@@ -1,10 +1,22 @@
-.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace world-db-init cli cli-reset test test-node-e2e test-ui test-file test-contracts test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android
+.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android
 
 # Developer-local overrides (git-ignored). Put machine-specific values here, e.g.
 # the iOS simulator to run the Flutter E2E on:
 #   FLUTTER_E2E_DEVICE=iPhone 17 Pro w/ Watch
 # The leading dash means "include if it exists, ignore silently if not".
 -include .env.local
+
+# U9 parallel environments: STACK_ID selects which isolated stack this invocation
+# targets. Resolution (scripts/stack-alloc.sh): an explicit STACK_ID=N wins; else
+# this worktree's pinned .stack-id is reused; else the lowest free id is allocated
+# and pinned. Each worktree thus gets a distinct id (own DB ohpp_N, own ports),
+# so parallel worktrees share services but never share data. The derivation helper
+# then emits every per-stack value into .stack.env (git-ignored), included so both
+# Make and docker compose interpolation see the derived OHPP_PROJECT / OHPP_PORT_*.
+STACK_ID := $(shell STACK_ID=$(STACK_ID) scripts/stack-alloc.sh)
+$(shell STACK_ID=$(STACK_ID) scripts/stack-derive.sh > .stack.env 2>/dev/null)
+-include .stack.env
+export
 
 # Default target: the friendly, curated getting-started menu.
 .DEFAULT_GOAL := help
@@ -105,15 +117,21 @@ check: ## Check the tools you need are installed (run this first)
 # links to backing services resolve; lifecycle is controlled by naming services
 # (backing services are reused if already running, never recreated by dev-apps-up).
 
-COMPOSE = docker compose --progress quiet --profile backing --profile apps
-COMPOSE_BACKING = docker compose --progress quiet --profile backing
+COMPOSE = docker compose --progress quiet -p $(OHPP_PROJECT) -f docker-compose.apps.yml --profile apps
+COMPOSE_BACKING = docker compose --progress quiet -p ohpp-backing -f docker-compose.backing.yml --profile backing
 BACKING_SERVICES = cert-init postgres keycloak redis otel-collector loki tempo prometheus grafana glitchtip-init glitchtip glitchtip-worker
 APP_SERVICES = resolver portal bank insurance-claims pizza marketplace landing
 
-world-db-init: dev-backing-up ## Initialize or upgrade the single World database
+backing-db-init: dev-backing-up ## Initialize shared/global DB objects ONCE (cluster roles + observability DBs). Not per tenant.
 	$(COMPOSE_BACKING) up -d --wait postgres
-	docker compose exec -T postgres psql -U ohpp -d ohpp -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/001_world_schemas.sql
-	docker compose exec -T postgres psql -U ohpp -d ohpp -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/002_observability_databases.sql
+	docker compose -p ohpp-backing -f docker-compose.backing.yml exec -T postgres psql -U ohpp -d ohpp -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/001_roles.sql
+	docker compose -p ohpp-backing -f docker-compose.backing.yml exec -T postgres psql -U ohpp -d ohpp -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/002_observability_databases.sql
+
+tenant-db-init: backing-db-init ## Create + migrate THIS tenant's database (ohpp_$(STACK_ID)); applies per-tenant schemas
+	@docker compose -p ohpp-backing -f docker-compose.backing.yml exec -T postgres \
+		psql -U ohpp -d ohpp -tAc "SELECT 1 FROM pg_database WHERE datname='$(OHPP_DB_NAME)'" | grep -q 1 \
+		|| docker compose -p ohpp-backing -f docker-compose.backing.yml exec -T postgres createdb -U ohpp -O ohpp $(OHPP_DB_NAME)
+	docker compose -p ohpp-backing -f docker-compose.backing.yml exec -T postgres psql -U ohpp -d $(OHPP_DB_NAME) -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/003_tenant_schemas.sql
 
 ensure-docker: ## Ensure the Docker daemon is running (starts Docker Desktop on macOS and waits)
 	@if docker info > /dev/null 2>&1; then exit 0; fi; \
@@ -134,6 +152,7 @@ ensure-docker: ## Ensure the Docker daemon is running (starts Docker Desktop on 
 	fi
 
 dev-backing-up: ensure-docker ## Start ONLY the backing tier (third-party services)
+	@python3 scripts/gen-keycloak-redirects.py >/dev/null
 	$(COMPOSE_BACKING) up -d
 	@echo "  Backing tier up (postgres, keycloak, redis, otel-collector, loki, tempo, prometheus, grafana)."
 
@@ -152,11 +171,11 @@ ca-verify: ## Verify the local CA issued leaf certs with correct SANs and a trus
 		step certificate inspect /certs/resolver.crt --short | grep -q "localhost" && echo "  localhost SAN OK"'
 
 dev-backing-down: ## Stop ONLY the backing tier
-	docker compose --profile backing stop $(BACKING_SERVICES)
+	$(COMPOSE_BACKING) stop $(BACKING_SERVICES)
 
 dev-apps-up: ensure-docker ## Build + start ONLY our code (auto-starts backing if it isn't running)
 	@docker compose ps --status running --services 2>/dev/null | grep -q '^postgres$$' || $(MAKE) dev-backing-up
-	$(MAKE) world-db-init
+	$(MAKE) tenant-db-init
 	$(COMPOSE) up --build -d $(APP_SERVICES)
 
 # The one front door. `make dev`/`dev-analytics` print ONLY this; the landing
@@ -164,11 +183,10 @@ dev-apps-up: ensure-docker ## Build + start ONLY our code (auto-starts backing i
 define OHPP_FRONT_DOOR
 	@echo ""
 	@echo "  ┌───────────────────────────────────────────────────────────┐"
-	@echo "  │  OHPP World is ready.                                      │"
-	@echo "  │  Open the front door:  http://localhost:8888               │"
-	@echo "  │  It links to every app, dashboard and tool, grouped by     │"
-	@echo "  │  purpose, with a get-started guide. (See 'make urls'.)      │"
+	@echo "  │  OHPP World is ready (tenant stack $(STACK_ID)).                        │"
 	@echo "  └───────────────────────────────────────────────────────────┘"
+	@echo "  Open the front door:  http://localhost:$(OHPP_PORT_LANDING)"
+	@echo "  It links to every app, dashboard and tool. (See 'make urls'.)"
 	@echo ""
 endef
 
@@ -178,17 +196,45 @@ dev-apps-down: ## Stop ONLY our code (leaves the backing tier running)
 dev: dev-apps-up ## Start the full dev stack (backing + apps)
 	$(OHPP_FRONT_DOOR)
 
+# ─── Self-serving tenant lifecycle (U9) ──────────────────────────────────────
+#
+# Add / drop / list isolated environments with one command. Each tenant is the
+# worktree's STACK_ID (auto-allocated, or explicit STACK_ID=N). All tenants share
+# ONE backing tier (ohpp-backing) but never share data: each owns database
+# ohpp_$(STACK_ID), its own ports (banded), project ohpp-$(STACK_ID) and network.
+
+tenant-up: ensure-docker ## Add/refresh THIS tenant (STACK_ID=N): ensure backing, create its db, start its app tier. Idempotent.
+	@echo "Bringing up tenant stack $(STACK_ID) (project $(OHPP_PROJECT), db $(OHPP_DB_NAME))..."
+	$(MAKE) test-backing-up
+	$(MAKE) tenant-db-init
+	$(COMPOSE) up --build -d $(APP_SERVICES)
+	@echo "  Tenant $(STACK_ID) up. Front door: http://localhost:$(OHPP_PORT_LANDING)   (see 'make urls STACK_ID=$(STACK_ID)')"
+
+tenant-down: ## Remove ONLY this tenant (STACK_ID=N): stop + remove its app tier, drop its database. Backing + other tenants untouched.
+	@echo "Tearing down tenant stack $(STACK_ID) (project $(OHPP_PROJECT), db $(OHPP_DB_NAME))..."
+	-$(COMPOSE) --profile tools down --volumes --remove-orphans
+	@echo "Dropping database $(OHPP_DB_NAME) on the shared backing Postgres..."
+	-docker compose -p ohpp-backing -f docker-compose.backing.yml exec -T postgres \
+		dropdb -U ohpp --if-exists $(OHPP_DB_NAME)
+	@echo "  Tenant $(STACK_ID) removed. Its .stack-id pin (if any) is left for re-use; delete .stack-id to free the id."
+
+tenant-list: ## List running tenant app tiers (ohpp-N projects) with their STACK_ID
+	@echo "Running tenant app tiers (shared backing = ohpp-backing):"
+	@docker compose ls --all --format json 2>/dev/null \
+		| grep -o '"Name":"ohpp-[0-9]*"' | grep -o 'ohpp-[0-9]*' | sort -u \
+		| sed 's/^/  /' || echo "  (none running)"
+
 urls: ## Print every service URL (the landing page at :8888 shows these too)
-	@echo "  Front door:       http://localhost:8888  (start here)"
-	@echo "  --- Demo apps ---"
-	@echo "  Bank:             http://localhost:5010"
-	@echo "  Insurance Claims: http://localhost:5020"
-	@echo "  Pizza:            http://localhost:5030"
-	@echo "  Marketplace:      http://localhost:5040"
-	@echo "  --- Platform ---"
-	@echo "  Portal:           http://localhost:3000"
-	@echo "  Resolver API:     http://localhost:5050/swagger"
-	@echo "  --- Observability ---"
+	@echo "  Front door:       http://localhost:$(OHPP_PORT_LANDING)  (start here)"
+	@echo "  --- Demo apps (tenant stack $(STACK_ID)) ---"
+	@echo "  Bank:             http://localhost:$(OHPP_PORT_BANK)"
+	@echo "  Insurance Claims: http://localhost:$(OHPP_PORT_INSURANCE)"
+	@echo "  Pizza:            http://localhost:$(OHPP_PORT_PIZZA)"
+	@echo "  Marketplace:      http://localhost:$(OHPP_PORT_MARKETPLACE)"
+	@echo "  --- Platform (tenant stack $(STACK_ID)) ---"
+	@echo "  Portal:           http://localhost:$(OHPP_PORT_PORTAL)"
+	@echo "  Resolver API:     http://localhost:$(OHPP_PORT_RESOLVER_HTTP)/swagger"
+	@echo "  --- Observability (shared backing) ---"
 	@echo "  Grafana:          http://localhost:3001  (logs/traces/metrics - single pane)"
 	@echo "  Prometheus:       http://localhost:9090"
 	@echo "  GlitchTip:        http://localhost:8000  (crash/error reporting)"
@@ -196,14 +242,15 @@ urls: ## Print every service URL (the landing page at :8888 shows these too)
 	@echo "  --- Dev tools ---"
 	@echo "  CLI attester:     make cli"
 
-ANALYTICS_COMPOSE = docker compose --progress quiet --profile backing --profile apps --profile analytics
+ANALYTICS_COMPOSE = $(COMPOSE_BACKING) --profile analytics
 
-dev-analytics: world-db-init ## Start the dev stack WITH the analytics profile (Umami + placeholder stubs), seeded
-	# world-db-init (above) has already ensured the `umami` db/role exist. Bring up
+dev-analytics: tenant-db-init ## Start the dev stack WITH the analytics profile (Umami + placeholder stubs), seeded
+	# tenant-db-init (above) chains backing-db-init, which has already ensured the
+	# `umami` db/role exist. Bring up
 	# Umami and wait for it to be healthy, then run the seed one-shot to completion
 	# so the fixed analytics website UUID exists - no manual steps, survives clean.
 	$(ANALYTICS_COMPOSE) up --build -d --wait umami minio mailpit openbao
-	$(ANALYTICS_COMPOSE) up --build -d $(APP_SERVICES)
+	$(COMPOSE) up --build -d $(APP_SERVICES)
 	$(ANALYTICS_COMPOSE) up umami-init
 	$(OHPP_FRONT_DOOR)
 	@echo "  (Analytics profile enabled — Umami, Mailpit, MinIO, OpenBao are on the front door / 'make urls'.)"
@@ -229,41 +276,42 @@ verify-observability: ## Whole-world observability sweep against the dev stack (
 	@echo "✓ Whole-world observability verified: every service's data lands in the dashboards."
 
 dev-build: ## Rebuild and restart ONLY our code (force-recreate apps)
-	$(MAKE) world-db-init
+	$(MAKE) tenant-db-init
 	$(COMPOSE) up --build -d --force-recreate $(APP_SERVICES)
 	@echo ""
-	@echo "  Bank:            http://localhost:5010"
-	@echo "  Insurance Claims: http://localhost:5020"
-	@echo "  Pizza:           http://localhost:5030"
-	@echo "  Marketplace:     http://localhost:5040"
-	@echo "  Portal:          http://localhost:3000"
-	@echo "  Resolver:        http://localhost:5050/swagger"
+	@echo "  Bank:            http://localhost:$(OHPP_PORT_BANK)"
+	@echo "  Insurance Claims: http://localhost:$(OHPP_PORT_INSURANCE)"
+	@echo "  Pizza:           http://localhost:$(OHPP_PORT_PIZZA)"
+	@echo "  Marketplace:     http://localhost:$(OHPP_PORT_MARKETPLACE)"
+	@echo "  Portal:          http://localhost:$(OHPP_PORT_PORTAL)"
+	@echo "  Resolver:        http://localhost:$(OHPP_PORT_RESOLVER_HTTP)/swagger"
 	@echo "  CLI attester:    make cli (development simulator, not the mobile Client App)"
 	@echo ""
 
 dev-down: ## Stop the entire dev stack (both tiers)
-	docker compose --profile backing --profile apps --profile analytics --profile tools down
+	$(COMPOSE) --profile tools down
+	$(COMPOSE_BACKING) --profile analytics down
 
 dev-logs: ## Tail logs from all services
-	docker compose logs -f --tail=50
+	$(COMPOSE) logs -f --tail=50
 
 dev-logs-resolver: ## Tail resolver logs
-	docker compose logs -f --tail=50 resolver
+	$(COMPOSE) logs -f --tail=50 resolver
 
 dev-logs-bank: ## Tail bank logs
-	docker compose logs -f --tail=50 bank
+	$(COMPOSE) logs -f --tail=50 bank
 
 dev-logs-insurance: ## Tail Insurance Claims logs
-	docker compose logs -f --tail=50 insurance-claims
+	$(COMPOSE) logs -f --tail=50 insurance-claims
 
 dev-logs-pizza: ## Tail Pizza app logs
-	docker compose logs -f --tail=50 pizza
+	$(COMPOSE) logs -f --tail=50 pizza
 
 dev-logs-marketplace: ## Tail Marketplace app logs
-	docker compose logs -f --tail=50 marketplace
+	$(COMPOSE) logs -f --tail=50 marketplace
 
 cli: ## Run the interactive development attester simulator
-	docker compose --profile backing --profile apps --profile tools run --rm cli
+	$(COMPOSE) run --rm cli
 
 cli-reset: ## Forget the CLI simulator token and signing keys
 	docker compose --profile backing --profile apps --profile tools run --rm --entrypoint sh cli -c 'rm -f /root/.ohpp/cli-config.json'
@@ -450,7 +498,7 @@ flutter-play-sim: ## UX/UI hands-on on a booted iOS SIMULATOR against localhost 
 
 flutter-verify-pinning: ## Live cert-pinning check: real Dio+adapter accepts the resolver's real cert, rejects a wrong one (needs 'make dev')
 	@echo "Reading dev root CA from the ca_certs volume..."
-	@ROOT_CA_B64="$$(docker compose --profile backing run --rm --no-deps -T --entrypoint sh cert-init -c 'base64 /certs/root_ca.crt' | tr -d '\r\n')"; \
+	@ROOT_CA_B64="$$($(COMPOSE_BACKING) run --rm --no-deps -T --entrypoint sh cert-init -c 'base64 /certs/root_ca.crt' | tr -d '\r\n')"; \
 	if [ -z "$$ROOT_CA_B64" ]; then echo "Error: could not read dev root CA. Run 'make dev' (or 'make ca-issue') first." && exit 1; fi; \
 	cd platform/client-app && flutter test test_e2e/cert_pinning_live_test.dart \
 		--dart-define=RESOLVER_TLS_URL=https://localhost:5443 \
@@ -563,62 +611,73 @@ build-marketplace: ## Build the Marketplace app (backend + frontend)
 # ─── Cleanup ─────────────────────────────────────────────────────────────────
 
 clean: ## Stop dev stack and remove volumes
-	docker compose down --volumes
+	$(COMPOSE) --profile tools down --volumes
+	$(COMPOSE_BACKING) --profile analytics down --volumes
 
 clean-cache: ## Clear Docker build cache (frees disk space)
 	docker builder prune -a -f
 
 clean-all: ## Nuclear option: stop everything, remove all images/volumes/cache
-	docker compose down --volumes --rmi all
-	docker compose -p ohpp-test -f docker-compose.test.yml down --volumes --rmi all 2>/dev/null || true
+	$(COMPOSE) --profile tools down --volumes --rmi all 2>/dev/null || true
+	$(COMPOSE_BACKING) --profile analytics down --volumes --rmi all 2>/dev/null || true
 	docker builder prune -a -f
 	@echo "Cleaned. Next 'make dev' or 'make test' will rebuild from scratch."
 
 # ─── Test Stack (two tiers) ──────────────────────────────────────────────────
 #
-# Same backing/apps split as the dev stack, on the isolated ohpp-test project.
-# The backing tier (postgres, keycloak, otel-collector, tempo) persists across
-# test runs; only the apps tier is rebuilt/recreated. Playwright's global-setup
-# manages the apps tier and reuses backing; global-teardown stops only apps.
+# U9: the test stack is NOT a separate compose file. docker-compose.test.yml is
+# retired; the E2E suite runs the SAME split files as dev (docker-compose.backing.yml
+# + docker-compose.apps.yml) as the WORKTREE'S OWN tenant (its allocated STACK_ID).
+# Backing is the one shared tier (ohpp-backing); the app tier is this worktree's
+# project ohpp-$(STACK_ID). reset-db.sql only ever touches this tenant's ohpp_N,
+# so a parallel worktree's data is never affected. Debug data in this tenant is
+# disposable (tests reset it); persistent data lives in a dedicated worktree you
+# never run tests against.
+#
+# TEST_* vars are kept as thin aliases of the dev split-file vars so the targets
+# and the names the harness/docs reference still resolve.
 
-TEST_COMPOSE = docker compose --progress quiet -p ohpp-test -f docker-compose.test.yml --profile backing --profile apps
-TEST_COMPOSE_BACKING = docker compose --progress quiet -p ohpp-test -f docker-compose.test.yml --profile backing
+TEST_COMPOSE = $(COMPOSE)
+TEST_COMPOSE_BACKING = $(COMPOSE_BACKING)
 TEST_BACKING_SERVICES = postgres keycloak otel-collector tempo
 TEST_APP_SERVICES = resolver portal bank insurance-claims pizza marketplace
 
-test-backing-up: ## Start ONLY the test backing tier (persists across test runs)
+test-backing-up: ## Ensure the shared backing tier is up (same one dev uses)
+	@python3 scripts/gen-keycloak-redirects.py >/dev/null
 	$(TEST_COMPOSE_BACKING) up cert-init
 	$(TEST_COMPOSE_BACKING) up -d --wait $(TEST_BACKING_SERVICES)
 
-test-backing-down: ## Stop ONLY the test backing tier
+test-backing-down: ## Stop the shared backing tier
 	$(TEST_COMPOSE_BACKING) stop $(TEST_BACKING_SERVICES)
 
-test-apps-up: ## Build + start ONLY the test apps tier (auto-starts backing if needed)
-	@docker compose -p ohpp-test -f docker-compose.test.yml ps --status running --services 2>/dev/null | grep -q '^postgres$$' || $(MAKE) test-backing-up
+test-apps-up: ## Build + start this worktree's app tier for tests (auto-starts backing; inits this tenant's db)
+	@docker compose -p ohpp-backing -f docker-compose.backing.yml ps --status running --services 2>/dev/null | grep -q '^postgres$$' || $(MAKE) test-backing-up
+	$(MAKE) tenant-db-init
 	$(TEST_COMPOSE) up --build -d --wait $(TEST_APP_SERVICES)
 
-test-apps-down: ## Stop ONLY the test apps tier (leaves backing running)
+test-apps-down: ## Stop this worktree's app tier (leaves shared backing running)
 	$(TEST_COMPOSE) stop $(TEST_APP_SERVICES)
 
-test-stack-up: ## Start the full test stack (backing + apps) for debugging
+test-stack-up: ## Start this worktree's full stack (shared backing + its app tier) for debugging
 	$(MAKE) test-backing-up
+	$(MAKE) tenant-db-init
 	$(TEST_COMPOSE) up --build -d --wait $(TEST_APP_SERVICES)
 
-test-stack-rebuild: ## Force rebuild test app images (no cache) and start
+test-stack-rebuild: ## Force rebuild this worktree's app images (no cache) and start
 	$(TEST_COMPOSE) build --no-cache $(TEST_APP_SERVICES)
 	$(MAKE) test-stack-up
 
-test-stack-down: ## Tear down the ENTIRE test stack (both tiers) and remove volumes
-	docker compose -p ohpp-test -f docker-compose.test.yml --profile backing --profile apps --profile tools down --volumes --remove-orphans
+test-stack-down: ## Tear down this worktree's app tier + volumes (shared backing left running)
+	$(TEST_COMPOSE) --profile tools down --volumes --remove-orphans
 
-test-stack-logs: ## Tail all test stack logs
-	docker compose -p ohpp-test -f docker-compose.test.yml logs -f --tail=50
+test-stack-logs: ## Tail this worktree's app tier logs
+	$(TEST_COMPOSE) logs -f --tail=50
 
-test-stack-logs-pizza: ## Tail pizza test container logs
-	docker compose -p ohpp-test -f docker-compose.test.yml logs -f --tail=50 pizza
+test-stack-logs-pizza: ## Tail pizza container logs (this worktree's tenant)
+	$(TEST_COMPOSE) logs -f --tail=50 pizza
 
-test-stack-logs-marketplace: ## Tail marketplace test container logs
-	docker compose -p ohpp-test -f docker-compose.test.yml logs -f --tail=50 marketplace
+test-stack-logs-marketplace: ## Tail marketplace container logs (this worktree's tenant)
+	$(TEST_COMPOSE) logs -f --tail=50 marketplace
 
-test-stack-ps: ## Show test stack container status
-	docker compose -p ohpp-test -f docker-compose.test.yml ps -a
+test-stack-ps: ## Show this worktree's tenant container status
+	$(TEST_COMPOSE) ps -a

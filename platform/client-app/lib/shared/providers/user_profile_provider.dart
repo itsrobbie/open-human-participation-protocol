@@ -32,6 +32,6 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
   return UserProfile(
     userId: auth.userId ?? '',
     displayName: 'User',
-    resolverBaseUrl: 'http://localhost:5000',
+    resolverBaseUrl: 'http://localhost:5050',
   );
 });

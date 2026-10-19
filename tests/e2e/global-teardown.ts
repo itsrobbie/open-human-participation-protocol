@@ -1,10 +1,11 @@
 import { execSync } from 'child_process'
 import { resolve } from 'path'
 
-const COMPOSE_FILE = resolve(__dirname, '../../docker-compose.test.yml')
-const PROJECT_NAME = 'ohpp-test'
-const COMPOSE_CMD = `docker compose -p ${PROJECT_NAME} -f ${COMPOSE_FILE}`
-const COMPOSE = `${COMPOSE_CMD} --profile backing --profile apps`
+// U9: teardown only THIS worktree's app tier (ohpp-$STACK_ID), leaving the
+// shared backing tier (ohpp-backing) up for other tenants and fast re-runs.
+const REPO_ROOT = resolve(__dirname, '../..')
+const OHPP_PROJECT = process.env.OHPP_PROJECT ?? 'ohpp-0'
+const COMPOSE = `docker compose -p ${OHPP_PROJECT} -f docker-compose.apps.yml --profile apps`
 const APP_SERVICES = 'resolver portal bank insurance-claims pizza marketplace'
 
 /**
@@ -20,7 +21,7 @@ export default async function globalTeardown() {
     console.log('Tearing down ENTIRE test stack (TEARDOWN_FULL=1)...')
     try {
       execSync(`${COMPOSE} --profile tools down --volumes --remove-orphans`, {
-        cwd: __dirname,
+        cwd: REPO_ROOT,
         stdio: 'pipe',
         timeout: 60_000,
       })
@@ -34,7 +35,7 @@ export default async function globalTeardown() {
   console.log('Stopping apps tier (backing tier left running for fast re-runs)...')
   try {
     execSync(`${COMPOSE} stop ${APP_SERVICES}`, {
-      cwd: __dirname,
+      cwd: REPO_ROOT,
       stdio: 'pipe',
       timeout: 60_000,
     })

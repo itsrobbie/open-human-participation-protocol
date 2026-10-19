@@ -11,8 +11,8 @@
     "publicClient": true,
     "directAccessGrantsEnabled": true,
     "standardFlowEnabled": true,
-    "redirectUris": ["http://localhost:5040/*", "http://localhost:5140/*"],
-    "webOrigins": ["http://localhost:5040", "http://localhost:5140"],
+    "redirectUris": ["http://localhost:5040/*", "http://localhost:20150/*", "http://localhost:20151/*", "http://localhost:20152/*", "http://localhost:20153/*", "http://localhost:20154/*", "http://localhost:20155/*", "http://localhost:20156/*", "http://localhost:20157/*", "http://localhost:20158/*", "http://localhost:20159/*", "http://localhost:20160/*", "http://localhost:20161/*", "http://localhost:20162/*", "http://localhost:20163/*", "http://localhost:20164/*"],
+    "webOrigins": ["http://localhost:5040", "http://localhost:20150", "http://localhost:20151", "http://localhost:20152", "http://localhost:20153", "http://localhost:20154", "http://localhost:20155", "http://localhost:20156", "http://localhost:20157", "http://localhost:20158", "http://localhost:20159", "http://localhost:20160", "http://localhost:20161", "http://localhost:20162", "http://localhost:20163", "http://localhost:20164"],
     "protocol": "openid-connect",
     "protocolMappers": [
       {

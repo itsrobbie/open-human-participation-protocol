@@ -3,104 +3,112 @@ import { resolve, join } from 'path'
 import { writeFileSync } from 'fs'
 import { request as playwrightRequest } from '@playwright/test'
 
-const COMPOSE_FILE = resolve(__dirname, '../../docker-compose.test.yml')
-const PROJECT_NAME = 'ohpp-test'
-const COMPOSE_CMD = `docker compose --progress quiet -p ${PROJECT_NAME} -f ${COMPOSE_FILE}`
-// Both profiles are activated on every invocation so apps' depends_on links to
-// backing services resolve; lifecycle is controlled by naming services.
-const COMPOSE = `${COMPOSE_CMD} --profile backing --profile apps`
+// U9: the test stack is this worktree's own tenant (its allocated STACK_ID)
+// against the shared backing tier - NOT a separate compose file. Orchestration
+// delegates to the Makefile split-file targets (test-backing-up / test-apps-up),
+// which resolve the project (ohpp-$STACK_ID), run tenant-db-init, and use
+// docker-compose.backing.yml + docker-compose.apps.yml. The repo root is two
+// levels up from tests/e2e.
+const REPO_ROOT = resolve(__dirname, '../..')
+const OHPP_PROJECT = process.env.OHPP_PROJECT ?? 'ohpp-0'
+const BACKING = `docker compose --progress quiet -p ohpp-backing -f docker-compose.backing.yml --profile backing`
+const APPS = `docker compose --progress quiet -p ${OHPP_PROJECT} -f docker-compose.apps.yml --profile apps`
 const APP_SERVICES = 'resolver portal bank insurance-claims pizza marketplace'
 
+// Host ports derive from the worktree's STACK_ID (exported by the Makefile into
+// .stack.env). Stack 0 = identity; ids 1..15 banded. Fallback = stack-0 ports.
+function port(name: string, fallback: number): number {
+  const n = Number.parseInt(process.env[`OHPP_PORT_${name}`] ?? '', 10)
+  return Number.isFinite(n) ? n : fallback
+}
+const P = {
+  resolver: port('RESOLVER_HTTP', 5050),
+  bank: port('BANK', 5010),
+  insurance: port('INSURANCE', 5020),
+  pizza: port('PIZZA', 5030),
+  marketplace: port('MARKETPLACE', 5040),
+  portal: port('PORTAL', 3000),
+  keycloak: port('KEYCLOAK', 8080),
+}
+// This tenant's database on the shared backing Postgres (ohpp_$STACK_ID). The
+// reset only ever touches THIS database, so a parallel worktree's data is safe.
+const TENANT_DB = process.env.OHPP_DB_NAME ?? 'ohpp_0'
+
 /**
- * Global setup: starts an isolated test stack and resets state.
+ * Global setup: starts this worktree's tenant stack and resets ITS database.
  *
- * 1. Starts the test Docker stack (separate project, separate ports)
- * 2. Waits for all services to be healthy
- * 3. Truncates DB tables for clean state
+ * 1. Ensures the shared backing tier is up (ohpp-backing), then this tenant's
+ *    app tier (ohpp-$STACK_ID) via the Makefile targets.
+ * 2. Waits for all services on this tenant's derived ports.
+ * 3. Truncates ONLY this tenant's database (reset-db.sql against ohpp_$STACK_ID).
  *
- * The test stack uses different ports from the dev stack so they never conflict.
+ * Shares services with dev but never shares data (per-tenant database). The dev
+ * stack's data is never touched: a parallel worktree has its own ohpp_N.
  * Torn down by global-teardown.ts after all tests complete.
  */
 export default async function globalSetup() {
-  console.log('Starting isolated test stack...')
+  console.log(`Starting tenant test stack (${OHPP_PROJECT})...`)
 
-  // Backing tier (postgres, keycloak, otel-collector, tempo) persists across
-  // runs - start it if it isn't already up. It's rarely rebuilt, so this is a
-  // fast no-op on repeat runs.
-  console.log('Ensuring backing tier is up...')
-  // Run the CA one-shot to completion first so leaf certs exist before apps
-  // start (HTTPS hops depend on them). It's a one-shot (restart: no) so it must
-  // not be part of the --wait set.
-  execSync(`${COMPOSE_CMD} --profile backing up cert-init`, {
-    cwd: __dirname,
-    stdio: 'inherit',
-    timeout: 300_000,
-  })
-  execSync(`${COMPOSE_CMD} --profile backing up -d --wait postgres keycloak otel-collector tempo`, {
-    cwd: __dirname,
-    stdio: 'inherit',
-    timeout: 300_000,
-  })
+  const run = (cmd: string, timeout: number) =>
+    execSync(cmd, { cwd: REPO_ROOT, stdio: 'inherit', timeout })
 
-  // Always rebuild the apps tier so browser and server tests execute the
-  // workspace state under test. --wait blocks until healthchecks pass. Backing
-  // services already running are reused, not recreated.
-  console.log('Building + starting apps tier...')
-  execSync(`${COMPOSE} up --build -d --wait ${APP_SERVICES}`, {
-    cwd: __dirname,
-    // Stream build and health-check progress so a slow image or service is
-    // diagnosable instead of appearing as a silent Playwright stall.
-    stdio: 'inherit',
-    timeout: 900_000,
-  })
+  // Shared backing tier + this tenant's db, then build + start the app tier.
+  // The Makefile targets own the split-file wiring, the project name, the
+  // Keycloak redirect regen, and tenant-db-init.
+  console.log('Ensuring shared backing tier + this tenant db are up...')
+  run('make test-backing-up', 300_000)
+  run('make tenant-db-init', 120_000)
+
+  console.log('Building + starting this tenant app tier...')
+  run(`${APPS} up --build -d --wait ${APP_SERVICES}`, 900_000)
 
   console.log('Waiting for services...')
-  waitForService('http://localhost:5150/health', 30)
-  waitForService('http://localhost:5110/health', 15)
-  waitForService('http://localhost:5120/health', 15)
-  waitForService('http://localhost:5130/health', 30)
-  waitForService('http://localhost:5140/health', 30)
-  waitForService('http://localhost:3100/api/health', 20)
+  waitForService(`http://localhost:${P.resolver}/health`, 30)
+  waitForService(`http://localhost:${P.bank}/health`, 15)
+  waitForService(`http://localhost:${P.insurance}/health`, 15)
+  waitForService(`http://localhost:${P.pizza}/health`, 30)
+  waitForService(`http://localhost:${P.marketplace}/health`, 30)
+  waitForService(`http://localhost:${P.portal}/api/health`, 20)
 
   await seedBankBrowserSession()
 
-  console.log('Resetting database...')
+  console.log('Resetting this tenant database...')
   resetDatabase()
   verifySchemaIsolation()
 
   // Restart resolver + apps so all services reopen clean database connections after the reset.
-  execSync(`${COMPOSE} restart resolver bank insurance-claims pizza marketplace`, {
-    cwd: __dirname,
+  execSync(`${APPS} restart resolver bank insurance-claims pizza marketplace`, {
+    cwd: REPO_ROOT,
     stdio: 'pipe',
     timeout: 60_000,
   })
 
-  waitForService('http://localhost:5150/health', 30)
-  waitForService('http://localhost:5110/health', 15)
-  waitForService('http://localhost:5120/health', 15)
-  waitForService('http://localhost:5130/health', 15)
-  waitForService('http://localhost:5140/health', 15)
+  waitForService(`http://localhost:${P.resolver}/health`, 30)
+  waitForService(`http://localhost:${P.bank}/health`, 15)
+  waitForService(`http://localhost:${P.insurance}/health`, 15)
+  waitForService(`http://localhost:${P.pizza}/health`, 15)
+  waitForService(`http://localhost:${P.marketplace}/health`, 15)
 
   // Reload portal nginx to reconnect to restarted resolver
-  execSync(`${COMPOSE_CMD} exec -T portal nginx -s reload`, {
-    cwd: __dirname,
+  execSync(`${APPS} exec -T portal nginx -s reload`, {
+    cwd: REPO_ROOT,
     stdio: 'pipe',
   })
-  waitForService('http://localhost:3100/api/health', 20)
+  waitForService(`http://localhost:${P.portal}/api/health`, 20)
 
   console.log('Test stack ready.')
 }
 
 async function seedBankBrowserSession() {
   const api = await playwrightRequest.newContext()
-  const tokenResponse = await api.post('http://localhost:8180/realms/ohpp-bank/protocol/openid-connect/token', {
+  const tokenResponse = await api.post(`http://localhost:${P.keycloak}/realms/ohpp-bank/protocol/openid-connect/token`, {
     form: { grant_type: 'password', client_id: 'ohpp-bank-app', username: 'demo', password: 'demo' },
   })
   if (!tokenResponse.ok()) throw new Error(`Unable to seed Bank browser session: ${tokenResponse.status()}`)
   const { access_token: accessToken } = await tokenResponse.json()
   writeFileSync(join(__dirname, '.auth-state.json'), JSON.stringify({
     cookies: [],
-    origins: [{ origin: 'http://localhost:5110', localStorage: [{ name: 'ohpp-bank-access-token', value: accessToken }] }],
+    origins: [{ origin: `http://localhost:${P.bank}`, localStorage: [{ name: 'ohpp-bank-access-token', value: accessToken }] }],
   }))
   await api.dispose()
 }
@@ -108,8 +116,8 @@ async function seedBankBrowserSession() {
 function resetDatabase() {
   const sqlFile = resolve(__dirname, 'reset-db.sql')
   execSync(
-    `${COMPOSE_CMD} exec -T postgres psql -U ohpp -d ohpp -f /dev/stdin < "${sqlFile}"`,
-    { cwd: __dirname, stdio: 'pipe', shell: '/bin/zsh' }
+    `${BACKING} exec -T postgres psql -U ohpp -d ${TENANT_DB} -f /dev/stdin < "${sqlFile}"`,
+    { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/zsh' }
   )
 }
 
@@ -122,8 +130,8 @@ function verifySchemaIsolation() {
 
 function runRoleQuery(role: string, password: string, sql: string) {
   execSync(
-    `${COMPOSE_CMD} exec -T -e PGPASSWORD=${password} postgres psql -h 127.0.0.1 -U ${role} -d ohpp -v ON_ERROR_STOP=1 -c "${sql}"`,
-    { cwd: __dirname, stdio: 'pipe' }
+    `${BACKING} exec -T -e PGPASSWORD=${password} postgres psql -h 127.0.0.1 -U ${role} -d ${TENANT_DB} -v ON_ERROR_STOP=1 -c "${sql}"`,
+    { cwd: REPO_ROOT, stdio: 'pipe' }
   )
 }
 

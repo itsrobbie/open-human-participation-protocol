@@ -1,7 +1,4 @@
 services:
-  # --- Backing services ---
-  # Third-party/backing tier. Bring up with `make dev-backing-up` (or the
-  # "backing" profile). Rarely rebuilt; persists across app restarts.
   postgres:
     profiles: ["backing"]
     image: postgres:16-alpine
@@ -29,7 +26,7 @@ services:
       cert-init:
         condition: service_completed_successfully
     networks:
-      - ohpp
+      - ohpp-shared
 
   keycloak:
     profiles: ["backing"]
@@ -62,7 +59,7 @@ services:
       cert-init:
         condition: service_completed_successfully
     networks:
-      - ohpp
+      - ohpp-shared
 
   # Shared World Redis (U7.1) - cache/queue, consumed by GlitchTip and PostHog
   # via isolated logical DB indices, and available to any future service.
@@ -102,7 +99,7 @@ services:
       cert-init:
         condition: service_completed_successfully
     networks:
-      - ohpp
+      - ohpp-shared
 
   # --- Observability backbone (U7.1, default profile) ---
   otel-collector:
@@ -126,7 +123,7 @@ services:
       prometheus:
         condition: service_started
     networks:
-      - ohpp
+      - ohpp-shared
 
   loki:
     profiles: ["backing"]
@@ -140,7 +137,7 @@ services:
       # LogQL queries) can reach it. Grafana still queries it internally.
       - "3110:3100"
     networks:
-      - ohpp
+      - ohpp-shared
 
   tempo:
     profiles: ["backing"]
@@ -153,7 +150,7 @@ services:
       # Query API on the host for the observability verification suite.
       - "3200:3200"
     networks:
-      - ohpp
+      - ohpp-shared
 
   prometheus:
     profiles: ["backing"]
@@ -168,7 +165,7 @@ services:
     ports:
       - "9090:9090"
     networks:
-      - ohpp
+      - ohpp-shared
 
   grafana:
     profiles: ["backing"]
@@ -197,7 +194,7 @@ services:
       retries: 10
       start_period: 20s
     networks:
-      - ohpp
+      - ohpp-shared
 
   # One-shot: run GlitchTip DB migrations, then seed a fixed dev org/project/DSN
   # so crash reporting works out of the box (no manual clicking; survives clean).
@@ -235,7 +232,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - ohpp
+      - ohpp-shared
 
   # Local certificate authority (U7.1, Phase 6). One-shot: creates a persisted
   # root+intermediate CA and issues per-service leaf certs (SAN = service name +
@@ -256,7 +253,7 @@ services:
       - stepca_data:/home/step/ca
       - ca_certs:/certs
     networks:
-      - ohpp
+      - ohpp-shared
 
   # Crash / error reporting (U7.1). Sentry-API-compatible; the Flutter app sends
   # crashes here via the Sentry SDK (Phase 5). Runs as web + worker (the canonical
@@ -295,7 +292,7 @@ services:
       retries: 10
       start_period: 60s
     networks:
-      - ohpp
+      - ohpp-shared
 
   # GlitchTip background worker (processes ingested events into issues).
   glitchtip-worker:
@@ -316,289 +313,10 @@ services:
       glitchtip:
         condition: service_started
     networks:
-      - ohpp
+      - ohpp-shared
 
   # --- Platform ---
   # Application tier (our code). Bring up with `make dev-apps-up` (or the "apps"
-  # profile); rebuilt frequently. Assumes the backing tier is already running.
-  resolver:
-    profiles: ["apps"]
-    build:
-      context: .
-      dockerfile: platform/resolver/Dockerfile
-    ports:
-      - "5050:8080"    # HTTP (kept as fallback during the HTTPS migration)
-      - "5443:8443"    # HTTPS (TLS with the step-ca leaf cert)
-    volumes:
-      - ca_certs:/certs:ro
-    environment:
-      ASPNETCORE_ENVIRONMENT: Docker
-      ConnectionStrings__PostgreSQL: "Host=postgres;Database=ohpp;Username=ohpp;Password=${POSTGRES_PASSWORD:-ohpp_dev_password};SSL Mode=VerifyFull;Root Certificate=/certs/root_ca.crt"
-      Resolver__BaseUrl: "http://localhost:5050"
-      Resolver__InternalBaseUrl: "http://resolver:8080"
-      Resolver__Name: "OHPP Demo Resolver"
-      Resolver__EncryptionKey: ${RESOLVER_ENCRYPTION_KEY:-dev-encryption-key-min-32-chars!!}
-      Auth__Provider: "Keycloak"
-      # Internal JWKS/metadata fetch over HTTPS (U7.1). Browser-issued tokens carry
-      # the localhost issuer; the validator accepts both (see KeycloakIdentityTokenValidator).
-      Auth__Keycloak__Authority: "https://keycloak:8443/realms/ohpp"
-      Features__ProtocolLab: "true"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
-      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
-      OTEL_SERVICE_NAME: "ohpp.resolver"
-      # TLS (U7.1): serve HTTPS on 8443 with the resolver leaf cert (chain) in
-      # addition to HTTP on 8080. Trust the dev root for outbound TLS calls.
-      OHPP_TLS_CERT_PATH: /certs/resolver.chain.crt
-      OHPP_TLS_KEY_PATH: /certs/resolver.key
-      OHPP_TLS_PORT: "8443"
-      SSL_CERT_FILE: /certs/root_ca.crt
-    depends_on:
-      cert-init:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      keycloak:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-    networks:
-      - ohpp
-
-  portal:
-    profiles: ["apps"]
-    build:
-      context: platform/portal
-      dockerfile: Dockerfile
-      args:
-        VITE_ENABLE_PROTOCOL_LAB: "true"
-        # Browser exports OTLP/HTTP to the Collector's host-published port.
-        VITE_OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318"
-        VITE_OTEL_SERVICE_NAME: "ohpp.portal"
-    ports:
-      - "3000:80"
-    volumes:
-      - ca_certs:/certs:ro
-    depends_on:
-      cert-init:
-        condition: service_completed_successfully
-      resolver:
-        condition: service_healthy
-    networks:
-      - ohpp
-
-  # --- Landing page: the single front door to the whole demo ---
-  # Self-contained static site (no backend/DB/auth). It only links out to the
-  # other services, so it has no depends_on and starts instantly. This is the one
-  # URL `make dev` prints; it maps everything else, grouped by purpose.
-  landing:
-    profiles: ["apps"]
-    build:
-      context: platform/landing
-      dockerfile: Dockerfile
-    ports:
-      - "8888:80"
-    healthcheck:
-      # Use 127.0.0.1 (not localhost): nginx listens on IPv4, but localhost can
-      # resolve to IPv6 ::1 first inside the container, giving a false refusal.
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/healthz || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
-    networks:
-      - ohpp
-
-  # --- Demo apps ---
-  bank:
-    profiles: ["apps"]
-    build:
-      context: .
-      dockerfile: demo/mock-apps/dotnet/bank/Dockerfile
-    ports:
-      - "5010:5010"
-    volumes:
-      - ca_certs:/certs:ro
-    environment:
-      Bank__AppId: "bank.demo.test"
-      Bank__BaseUrl: "http://localhost:5010"
-      Bank__ResolverInternalUrl: "https://resolver:8443"
-      WorldDatabase__ConnectionString: "Host=postgres;Port=5432;Database=ohpp;Username=bank_app;Password=ohpp_bank_demo_password;SSL Mode=VerifyFull;Root Certificate=/certs/root_ca.crt"
-      WorldDatabase__RunBootstrap: "true"
-      Auth__Keycloak__Authority: "https://keycloak:8443/realms/ohpp-bank"
-      Auth__Keycloak__Audience: "ohpp-bank-app"
-      Auth__PublicAuthority: "http://localhost:8080/realms/ohpp-bank"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
-      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
-      OTEL_SERVICE_NAME: "ohpp.bank"
-      # Trust the dev CA root for the outbound TLS call to the resolver.
-      SSL_CERT_FILE: /certs/root_ca.crt
-    depends_on:
-      cert-init:
-        condition: service_completed_successfully
-      resolver:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-    networks:
-      - ohpp
-
-  insurance-claims:
-    profiles: ["apps"]
-    build:
-      context: .
-      dockerfile: demo/mock-apps/dotnet/insurance-claims/Dockerfile
-    ports:
-      - "5020:5020"
-    volumes:
-      - ca_certs:/certs:ro
-    environment:
-      Insurance__AppId: "insurance-claims.demo.test"
-      Insurance__BaseUrl: "http://localhost:5020"
-      Insurance__ResolverUrl: "https://resolver:8443"
-      WorldDatabase__ConnectionString: "Host=postgres;Port=5432;Database=ohpp;Username=insurance_claims_app;Password=ohpp_insurance_demo_password;SSL Mode=VerifyFull;Root Certificate=/certs/root_ca.crt"
-      WorldDatabase__RunBootstrap: "true"
-      Auth__Keycloak__Authority: "https://keycloak:8443/realms/ohpp-insurance"
-      Auth__Keycloak__Audience: "ohpp-insurance-app"
-      Auth__PublicAuthority: "http://localhost:8080/realms/ohpp-insurance"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
-      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
-      OTEL_SERVICE_NAME: "ohpp.insurance"
-      SSL_CERT_FILE: /certs/root_ca.crt
-    depends_on:
-      cert-init:
-        condition: service_completed_successfully
-      resolver:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-    networks:
-      - ohpp
-
-  pizza:
-    profiles: ["apps"]
-    build:
-      context: .
-      dockerfile: demo/mock-apps/node/pizza/Dockerfile
-    ports:
-      - "5030:5030"
-    volumes:
-      - ca_certs:/certs:ro
-    environment:
-      PORT: "5030"
-      PIZZA_APP_ID: "pizza.demo.test"
-      PIZZA_BASE_URL: "http://localhost:5030"
-      PIZZA_RESOLVER_URL: "https://resolver:8443"
-      WORLD_DATABASE_CONNECTION_STRING: "postgresql://pizza_app:ohpp_pizza_demo_password@postgres:5432/ohpp?sslmode=verify-full"
-      WORLD_DATABASE_RUN_BOOTSTRAP: "true"
-      AUTH_KEYCLOAK_AUTHORITY: "https://keycloak:8443/realms/ohpp-pizza"
-      AUTH_KEYCLOAK_AUDIENCE: "ohpp-pizza-app"
-      AUTH_PUBLIC_AUTHORITY: "http://localhost:8080/realms/ohpp-pizza"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
-      OTEL_SERVICE_NAME: "ohpp.pizza"
-      # Trust the dev CA root for the outbound TLS call to the resolver (Node).
-      NODE_EXTRA_CA_CERTS: /certs/root_ca.crt
-    depends_on:
-      cert-init:
-        condition: service_completed_successfully
-      resolver:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5030/health || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
-    networks:
-      - ohpp
-
-  marketplace:
-    profiles: ["apps"]
-    build:
-      context: .
-      dockerfile: demo/mock-apps/node/marketplace/Dockerfile
-    ports:
-      - "5040:5040"
-    volumes:
-      - ca_certs:/certs:ro
-    environment:
-      PORT: "5040"
-      MARKETPLACE_APP_ID: "marketplace.demo.test"
-      MARKETPLACE_BASE_URL: "http://localhost:5040"
-      MARKETPLACE_RESOLVER_URL: "https://resolver:8443"
-      WORLD_DATABASE_CONNECTION_STRING: "postgresql://marketplace_app:ohpp_marketplace_demo_password@postgres:5432/ohpp?sslmode=verify-full"
-      WORLD_DATABASE_RUN_BOOTSTRAP: "true"
-      AUTH_KEYCLOAK_AUTHORITY: "https://keycloak:8443/realms/ohpp-marketplace"
-      AUTH_KEYCLOAK_AUDIENCE: "ohpp-marketplace-app"
-      AUTH_PUBLIC_AUTHORITY: "http://localhost:8080/realms/ohpp-marketplace"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
-      OTEL_SERVICE_NAME: "ohpp.marketplace"
-      NODE_EXTRA_CA_CERTS: /certs/root_ca.crt
-    depends_on:
-      cert-init:
-        condition: service_completed_successfully
-      resolver:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      otel-collector:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5040/health || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
-    networks:
-      - ohpp
-
-  # --- CLI (interactive) ---
-  cli:
-    profiles: ["tools"]
-    build:
-      context: .
-      dockerfile: demo/client-cli/Dockerfile
-    stdin_open: true
-    tty: true
-    volumes:
-      - cli_config:/root/.ohpp
-      - ca_certs:/certs:ro
-    environment:
-      OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
-      OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
-      OTEL_SERVICE_NAME: "ohpp.cli"
-      # Trust the dev CA root for the outbound TLS OTLP export (.NET/OpenSSL).
-      SSL_CERT_FILE: /certs/root_ca.crt
-    depends_on:
-      cert-init:
-        condition: service_completed_successfully
-      resolver:
-        condition: service_healthy
-    networks:
-      - ohpp
-
-  # --- Analytics (opt-in `analytics` profile: `make dev-analytics`) ---
-  # Product analytics via Umami (events, funnels, retention, journeys). Umami
-  # replaced PostHog: current PostHog self-host needs Kafka + ~16GB RAM and can't
-  # cleanly reuse shared datastores, which breaks this unit's lean one-command
-  # goal. Umami is Postgres-ONLY (no ClickHouse/Redis/Kafka) and reuses the shared
-  # World Postgres via its own `umami` db. See deployment-architecture.md.
-  #
-  # One-shot: Umami auto-migrates on boot, so this seeds a fixed dev website
-  # (deterministic UUID) via the authenticated API once Umami is healthy, so the
   # analytics "key" is a known stable value with no manual clicking (survives clean).
   umami-init:
     profiles: ["analytics"]
@@ -627,7 +345,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - ohpp
+      - ohpp-shared
 
   umami:
     profiles: ["analytics"]
@@ -655,7 +373,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - ohpp
+      - ohpp-shared
 
   # --- Placeholder stubs (opt-in `analytics` profile) ---
   # These are interface placeholders for future vendor seams (object store, email,
@@ -674,7 +392,7 @@ services:
     volumes:
       - minio_data:/data
     networks:
-      - ohpp
+      - ohpp-shared
 
   mailpit:
     profiles: ["analytics"]
@@ -683,7 +401,7 @@ services:
       - "8025:8025"   # web UI
       - "1025:1025"   # SMTP
     networks:
-      - ohpp
+      - ohpp-shared
 
   openbao:
     profiles: ["analytics"]
@@ -696,11 +414,11 @@ services:
     cap_add:
       - IPC_LOCK
     networks:
-      - ohpp
+      - ohpp-shared
+
 
 volumes:
   postgres_data:
-  cli_config:
   redis_data:
   loki_data:
   tempo_data:
@@ -710,7 +428,9 @@ volumes:
   minio_data:
   stepca_data:
   ca_certs:
+    name: ohpp-ca-certs
 
 networks:
-  ohpp:
+  ohpp-shared:
+    name: ohpp-shared
     driver: bridge
