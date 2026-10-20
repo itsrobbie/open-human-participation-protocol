@@ -3,8 +3,9 @@ import { resolve } from 'path'
 import { test, expect } from '@playwright/test'
 import { BANK_URL, INSURANCE_URL } from '../test-urls'
 
-const composeFile = resolve(__dirname, '../../../docker-compose.test.yml')
-const composeCommand = `docker compose -p ohpp-test -f ${composeFile}`
+const composeFile = resolve(__dirname, '../../../docker-compose.apps.yml')
+const OHPP_PROJECT = process.env.OHPP_PROJECT ?? 'ohpp-0'
+const composeCommand = `docker compose -p ${OHPP_PROJECT} -f ${composeFile} --profile apps`
 
 test('Bank and Insurance state survive application restarts', async ({ browser }) => {
   test.setTimeout(240_000)

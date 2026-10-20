@@ -105,3 +105,8 @@ tests/e2e/.auth-state.json
 # Docker
 postgres_data/
 AGENTS.md
+
+# U9: generated per-stack derived env (STACK_ID), never commit
+.stack.env
+# U9: per-worktree pinned STACK_ID (allocated lowest-free id), never commit
+.stack-id

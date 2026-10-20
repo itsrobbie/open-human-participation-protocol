@@ -1173,6 +1173,10 @@
           "deviceType": {
             "type": "string",
             "nullable": true
+          },
+          "deviceIdentifier": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false

@@ -1,0 +1,30 @@
+{
+  "realm": "ohpp",
+  "enabled": true,
+  "registrationAllowed": false,
+  "clients": [
+    {
+      "clientId": "ohpp-mobile",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["ohpp://*"],
+      "webOrigins": ["*"]
+    }
+  ],
+  "users": [
+    {
+      "username": "e2e-testuser",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "e2e@test.ohpp.dev",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "TestPassword123!",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

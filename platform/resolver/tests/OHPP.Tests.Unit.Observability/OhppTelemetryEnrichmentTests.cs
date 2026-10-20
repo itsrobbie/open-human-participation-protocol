@@ -62,6 +62,26 @@ public class OhppTelemetryEnrichmentTests
     }
 
     [Theory]
+    [InlineData("service.instance.id")]
+    [InlineData("deployment.environment")]
+    public void FilterAllowed_KeepsPerTenantIdentityKeys(string tenantKey)
+    {
+        // U9: parallel stacks must be separable in the shared observability
+        // backend, so the per-tenant resource keys must survive the allowlist
+        // (they were previously stripped as unknown).
+        var input = new Dictionary<string, string>
+        {
+            [OhppTelemetryEnrichment.RequestIdKey] = "req-1",
+            [tenantKey] = "stack-1",
+        };
+
+        var result = OhppTelemetryEnrichment.FilterAllowed(input);
+
+        result.Should().ContainKey(tenantKey);
+        OhppTelemetryEnrichment.IsAllowed(tenantKey).Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData("authorization")]
     [InlineData("access_token")]
     [InlineData("refresh_token")]

@@ -1,0 +1,65 @@
+name: Flutter Client App CI
+
+# Builds the one-OS image from .devcontainer/Dockerfile INSIDE the CI run, then
+# runs lint / test / golden in it. No registry, no cross-workflow dependency:
+# the image is a pure function of the committed Dockerfile, so what CI runs is
+# byte-identical to what `make ci-flutter` runs locally. Font parity with the
+# image is what makes the golden tests deterministic across macOS/Linux/CI.
+
+on:
+  push:
+    paths:
+      - 'platform/client-app/**'
+      - '.github/workflows/flutter-ci.yml'
+      - '.devcontainer/**'
+  pull_request:
+    paths:
+      - 'platform/client-app/**'
+      - '.github/workflows/flutter-ci.yml'
+      - '.devcontainer/**'
+
+concurrency:
+  group: flutter-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    name: Lint + Test + Goldens (one-OS image)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the image from the committed Dockerfile. gha cache keeps repeat
+      # runs fast; the first run pays the full Flutter/dotnet/node build once.
+      - name: Build one-OS image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: .devcontainer/Dockerfile
+          tags: ohpp-dev-image:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Lint (analyze, no-fatal-infos)
+        run: >
+          docker run --rm -v "$PWD":/workspace -w /workspace/platform/client-app
+          ohpp-dev-image:ci bash -c "flutter pub get && flutter analyze --no-fatal-infos"
+
+      - name: Unit + Widget + Integration + Golden tests
+        # Plain `flutter test` runs the golden tests too; the tolerant comparator
+        # in test/flutter_test_config.dart compares them against the committed
+        # baselines and passes sub-0.02% cross-arch drift. Do NOT use
+        # --update-goldens here: that rewrites the PNGs on disk instead of
+        # comparing, which defeats the comparator and fails a dirty-check on any
+        # cross-arch byte difference.
+        run: >
+          docker run --rm -v "$PWD":/workspace -w /workspace/platform/client-app
+          ohpp-dev-image:ci bash -c "flutter pub get && flutter test"
+
+  # E2E device tests require a real iOS simulator (Xcode), so they stay on
+  # macOS and cannot run in this Linux image. They live in flutter-e2e.yml
+  # (nightly / manual), which is the one irreducibly macOS-native workflow.

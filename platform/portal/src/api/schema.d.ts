@@ -583,6 +583,7 @@ export interface components {
         CreateDeviceRequest: {
             name?: string | null;
             deviceType?: string | null;
+            deviceIdentifier?: string | null;
         };
         CreateRuleRequest: {
             name?: string | null;

@@ -28,10 +28,19 @@ public static class OpenTelemetryConfiguration
         var hasOtlp = !string.IsNullOrWhiteSpace(otlpEndpoint);
         var version = typeof(OpenTelemetryConfiguration).Assembly.GetName().Version?.ToString() ?? "0.0.0";
 
+        // U9: the env wins over the hardcoded name so a tenant app tier can set
+        // its own service name. OTEL_RESOURCE_ATTRIBUTES (e.g.
+        // deployment.environment=stack-1,service.instance.id=1) is picked up by
+        // the standard env-variable detector, keeping parallel stacks separable
+        // in the shared observability backend.
+        var envServiceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME");
+        var effectiveServiceName = string.IsNullOrWhiteSpace(envServiceName) ? serviceName : envServiceName;
+
         services.AddOpenTelemetry()
             .ConfigureResource(resource =>
             {
-                resource.AddService(serviceName: serviceName, serviceVersion: version);
+                resource.AddService(serviceName: effectiveServiceName, serviceVersion: version);
+                resource.AddEnvironmentVariableDetector();
             })
             .WithTracing(tracing =>
             {
@@ -82,7 +91,9 @@ public static class OpenTelemetryConfiguration
             logging.AddOpenTelemetry(otelLogging =>
             {
                 otelLogging.SetResourceBuilder(
-                    ResourceBuilder.CreateDefault().AddService(serviceName, serviceVersion: version));
+                    ResourceBuilder.CreateDefault()
+                        .AddService(effectiveServiceName, serviceVersion: version)
+                        .AddEnvironmentVariableDetector());
                 otelLogging.IncludeScopes = true;
                 otelLogging.IncludeFormattedMessage = true;
                 if (hasOtlp)

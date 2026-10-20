@@ -26,8 +26,8 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "redirectUris": ["http://localhost:3000/*", "http://localhost:5050/*"],
-      "webOrigins": ["http://localhost:3000", "http://localhost:5050"],
+      "redirectUris": ["http://localhost:3000/*", "http://localhost:5050/*", "http://localhost:20015/*", "http://localhost:20165/*", "http://localhost:20016/*", "http://localhost:20166/*", "http://localhost:20017/*", "http://localhost:20167/*", "http://localhost:20018/*", "http://localhost:20168/*", "http://localhost:20019/*", "http://localhost:20169/*", "http://localhost:20020/*", "http://localhost:20170/*", "http://localhost:20021/*", "http://localhost:20171/*", "http://localhost:20022/*", "http://localhost:20172/*", "http://localhost:20023/*", "http://localhost:20173/*", "http://localhost:20024/*", "http://localhost:20174/*", "http://localhost:20025/*", "http://localhost:20175/*", "http://localhost:20026/*", "http://localhost:20176/*", "http://localhost:20027/*", "http://localhost:20177/*", "http://localhost:20028/*", "http://localhost:20178/*", "http://localhost:20029/*", "http://localhost:20179/*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:5050", "http://localhost:20015", "http://localhost:20165", "http://localhost:20016", "http://localhost:20166", "http://localhost:20017", "http://localhost:20167", "http://localhost:20018", "http://localhost:20168", "http://localhost:20019", "http://localhost:20169", "http://localhost:20020", "http://localhost:20170", "http://localhost:20021", "http://localhost:20171", "http://localhost:20022", "http://localhost:20172", "http://localhost:20023", "http://localhost:20173", "http://localhost:20024", "http://localhost:20174", "http://localhost:20025", "http://localhost:20175", "http://localhost:20026", "http://localhost:20176", "http://localhost:20027", "http://localhost:20177", "http://localhost:20028", "http://localhost:20178", "http://localhost:20029", "http://localhost:20179"],
       "protocol": "openid-connect",
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:3000/*"

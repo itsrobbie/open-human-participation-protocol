@@ -9,10 +9,9 @@ import { test, expect } from '@playwright/test'
  * 5. Place an order (triggers OHPP participation request)
  * 6. Request succeeds (no error) and shows as pending
  *
- * Runs against the dev stack (localhost ports).
+ * Runs against this worktree's tenant stack (ports derived from STACK_ID).
  */
-const PORTAL_URL = 'http://localhost:3000'
-const PIZZA_URL = 'http://localhost:5030'
+import { PORTAL_URL, PIZZA_URL } from '../test-urls'
 
 test('full flow: register pizza app then place order with OHPP', async ({ page, context }) => {
   test.setTimeout(120_000)
@@ -24,7 +23,8 @@ test('full flow: register pizza app then place order with OHPP', async ({ page, 
   await page.fill('#username', 'demo')
   await page.fill('#password', 'demo')
   await page.click('#kc-login')
-  await page.waitForURL(new RegExp('localhost:5030'), { timeout: 15000 })
+  // Back on the pizza app (match the host[:port] of PIZZA_URL, not a fixed port).
+  await page.waitForURL(new RegExp(PIZZA_URL.replace('http://', '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), { timeout: 15000 })
   await expect(page.getByTestId('order-mode-standard')).toBeVisible({ timeout: 10000 })
 
   // 2. Go to settings and check/establish OHPP connection

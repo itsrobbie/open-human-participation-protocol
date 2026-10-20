@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- OHPP Logo — Two pills, the open protocol -->
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <rect x="120" y="140" width="112" height="232" rx="56" fill="#6366f1"/>
+  <rect x="280" y="140" width="112" height="232" rx="56" fill="#10b981"/>
+</svg>

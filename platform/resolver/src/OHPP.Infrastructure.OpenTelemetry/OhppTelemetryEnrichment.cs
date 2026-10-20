@@ -33,6 +33,10 @@ public static class OhppTelemetryEnrichment
         // Standard OTel/HTTP keys that are safe and useful
         "service.name",
         "service.version",
+        // U9: per-tenant identity so parallel stacks are separable in the shared
+        // observability backend. Non-sensitive (stack id + env label only).
+        "service.instance.id",
+        "deployment.environment",
         "http.request.method",
         "http.response.status_code",
         "url.path",
