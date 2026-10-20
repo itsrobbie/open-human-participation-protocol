@@ -419,6 +419,10 @@ flutter-golden-update: ## Update golden baselines (after intentional visual chan
 # from .devcontainer/Dockerfile and runs the same docker run commands, so a
 # green `make ci-flutter` locally means a green CI run. No registry involved.
 CI_IMAGE ?= ohpp-dev-image:ci
+# Build/run the image on the host's native arch. Goldens no longer need an exact
+# arch match: the tolerant comparator in test/flutter_test_config.dart absorbs
+# sub-pixel arm64-vs-amd64 rasterisation drift, so one baseline set passes on
+# both a local Mac (arm64) and the amd64 CI runner.
 CI_RUN = docker run --rm -v "$(PWD)":/workspace -w /workspace/platform/client-app $(CI_IMAGE)
 
 ci-image: ## Build the one-OS CI image from .devcontainer/Dockerfile (what CI builds)
