@@ -428,19 +428,14 @@ CI_RUN = docker run --rm -v "$(PWD)":/workspace -w /workspace/platform/client-ap
 ci-image: ## Build the one-OS CI image from .devcontainer/Dockerfile (what CI builds)
 	docker build -f .devcontainer/Dockerfile -t $(CI_IMAGE) .
 
-ci-flutter: ci-image ## Run the full Flutter CI gate locally in the CI image (lint + test + goldens)
+ci-flutter: ci-image ## Run the full Flutter CI gate locally in the CI image (lint + test incl. goldens)
 	@echo "== Lint =="
 	$(CI_RUN) bash -c "flutter pub get && flutter analyze --no-fatal-infos"
-	@echo "== Test =="
+	@echo "== Test (incl. golden tests via the tolerant comparator) =="
 	$(CI_RUN) bash -c "flutter pub get && flutter test"
-	@echo "== Goldens (regenerate + verify no drift) =="
-	$(CI_RUN) bash -c "flutter pub get && flutter test --update-goldens"
-	@if [ -n "$$(git status --porcelain 'platform/client-app/test/**/goldens/*.png')" ]; then \
-		echo "FAIL: golden baselines drifted — run 'make ci-flutter-goldens', review, commit."; \
-		git diff --stat 'platform/client-app/test/**/goldens/*.png'; exit 1; \
-	else echo "PASS: all three CI jobs green (lint + test + goldens)."; fi
+	@echo "PASS: CI gate green (lint + test incl. goldens)."
 
-ci-flutter-goldens: ci-image ## Regenerate golden baselines in the CI image (authoritative) and leave them staged for review
+ci-flutter-goldens: ci-image ## Regenerate golden baselines in the CI image (only when intended visual changes) and stage for review
 	$(CI_RUN) bash -c "flutter pub get && flutter test --update-goldens"
 	@echo "Goldens regenerated in the CI image. Review 'git diff' and commit."
 

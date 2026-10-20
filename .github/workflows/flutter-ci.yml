@@ -49,23 +49,16 @@ jobs:
           docker run --rm -v "$PWD":/workspace -w /workspace/platform/client-app
           ohpp-dev-image:ci bash -c "flutter pub get && flutter analyze --no-fatal-infos"
 
-      - name: Unit + Widget + Integration tests
+      - name: Unit + Widget + Integration + Golden tests
+        # Plain `flutter test` runs the golden tests too; the tolerant comparator
+        # in test/flutter_test_config.dart compares them against the committed
+        # baselines and passes sub-0.02% cross-arch drift. Do NOT use
+        # --update-goldens here: that rewrites the PNGs on disk instead of
+        # comparing, which defeats the comparator and fails a dirty-check on any
+        # cross-arch byte difference.
         run: >
           docker run --rm -v "$PWD":/workspace -w /workspace/platform/client-app
           ohpp-dev-image:ci bash -c "flutter pub get && flutter test"
-
-      - name: Golden tests (regenerate + verify no drift)
-        run: >
-          docker run --rm -v "$PWD":/workspace -w /workspace/platform/client-app
-          ohpp-dev-image:ci bash -c "flutter pub get && flutter test --update-goldens"
-
-      - name: Check for uncommitted golden changes
-        run: |
-          if [ -n "$(git status --porcelain '*/goldens/*.png')" ]; then
-            echo "::error::Golden baselines changed. Run 'make ci-flutter-goldens' locally, review the diffs, and commit."
-            git diff --stat '*/goldens/*.png'
-            exit 1
-          fi
 
   # E2E device tests require a real iOS simulator (Xcode), so they stay on
   # macOS and cannot run in this Linux image. They live in flutter-e2e.yml
