@@ -8,6 +8,17 @@ import 'package:ohpp_client/shared/models/attestation.dart';
 import 'package:ohpp_client/shared/models/enums.dart';
 import 'package:ohpp_client/shared/models/participation_request.dart';
 
+/// P7 test seam: in anti-agent test mode (OHPP_ANTI_AGENT_MODE=test, the same
+/// flag main.dart uses to select the software signer) the native OS date/time
+/// pickers are not drivable by a headless integration_test. In that mode the
+/// date/time steps resolve to a deterministic default instead of opening the OS
+/// modal, so the OhppAttester can drive the full ceremony. In real mode the
+/// native pickers run unchanged.
+const bool _kAntiAgentTestMode =
+    String.fromEnvironment('OHPP_ANTI_AGENT_MODE', defaultValue: 'real') ==
+        'test';
+
+
 /// Modal bottom sheet showing full request details and response input.
 ///
 /// Supports all 7 OHPP response types:
@@ -627,6 +638,12 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
   }
 
   Future<void> _pickDate() async {
+    if (_kAntiAgentTestMode) {
+      // Test seam: no native modal; pick a deterministic date so the headless
+      // OhppAttester can drive the date step.
+      setState(() => _selectedDate = DateTime(2026, 1, 15));
+      return;
+    }
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
@@ -639,6 +656,10 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
   }
 
   Future<void> _pickTime() async {
+    if (_kAntiAgentTestMode) {
+      setState(() => _selectedTime = const TimeOfDay(hour: 12, minute: 0));
+      return;
+    }
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? TimeOfDay.now(),
