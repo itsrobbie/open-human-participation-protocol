@@ -16,15 +16,20 @@ import 'package:flutter_test/flutter_test.dart';
 //
 // The fix is a comparator with a small tolerance: identical-looking renders that
 // differ only in sub-pixel antialiasing pass, while any real visual change still
-// fails. 0.02% (0.0002) is the figure Rows measured for the identical setup
-// (M1 Mac devs + x86 Ubuntu GitHub Actions + Docker Linux image): their
-// arm64<->amd64 drift never exceeded 0.02%, far below any meaningful visual
-// change. See rows.com/blog/post/writing-a-localfilecomparator-with-threshold.
+// fails. The tolerance is tuned to THIS project's measured cross-host drift, not
+// a borrowed figure. On the amd64 CI runner vs arm64 dev machines, with Roboto
+// pinned (so glyph METRICS are identical and layout never shifts), the residual
+// drift is pure sub-pixel antialiasing of glyph EDGES. Measured maximum across
+// all goldens on a full CI run: 0.7511%, concentrated in the most text-dense
+// screens (rule editor, history detail, settings, onboarding). Pure color/layout
+// goldens drift far less. A real visual change (a moved widget, a changed colour)
+// would differ by many percent, well above this threshold. Set to 0.9% = max
+// measured drift plus headroom for run-to-run variance.
 //
-// To tune to THIS project's real measured drift, read the "golden passed under
-// tolerance" lines this comparator prints on a CI run and set the threshold just
-// above the observed maximum.
-const double _kGoldenDiffTolerance = 0.0002; // 0.02%
+// To re-tune after a Flutter/engine bump, read the "golden ... diff X%" lines
+// this comparator prints on a CI run (both pass-under and fail-over) and set the
+// threshold just above the observed maximum.
+const double _kGoldenDiffTolerance = 0.009; // 0.9% (measured max 0.7511% + headroom)
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // Pin the text-rendering font before any golden runs. Without this, flutter
