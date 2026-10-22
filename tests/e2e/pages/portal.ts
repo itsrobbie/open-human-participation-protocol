@@ -28,20 +28,28 @@ export class PortalPage extends BasePage {
    */
   async enableWebApprovals(): Promise<void> {
     await this.goto('/devices')
-    // Revoke any active devices (prior runs). Each revoke card is keyed by id;
-    // loop until no revoke buttons remain.
+    // Revoke any active devices (prior runs). A key-bearing device DISABLES web
+    // approvals, so we must clear them first. Each card is keyed by id; loop
+    // until none remain.
     for (;;) {
       const revoke = this.page.locator('[data-testid^="ohpp.devices.revoke."]').first()
       if (!(await revoke.isVisible().catch(() => false))) break
       await revoke.click()
       await this.clickTestId('ohpp.confirm.confirm')
-      // Wait for this card's revoke to detach before re-checking.
       await revoke.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {})
     }
-    const enable = this.testid('ohpp.devices.enable-web-approvals')
-    if (await enable.isVisible().catch(() => false)) {
-      await enable.click()
-    }
+    // After all devices are revoked the "Enable web approvals" button renders
+    // (it only shows when there are zero active devices). Wait for it, click it,
+    // and confirm a browser device now exists — otherwise web approvals are not
+    // actually live and the attester's Pending page would show the disabled
+    // notice (the failure mode seen on the first CI run).
+    await this.waitFor('ohpp.devices.enable-web-approvals')
+    await this.clickTestId('ohpp.devices.enable-web-approvals')
+    // A browser device card appears once registration succeeds.
+    await this.page
+      .locator('[data-testid^="ohpp.devices.card."]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 15_000 })
   }
 
   /** Connect a requester app by pasting its ohpp:// challenge URI. */
