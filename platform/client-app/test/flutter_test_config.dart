@@ -104,8 +104,14 @@ class _TolerantGoldenComparator extends LocalFileComparator {
       return true;
     }
 
-    // Over tolerance: real visual change. Write the diff artifacts and fail,
-    // matching the default comparator's behaviour.
+    // Over tolerance: real visual change. Log the measured drift (so the true
+    // cross-host maximum can be read from a CI run and the threshold tuned to
+    // it), write the diff artifacts, and fail like the default comparator.
+    debugPrint(
+      'golden "${golden.pathSegments.last}" FAILED over tolerance: '
+      'diff ${(result.diffPercent * 100).toStringAsFixed(4)}% '
+      '> ${(tolerance * 100).toStringAsFixed(4)}%',
+    );
     await generateFailureOutput(result, golden, basedir);
     return false;
   }
