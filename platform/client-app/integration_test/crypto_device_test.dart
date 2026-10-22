@@ -35,7 +35,7 @@ void main() {
   group('Platform-specific crypto (real device)', () {
     testWidgets('iOS_GeneratesInSecureEnclave', (tester) async {
       if (!Platform.isIOS) {
-        // Skip on non-iOS platforms
+        markTestSkipped('not iOS');
         return;
       }
 
@@ -43,9 +43,9 @@ void main() {
       try {
         result = await cryptoService.generateKeyPair();
       } on CryptoException catch (e) {
-        // On simulator, Secure Enclave is not available - test passes vacuously
         if (e.code == 'KEY_GENERATION_FAILED' || e.code == 'NULL_RESULT') {
-          // Expected on simulator - skip gracefully
+          markTestSkipped(
+              'Secure Enclave unavailable (simulator): key generation failed');
           return;
         }
         rethrow;
@@ -54,22 +54,28 @@ void main() {
       expect(result.publicKey, isNotEmpty);
       expect(result.keyRef, equals('dev.ohpp.client.signing'));
 
-      // On simulator, storageLevel will be 'software' (no Secure Enclave).
-      // On a real device, it should be 'secureEnclave'.
-      // Accept both - the real assertion is for device-only CI.
+      // The protocol's whole point is hardware-backed keys. On the SIMULATOR
+      // there is no Secure Enclave, so storageLevel is 'software' and the
+      // hardware guarantee is NOT exercised — mark it skipped rather than let a
+      // software-only run masquerade as a passed hardware check. Only a real
+      // device asserts secureEnclave.
+      if (result.storageLevel == KeyStorageLevel.software) {
+        markTestSkipped(
+            'running on iOS simulator: Secure Enclave not verified '
+            '(software signer only). Run on a real device to assert '
+            'storageLevel == secureEnclave.');
+        return;
+      }
       expect(
         result.storageLevel,
-        anyOf(
-          equals(KeyStorageLevel.secureEnclave),
-          equals(KeyStorageLevel.software),
-        ),
-        reason: 'iOS should use Secure Enclave on device, software on simulator',
+        equals(KeyStorageLevel.secureEnclave),
+        reason: 'on a real iOS device keys must be Secure-Enclave-backed',
       );
     });
 
     testWidgets('Android_PrefersStrongBox_FallsToTEE', (tester) async {
       if (!Platform.isAndroid) {
-        // Skip on non-Android platforms
+        markTestSkipped('not Android');
         return;
       }
 
@@ -77,8 +83,9 @@ void main() {
       try {
         result = await cryptoService.generateKeyPair();
       } on CryptoException catch (e) {
-        // On emulator without KeyStore support - skip gracefully
         if (e.code == 'KEY_GENERATION_FAILED' || e.code == 'NULL_RESULT') {
+          markTestSkipped(
+              'hardware KeyStore unavailable (emulator): key generation failed');
           return;
         }
         rethrow;

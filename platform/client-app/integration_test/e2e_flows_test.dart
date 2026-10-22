@@ -736,10 +736,15 @@ void main() {
           await registerApp(token, 'e2e-lifecycle.test', 'Lifecycle App');
 
       if (app == null) {
-        // Registration ceremony not available via direct API in dev stack.
-        // Verify device can poll pending (proves device setup works).
+        // Registration ceremony not reachable via direct API in this dev stack.
+        // Still prove the device can poll pending (device setup works), then
+        // mark the lifecycle portion skipped so this never reports as a full
+        // pass while asserting nothing.
         final pending = await getPendingRequests(device.deviceToken);
         expect(pending, isA<List>());
+        markTestSkipped(
+            'app registration ceremony not reachable via direct API; '
+            'lifecycle assertions skipped (device-poll verified)');
         return;
       }
 
@@ -752,7 +757,10 @@ void main() {
       );
 
       if (requestId == null) {
-        // Participation request seeding not available
+        // Participation request seeding not reachable via direct API here.
+        markTestSkipped(
+            'participation request seeding not reachable via direct API; '
+            'lifecycle assertions skipped');
         return;
       }
 
