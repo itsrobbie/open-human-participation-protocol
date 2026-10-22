@@ -37,6 +37,7 @@ export function Settings() {
 
         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bearer Token</label>
         <textarea
+          data-testid="ohpp.settings.token"
           value={token}
           onChange={(e) => setToken(e.target.value)}
           rows={4}
@@ -46,6 +47,7 @@ export function Settings() {
 
         <div className="flex items-center gap-3 mt-4">
           <button
+            data-testid="ohpp.settings.save"
             onClick={handleSave}
             className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700"
           >

@@ -42,6 +42,7 @@ export function Dashboard() {
               {allDone ? 'You\'re all set!' : 'Get started'}
             </h2>
             <button
+              data-testid="ohpp.dashboard.dismiss-onboarding"
               onClick={dismiss}
               className="text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 text-sm"
               aria-label="Dismiss getting started guide"
