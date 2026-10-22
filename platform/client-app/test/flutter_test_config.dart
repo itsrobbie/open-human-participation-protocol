@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Golden-test tolerance for cross-architecture rasterisation drift.
@@ -25,6 +27,16 @@ import 'package:flutter_test/flutter_test.dart';
 const double _kGoldenDiffTolerance = 0.0002; // 0.02%
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
+  // Pin the text-rendering font before any golden runs. Without this, flutter
+  // test falls back to the engine's built-in placeholder font, whose glyph
+  // advance widths shift between Skia/engine builds (arm64 dev vs amd64 CI).
+  // That per-host metric drift is what pushed the text-label rows of the theme
+  // and widget goldens past the comparator tolerance. Loading committed Roboto
+  // bytes makes every host rasterise identical glyph metrics, so one baseline
+  // set is valid everywhere and the tolerance stays tight.
+  TestWidgetsFlutterBinding.ensureInitialized();
+  await _loadPinnedFonts();
+
   if (goldenFileComparator is LocalFileComparator) {
     final defaultComparator = goldenFileComparator as LocalFileComparator;
     // LocalFileComparator(testFile) derives basedir = testFile.resolve('./'),
@@ -37,6 +49,28 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
     );
   }
   await testMain();
+}
+
+/// Loads the committed Roboto TTFs under the 'Roboto' family so Material text
+/// (which resolves to Roboto by default when no fontFamily is set) renders with
+/// deterministic, host-independent glyph metrics in golden tests.
+///
+/// The bytes live in test/support/fonts and are pinned to the repo's Flutter
+/// version; regenerating goldens once under this font yields baselines that
+/// match byte-for-byte on arm64 and amd64 alike.
+Future<void> _loadPinnedFonts() async {
+  // test/support/fonts is resolved relative to the package root (the dir
+  // flutter test runs from), not this config file.
+  const fonts = <String>[
+    'test/support/fonts/Roboto-Regular.ttf',
+    'test/support/fonts/Roboto-Medium.ttf',
+  ];
+  final loader = FontLoader('Roboto');
+  for (final path in fonts) {
+    final bytes = await File(path).readAsBytes();
+    loader.addFont(Future.value(ByteData.view(bytes.buffer)));
+  }
+  await loader.load();
 }
 
 /// A [LocalFileComparator] that accepts images differing from the golden by at

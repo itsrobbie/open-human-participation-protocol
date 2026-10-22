@@ -286,4 +286,29 @@ describe('Pizza API Routes', () => {
       expect(typeof res.body.connected).toBe('boolean');
     });
   });
+
+  describe('OHPP Pizza flow route resolution (no shadowing)', () => {
+    // Regression: the generic `/orders/:id/status` + `/orders/:id/cancel`
+    // routes were registered BEFORE the specific `/orders/ohpp-pizza/*` routes,
+    // so `:id` captured the literal "ohpp-pizza" and Express dispatched the
+    // flow requests to the ORDER handler. GET .../ohpp-pizza/status then
+    // returned the order-service "not found" shape instead of the active flow,
+    // leaving a stuck flow undiscoverable and uncancellable via the API (the
+    // dead-flow bug). The specific routes must win.
+
+    it('GET /api/orders/ohpp-pizza/status returns the FLOW, not a shadowed order', async () => {
+      const res = await request(app).get('/api/orders/ohpp-pizza/status');
+      expect(res.status).toBe(200);
+      // Flow shape has currentStep; an order does not.
+      expect(res.body).toHaveProperty('flow');
+      expect(res.body.flow).toHaveProperty('currentStep');
+      expect(res.body.flow.id).toBe('flow-1');
+    });
+
+    it('POST /api/orders/ohpp-pizza/:flowId/cancel reaches the flow cancel handler', async () => {
+      const res = await request(app).post('/api/orders/ohpp-pizza/flow-1/cancel');
+      expect(res.status).toBe(200);
+      expect(res.body.flow.status).toBe('cancelled');
+    });
+  });
 });

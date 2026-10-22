@@ -46,3 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Golden-test failure artifacts (diff/master/test images written on a mismatch).
+# These are transient test output, never baselines, and must not be committed.
+test/**/failures/
