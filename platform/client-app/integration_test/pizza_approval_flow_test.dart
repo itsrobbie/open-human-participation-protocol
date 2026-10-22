@@ -100,19 +100,6 @@ void main() {
   setUp(setupPlatformChannelOverrides);
   tearDown(teardownPlatformChannelOverrides);
 
-  Future<void> pumpUntil(
-    WidgetTester tester,
-    Finder finder, {
-    Duration timeout = const Duration(seconds: 30),
-  }) async {
-    final end = DateTime.now().add(timeout);
-    while (DateTime.now().isBefore(end)) {
-      await tester.pump(const Duration(milliseconds: 500));
-      if (finder.evaluate().isNotEmpty) return;
-    }
-    await tester.pumpAndSettle();
-  }
-
   group('Pizza whole-case ceremony (real backend)', () {
     testWidgets(
         'order -> approve each step in app -> order confirmed -> audit recorded',
@@ -268,7 +255,7 @@ void main() {
       if (lastRequestId != null) {
         final record = await fetchParticipationHistoryDetail(
           identityToken: identityToken,
-          requestId: lastRequestId!,
+          requestId: lastRequestId,
         );
         expect(record, isNotNull,
             reason: 'the final confirm step should leave an audit record');
