@@ -171,7 +171,7 @@ export function ProtocolLab() {
         <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg p-4 text-sm">
           <p className="font-medium">Enable browser approvals</p>
           <p className="mt-1">The Resolver requires an active approval device before it accepts requests.</p>
-          <button onClick={() => void enableBrowserApprovals()} className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded text-sm">Enable browser approvals</button>
+          <button data-testid="ohpp.protocollab.enable-approvals" onClick={() => void enableBrowserApprovals()} className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded text-sm">Enable browser approvals</button>
         </div>
       )}
 
@@ -201,7 +201,7 @@ export function ProtocolLab() {
               <p className="text-gray-600 dark:text-slate-400 mt-1"><code>{LAB_APP_ID}</code></p>
             </div>
             <label className="text-sm">Request type
-              <select aria-label="Request type" value={type} onChange={(event) => {
+              <select data-testid="ohpp.protocollab.request-type" aria-label="Request type" value={type} onChange={(event) => {
                 const nextType = event.target.value as RequestType
                 setType(nextType)
                 setPayload(createPreset(nextType, userId))

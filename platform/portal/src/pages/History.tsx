@@ -88,6 +88,7 @@ export function History() {
         <div className="text-center py-8">
           <p className="text-gray-500 dark:text-slate-400 text-sm">No results match your filters.</p>
           <button
+            data-testid="ohpp.history.clear-filters"
             onClick={() => { setSearch(''); setStatusFilter('all') }}
             className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
           >
@@ -106,6 +107,7 @@ export function History() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-slate-700">
           <button
+            data-testid="ohpp.history.prev-page"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm font-medium rounded-md bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -116,6 +118,7 @@ export function History() {
             Page {page} of {totalPages}
           </span>
           <button
+            data-testid="ohpp.history.next-page"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm font-medium rounded-md bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
