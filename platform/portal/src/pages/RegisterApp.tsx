@@ -76,6 +76,7 @@ export function RegisterApp() {
       <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm dark:shadow-slate-900/20 border border-gray-200 dark:border-slate-700 max-w-lg">
         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Connection link</label>
         <textarea
+          data-testid="ohpp.registerapp.uri"
           value={uri}
           onChange={(e) => setUri(e.target.value)}
           rows={3}
@@ -87,6 +88,7 @@ export function RegisterApp() {
         </p>
 
         <button
+          data-testid="ohpp.registerapp.connect"
           onClick={handleRegister}
           disabled={!uri.trim() || status === 'processing'}
           className="mt-4 bg-indigo-600 text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"

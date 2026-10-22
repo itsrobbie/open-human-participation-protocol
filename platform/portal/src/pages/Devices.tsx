@@ -86,6 +86,7 @@ export function Devices() {
             participation requests directly on the Pending page — no separate app needed.
           </p>
           <button
+            data-testid="ohpp.devices.enable-web-approvals"
             onClick={registerBrowser}
             disabled={createBrowserDevice.isPending}
             className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
@@ -186,6 +187,7 @@ function DeviceCard({
 
   return (
     <div
+      data-testid={`ohpp.devices.card.${device.id}`}
       className={`rounded-lg p-4 shadow-sm dark:shadow-slate-900/20 border flex justify-between items-center ${
         device.isActive
           ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
@@ -208,6 +210,7 @@ function DeviceCard({
       </div>
       {device.isActive && onRevoke && (
         <button
+          data-testid={`ohpp.devices.revoke.${device.id}`}
           onClick={onRevoke}
           disabled={isRevoking}
           aria-label={`Revoke ${device.name}`}
