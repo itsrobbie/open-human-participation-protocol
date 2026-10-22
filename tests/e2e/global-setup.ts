@@ -117,7 +117,9 @@ function resetDatabase() {
   const sqlFile = resolve(__dirname, 'reset-db.sql')
   execSync(
     `${BACKING} exec -T postgres psql -U ohpp -d ${TENANT_DB} -f /dev/stdin < "${sqlFile}"`,
-    { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/zsh' }
+    // bash (not zsh): present on both macOS and the Linux CI runner. zsh is
+    // macOS-only — a hardcoded /bin/zsh here failed CI with spawnSync ENOENT.
+    { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/bash' }
   )
 }
 
