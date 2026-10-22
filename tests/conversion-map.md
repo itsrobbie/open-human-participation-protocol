@@ -65,7 +65,7 @@ New whole-case specs to ADD (Phase 3): pizza + marketplace via WholeCaseScenario
 | crash_report_test | KEEP | crash sink |
 | telemetry_export_test | KEEP | OTLP export (note: export-only; matrix marks it as such) |
 | smoke_device_test | KEEP | smoke |
-| e2e_flows_test | KEEP (hardened in D1) | lifecycle; vacuous returns already -> markTestSkipped |
+| e2e_flows_test | KEEP (hardened in D1) | lifecycle; vacuous returns already -> markTestSkipped. PHASE 4 TODO: 4 `find.byKey(Key('pending-card-0'))` refs (lines ~166/188/207/234) must update to the new `ohpp.pending.card.<requestId>` key (card was re-keyed from index to requestId in 1.4). They are guarded-absence on-sim checks so CI is unaffected, but they go stale until converted. |
 
 New (Phase 3): marketplace_approval_flow_test via OhppAttester.
 
