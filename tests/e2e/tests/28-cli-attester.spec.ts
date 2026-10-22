@@ -23,10 +23,10 @@ test.describe.serial('CLI attester simulator', () => {
       cwd: resolve(__dirname, '../../..'), stdio: 'pipe', timeout: 30_000
     })
 
-    // Clear any leftover pending requests from prior tests so the CLI doesn't block on them
-    execSync(`${composeCmd} exec -T postgres psql -U ohpp -d ohpp -c "DELETE FROM pending_requests WHERE \\"Status\\" = 'Pending';"`, {
-      cwd: resolve(__dirname, '../../..'), stdio: 'pipe', timeout: 10_000
-    })
+    // Pending state is already cleared by global-setup's DB reset (P6
+    // isolation: every run starts from a truncated tenant). No per-spec DELETE
+    // is needed — and the old one targeted a non-existent `pending_requests`
+    // table, which failed the whole spec on the Linux CI runner.
 
     // --- Start the CLI as a long-running process with piped stdin ---
     const cli = spawn('docker', [
