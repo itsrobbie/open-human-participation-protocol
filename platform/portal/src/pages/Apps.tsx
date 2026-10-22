@@ -120,6 +120,7 @@ function AppCard({
 }) {
   return (
     <div
+      data-testid={`ohpp.apps.card.${app.appId}`}
       className={`rounded-lg p-4 shadow-sm dark:shadow-slate-900/20 border flex justify-between items-center ${
         app.isActive
           ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
@@ -138,6 +139,7 @@ function AppCard({
       </div>
       {app.isActive && onRevoke && (
         <button
+          data-testid={`ohpp.apps.revoke.${app.appId}`}
           onClick={onRevoke}
           disabled={isRevoking}
           aria-label={`Revoke ${app.appName}`}
