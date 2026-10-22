@@ -506,6 +506,8 @@ flutter-test-e2e: ## Run Flutter E2E on a booted iOS simulator against the dev s
 		--dart-define=OHPP_ANTI_AGENT_MODE=test \
 		--dart-define=OTEL_ENDPOINT=$(if $(OTEL_ENDPOINT),$(OTEL_ENDPOINT),http://localhost:4318) \
 		--dart-define=CRASH_DSN=$(if $(CRASH_DSN),$(CRASH_DSN),$(SEEDED_CRASH_DSN)) \
+		--dart-define=E2E_PIZZA_URL=$(if $(E2E_PIZZA_URL),$(E2E_PIZZA_URL),http://localhost:5030) \
+		--dart-define=E2E_MARKETPLACE_URL=$(if $(E2E_MARKETPLACE_URL),$(E2E_MARKETPLACE_URL),http://localhost:5040) \
 		$(if $(ANALYTICS_HOST),--dart-define=ANALYTICS_HOST=$(ANALYTICS_HOST),) \
 		$(if $(ANALYTICS_KEY),--dart-define=ANALYTICS_KEY=$(ANALYTICS_KEY),)
 	@echo "✓ E2E tests passed"

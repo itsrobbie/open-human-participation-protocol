@@ -401,3 +401,31 @@ Future<void> cleanupTestArtifacts(String identityToken) async {
     client.close();
   }
 }
+
+/// Fetches the Resolver participation-history detail for [requestId] using an
+/// IdP (Keycloak `ohpp` realm) user token -- the audit/proof record written
+/// once a ceremony resolves. Returns the decoded JSON (camelCase keys:
+/// requestId, status, attestationPayload, decisionPayload, resolutionMethod,
+/// resolvingDeviceId, resolvedAt, ...) or null on a non-200.
+///
+/// GET /api/history/{id} is guarded by RequireTokenType(IdentityProvider), so
+/// pass the token from [getAccessToken], not a device token.
+Future<Map<String, dynamic>?> fetchParticipationHistoryDetail({
+  required String identityToken,
+  required String requestId,
+}) async {
+  final client = HttpClient();
+  try {
+    final request =
+        await client.getUrl(Uri.parse('$e2eResolverUrl/api/history/$requestId'));
+    request.headers.set('Authorization', 'Bearer $identityToken');
+    final response = await request.close();
+    final body = await response.transform(const SystemEncoding().decoder).join();
+    if (response.statusCode != 200) {
+      return null;
+    }
+    return jsonDecode(body) as Map<String, dynamic>;
+  } finally {
+    client.close();
+  }
+}

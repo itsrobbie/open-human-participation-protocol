@@ -66,35 +66,10 @@ export function createApiRoutes(deps: RoutesDeps): Router {
     res.json(orders);
   });
 
-  router.get('/orders/:id', async (req, res: Response) => {
-    // Settle this order against the resolver if it's still awaiting an answer,
-    // so opening an order reflects a decision made elsewhere.
-    await deps.standardOrderService.resolveOrder(req.params.id, getUserId(req));
-    const order = await deps.orderService.getById(req.params.id, getUserId(req));
-    if (!order) {
-      res.status(404).json({ error: 'Order not found' });
-      return;
-    }
-    res.json(order);
-  });
-
-  router.get('/orders/:id/status', async (req, res: Response) => {
-    const result = await deps.standardOrderService.resolveOrder(req.params.id, getUserId(req));
-    if (!result.success) {
-      res.status(400).json({ error: result.error });
-      return;
-    }
-    res.json(result.order);
-  });
-
-  router.post('/orders/:id/cancel', async (req, res: Response) => {
-    const result = await deps.orderService.cancel(req.params.id, getUserId(req));
-    if (!result.success) {
-      res.status(400).json({ error: result.error });
-      return;
-    }
-    res.json(result.order);
-  });
+  // NOTE: the generic `/orders/:id*` routes are registered AFTER the specific
+  // `/orders/ohpp-pizza*` routes below, so `:id` never captures the literal
+  // "ohpp-pizza" and shadows the flow routes (the dead-flow discoverability
+  // bug). Express matches in registration order; specific must precede generic.
 
   // --- OHPP Pizza Flow ---
   router.post('/orders/ohpp-pizza', async (req, res: Response) => {
@@ -131,6 +106,38 @@ export function createApiRoutes(deps: RoutesDeps): Router {
       return;
     }
     res.json({ flow: result.flow });
+  });
+
+  // --- Generic order routes (registered AFTER the specific ohpp-pizza routes
+  // above, so `:id` cannot shadow "ohpp-pizza"). ---
+  router.get('/orders/:id', async (req, res: Response) => {
+    // Settle this order against the resolver if it's still awaiting an answer,
+    // so opening an order reflects a decision made elsewhere.
+    await deps.standardOrderService.resolveOrder(req.params.id, getUserId(req));
+    const order = await deps.orderService.getById(req.params.id, getUserId(req));
+    if (!order) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+    res.json(order);
+  });
+
+  router.get('/orders/:id/status', async (req, res: Response) => {
+    const result = await deps.standardOrderService.resolveOrder(req.params.id, getUserId(req));
+    if (!result.success) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.order);
+  });
+
+  router.post('/orders/:id/cancel', async (req, res: Response) => {
+    const result = await deps.orderService.cancel(req.params.id, getUserId(req));
+    if (!result.success) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json(result.order);
   });
 
   // --- OHPP Connection ---
