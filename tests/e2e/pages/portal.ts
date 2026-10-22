@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { BasePage } from './base'
 import { PORTAL_URL } from '../test-urls'
 
@@ -28,37 +28,36 @@ export class PortalPage extends BasePage {
    */
   async enableWebApprovals(): Promise<void> {
     await this.goto('/devices')
-    // Idempotent: the portal shows the "Enable web approvals" button ONLY when
-    // there are zero active devices (it is hidden once any device, browser or
-    // key-bearing, exists). So we cannot blindly wait for that button.
-    //   - If a browser device card already exists, web approvals are already
-    //     live — nothing to do.
-    //   - Otherwise revoke every active device (a key-bearing device disables
-    //     web approvals), which makes the enable button render; click it; then
-    //     confirm a browser device card appears.
-    const browserCard = this.page.locator('[data-testid^="ohpp.devices.card."]').first()
+    const revokeButtons = this.page.locator('[data-testid^="ohpp.devices.revoke."]')
     const enable = this.testid('ohpp.devices.enable-web-approvals')
+    const browserCard = this.page.locator('[data-testid^="ohpp.devices.card."]').first()
 
-    if (await enable.isVisible().catch(() => false)) {
-      // Zero devices: enable directly.
-      await enable.click()
-      await browserCard.waitFor({ state: 'visible', timeout: 15_000 })
-      return
-    }
-    // A device already exists. If it is a browser device, approvals are live.
-    // We cannot tell type from the card testid alone, so revoke all and
-    // re-enable to guarantee a keyless browser device (the deterministic state
-    // the attester needs).
-    for (;;) {
-      const revoke = this.page.locator('[data-testid^="ohpp.devices.revoke."]').first()
-      if (!(await revoke.isVisible().catch(() => false))) break
-      await revoke.click()
+    // The portal renders "Enable web approvals" ONLY when there are zero active
+    // devices. A device left by an earlier spec (browser OR key-bearing) hides
+    // it, and a key-bearing device actively DISABLES web approvals. So the
+    // deterministic end state the attester needs is: no active devices, then a
+    // freshly-registered keyless browser device.
+    //
+    // Drain every active device. revokeButtons.count() is re-evaluated each
+    // loop; we assert the card detaches with a web-first expect (retries until
+    // gone — P2, never a sleep, never a silently-swallowed timeout). After the
+    // last revoke the list is drained.
+    for (let guard = 0; guard < 20; guard++) {
+      if ((await revokeButtons.count()) === 0) break
+      const first = revokeButtons.first()
+      await first.click()
       await this.clickTestId('ohpp.confirm.confirm')
-      await revoke.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {})
+      // Deterministic: wait until the active-device count actually drops.
+      await expect(first).toBeHidden({ timeout: 10_000 })
     }
-    // All devices gone -> the enable button now renders.
+    // Defeat any react-query list staleness: reload so the zero-device render
+    // (which shows the enable button) is guaranteed fresh.
+    await this.page.reload()
+    await expect(revokeButtons).toHaveCount(0, { timeout: 10_000 })
+
     await this.waitFor('ohpp.devices.enable-web-approvals')
-    await this.clickTestId('ohpp.devices.enable-web-approvals')
+    await enable.click()
+    // Registration succeeds -> a browser device card appears.
     await browserCard.waitFor({ state: 'visible', timeout: 15_000 })
   }
 
