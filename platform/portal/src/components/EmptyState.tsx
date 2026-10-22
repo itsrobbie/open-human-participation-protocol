@@ -27,6 +27,7 @@ export function EmptyState({ icon, title, description, actionLabel, actionTo, on
       )}
       {actionLabel && onAction && !actionTo && (
         <button
+          data-testid="ohpp.emptystate.action"
           onClick={onAction}
           className="mt-4 inline-flex items-center px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
         >

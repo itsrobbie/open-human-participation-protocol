@@ -17,6 +17,7 @@ export function ErrorState({
       <p className="text-red-800 dark:text-red-200 font-medium text-sm">{message}</p>
       {onRetry && (
         <button
+          data-testid="ohpp.errorstate.retry"
           onClick={onRetry}
           className="mt-3 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-200 bg-red-100 dark:bg-red-900/40 rounded-md hover:bg-red-200 dark:hover:bg-red-900/60 transition-colors"
         >

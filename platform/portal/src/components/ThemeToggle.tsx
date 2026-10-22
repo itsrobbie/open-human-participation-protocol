@@ -8,6 +8,7 @@ export function ThemeToggle() {
 
   return (
     <button
+      data-testid="ohpp.themetoggle.cycle"
       onClick={() => setTheme(next)}
       className="text-slate-400 hover:text-white text-xs flex items-center gap-1"
       aria-label={`Theme: ${label}. Click to switch.`}

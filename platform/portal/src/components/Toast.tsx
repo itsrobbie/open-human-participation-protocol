@@ -46,6 +46,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-between gap-3">
               <span>{t.message}</span>
               <button
+                data-testid="ohpp.toast.dismiss"
                 onClick={() => dismiss(t.id)}
                 className="text-current opacity-60 hover:opacity-100 text-lg leading-none"
                 aria-label="Dismiss notification"
