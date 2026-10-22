@@ -104,6 +104,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             child: const Text('Cancel'),
           ),
           TextButton(
+            key: const Key('ohpp.rules.dialog-delete'),
             onPressed: () {
               Navigator.pop(ctx);
               ref.read(rulesProvider.notifier).delete(rule['id'] as String);

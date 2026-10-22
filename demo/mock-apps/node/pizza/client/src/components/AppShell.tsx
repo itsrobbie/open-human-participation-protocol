@@ -26,7 +26,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" data-testid="ohpp.pizza.sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}

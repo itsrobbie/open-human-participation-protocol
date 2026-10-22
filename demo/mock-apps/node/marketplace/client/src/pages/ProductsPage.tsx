@@ -104,7 +104,7 @@ export function ProductsPage() {
       {/* Search active indicator */}
       {search && (
         <p className="text-sm text-slate-500 mb-4">
-          Showing results for "{search}" <button onClick={() => updateParam('search', '')} className="text-cyan-600 ml-1">Clear</button>
+          Showing results for "{search}" <button data-testid="ohpp.marketplace.clear-search" onClick={() => updateParam('search', '')} className="text-cyan-600 ml-1">Clear</button>
         </p>
       )}
 
@@ -139,6 +139,7 @@ export function ProductsPage() {
           </button>
           <span className="text-sm text-slate-500">Page {page} of {totalPages}</span>
           <button
+            data-testid="ohpp.marketplace.next-page"
             onClick={() => updateParam('page', String(page + 1))}
             disabled={page >= totalPages}
             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm disabled:opacity-50"

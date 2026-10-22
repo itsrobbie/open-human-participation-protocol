@@ -195,10 +195,12 @@ class SecurityScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
+              key: const Key('ohpp.security.dialog-cancel'),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+              key: const Key('ohpp.security.dialog-confirm'),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Rotate'),
           ),

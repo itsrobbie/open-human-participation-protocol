@@ -106,10 +106,12 @@ class SettingsScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
+            key: const Key('ohpp.settings.dialog-cancel'),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           TextButton(
+            key: const Key('ohpp.settings.dialog-confirm'),
             onPressed: () {
               Navigator.pop(ctx);
               onNavigate?.call('delete-account');

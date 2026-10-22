@@ -432,6 +432,7 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
         ),
         const SizedBox(height: 12),
         TextField(
+          key: const Key('ohpp.detail.text-field'),
           controller: _textController,
           enabled: !widget.alreadyResolved,
           maxLines: 3,
@@ -459,6 +460,7 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
         ),
         const SizedBox(height: 12),
         TextField(
+          key: const Key('ohpp.detail.number-field'),
           controller: _textController,
           enabled: !widget.alreadyResolved,
           keyboardType: TextInputType.number,
@@ -561,6 +563,7 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
             ),
             if (_hasSignature)
               TextButton(
+                key: const Key('ohpp.detail.signature-clear'),
                 onPressed: () {
                   setState(() {
                     _signaturePoints.clear();

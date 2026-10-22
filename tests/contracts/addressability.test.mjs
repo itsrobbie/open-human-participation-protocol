@@ -104,8 +104,16 @@ function lintFlutter() {
         if (line.trim().startsWith('//')) continue;
         // A keyed interactive widget has Key( within its construction window,
         // OR is itemBuilder'd inside a list whose rows carry keys (allowlisted
-        // by a nearby `key:` on the builder).
-        if (!elementHasId(lines, i, 'Key(', 4, 14) && !elementHasId(lines, i, 'key:', 4, 14)) {
+        // by a nearby `key:` on the builder), OR is the root widget of a small
+        // wrapper class that delegates its key via super.key (so the CALLER
+        // supplies the Key, e.g. _FilterChip) - detected by super.key / this.key
+        // in the enclosing class.
+        if (
+          !elementHasId(lines, i, 'Key(', 4, 14) &&
+          !elementHasId(lines, i, 'key:', 4, 14) &&
+          !elementHasId(lines, i, 'super.key', 20, 2) &&
+          !elementHasId(lines, i, 'this.key', 20, 2)
+        ) {
           violations.push(`${file.replace(repoRoot + '/', '')}:${i + 1}: ${line.trim().slice(0, 90)}`);
         }
       }
