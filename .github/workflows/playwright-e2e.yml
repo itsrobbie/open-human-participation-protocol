@@ -1,0 +1,87 @@
+name: Playwright E2E (web whole-case)
+
+# Runs the Playwright browser E2E suite against a REAL isolated stack built from
+# source in-run, so the web whole-case specs (WholeCaseScenario + PortalAttester,
+# the ohpp.* testids) get a cross-host amd64 gate. Mirrors `make test`:
+# global-setup.ts brings up the shared backing tier + this run's app tier
+# (docker-compose.backing.yml + docker-compose.apps.yml, built from source so the
+# branch's testids are included), resets the tenant DB, runs the specs sequentially
+# (workers: 1), and global-teardown.ts removes everything (TEARDOWN_FULL=1).
+#
+# Self-contained: no registry image, no cross-workflow dependency. ubuntu-latest
+# ships Docker + Compose; we add Node 20, python3 (keycloak redirect generator),
+# and the pinned Playwright browser.
+
+on:
+  push:
+    paths:
+      - 'tests/e2e/**'
+      - 'platform/portal/**'
+      - 'platform/resolver/**'
+      - 'demo/mock-apps/**'
+      - 'docker-compose.backing.yml'
+      - 'docker-compose.apps.yml'
+      - 'Makefile'
+      - 'scripts/**'
+      - '.github/workflows/playwright-e2e.yml'
+  pull_request:
+    paths:
+      - 'tests/e2e/**'
+      - 'platform/portal/**'
+      - 'platform/resolver/**'
+      - 'demo/mock-apps/**'
+      - 'docker-compose.backing.yml'
+      - 'docker-compose.apps.yml'
+      - 'Makefile'
+      - 'scripts/**'
+      - '.github/workflows/playwright-e2e.yml'
+
+concurrency:
+  group: playwright-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright whole-case E2E (isolated stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python 3 (keycloak redirect generator)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install E2E dependencies
+        working-directory: tests/e2e
+        run: npm ci
+
+      - name: Install Playwright browser (chromium)
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+
+      # make test delegates to playwright, whose global-setup builds the app tier
+      # from source (docker compose up --build) — so the branch's new ohpp.*
+      # testids are compiled into the Portal/app images this run tests against.
+      # TEARDOWN_FULL=1 makes global-teardown remove the whole stack + volumes.
+      - name: Run Playwright whole-case E2E
+        env:
+          TEARDOWN_FULL: '1'
+        run: make test
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            tests/e2e/playwright-report/
+            tests/e2e/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
