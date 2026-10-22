@@ -284,6 +284,7 @@ function SelectResponse({
       {request.options!.map((option) => (
         <button
           key={option.key}
+          data-testid={`ohpp.pending.option.${option.key}`}
           onClick={() => onResolve({ requestId: request.id, selectedOption: option.key })}
           disabled={isResolving}
           className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
@@ -319,6 +320,7 @@ function MultiselectResponse({
           <label key={option.key} className="flex items-center gap-2 text-sm cursor-pointer">
             <input
               type="checkbox"
+              data-testid={`ohpp.pending.multioption.${option.key}`}
               checked={selected.includes(option.key)}
               onChange={() => toggle(option.key)}
               className="rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
@@ -328,6 +330,7 @@ function MultiselectResponse({
         ))}
       </div>
       <button
+        data-testid="ohpp.pending.multiselect.submit"
         onClick={() => onResolve({ requestId: request.id, selectedOptions: selected })}
         disabled={isResolving || selected.length === 0}
         className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
@@ -358,12 +361,14 @@ function InputResponse({
     <div className="flex gap-2">
       <input
         type={inputType}
+        data-testid="ohpp.pending.input.field"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={request.placeholder ?? 'Your response...'}
         className="flex-1 border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-800 dark:text-slate-100"
       />
       <button
+        data-testid="ohpp.pending.input.submit"
         onClick={() => onResolve({ requestId: request.id, value })}
         disabled={isResolving || !value.trim()}
         className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
@@ -385,6 +390,7 @@ function SignatureResponse({
 }) {
   return (
     <button
+      data-testid="ohpp.pending.signature.submit"
       onClick={() => onResolve({ requestId: request.id, value: 'acknowledged' })}
       disabled={isResolving}
       className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
