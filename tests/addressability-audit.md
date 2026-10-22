@@ -34,17 +34,25 @@ Interactive files needing a testid pass (count = interactive elements found):
 - [ ] components/Toast.tsx, ThemeToggle.tsx, ErrorState.tsx, EmptyState.tsx (2 each)
 - [ ] router.tsx (8) - nav links
 
-## Bank UI (demo/mock-apps/dotnet/bank/ui/src/app.ts) - MEDIUM
+## Bank UI - ALREADY ADDRESSABLE (audit correction 2026-10-22)
 
-Single vanilla-TS SPA (~17 interactive DOM points: buttons, forms, inputs built
-via DOM APIs). Needs a DOM-level testid scheme: set `.dataset.testid` (or
-`setAttribute('data-testid', ...)`) on each created interactive element.
-- [ ] Enumerate the created interactive elements in app.ts and attach testids.
+CORRECTION: the 0.2 scan looked in `ui/` (the TS build dir) but the markup lives
+in `src/Bank.Presentation/wwwroot/index.html`. That file ALREADY has
+`data-testid` on all 19 interactive elements (login-username/password/submit,
+transfer-payee/amount/reference/schedule-*, review-transfer, confirm/cancel-
+transfer, add-payee, transaction-search/filter, generate-challenge, etc.).
+P1-compliant. Naming is bare (`login-submit`) not `ohpp.*` prefixed - accepted as
+compliant (stable + scheme-based, not text/order); existing specs target them.
+- [x] Bank UI already addressable. No change needed.
 
-## Insurance UI (demo/mock-apps/dotnet/insurance-claims/ui/src/app.ts) - MEDIUM
+## Insurance UI - ALREADY ADDRESSABLE (audit correction 2026-10-22)
 
-Same shape as Bank. Same DOM-testid approach.
-- [ ] Enumerate + attach testids in app.ts.
+Same correction: `src/InsuranceClaims.Presentation/wwwroot/index.html` ALREADY
+has `data-testid` on all 25+ interactive elements (login-*, claim-policy/
+claimant/incident-date/description/amount, save-claim-draft, submit-claim,
+claim-status-filter, generate-challenge, etc.). P1-compliant, bare naming
+accepted.
+- [x] Insurance UI already addressable. No change needed.
 
 ## Pizza client (demo/mock-apps/node/pizza/client/src) - SMALL
 

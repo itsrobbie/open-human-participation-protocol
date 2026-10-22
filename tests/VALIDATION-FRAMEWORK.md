@@ -31,6 +31,11 @@ Everything below removes these structurally.
   - `<area>` = screen/feature (pending, detail, bank, pizza, portal...);
     `<element>` = role (card, option, submit, field, tab...); `<id>` = the stable
     domain id where one exists (requestId, option value), else a stable slug.
+  - Pre-existing surfaces that already carry STABLE, scheme-based `data-testid`s
+    under a different (bare) naming (e.g. Bank/Insurance `login-submit`,
+    `confirm-transfer`) are ACCEPTED as compliant - they satisfy the intent
+    (stable, not text/order). Do NOT churn them to the `ohpp.*` prefix. New
+    elements and new surfaces use the `ohpp.<area>.<element>.<id>` scheme.
 - **P2 Determinism.** Tests NEVER sleep a fixed duration. They wait-until a keyed
   element exists / a condition holds, via the shared helper (`waitForTestId` web,
   `pumpUntilKey` Flutter), with a bounded timeout and a descriptive failure.
