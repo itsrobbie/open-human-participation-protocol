@@ -113,12 +113,14 @@ test.describe.serial('Portal quality evidence', () => {
       priorRequestId = await page.getByTestId('protocol-request-id').textContent()
       await expect(page.getByTestId('protocol-status')).toContainText('pending')
 
-      // Navigate to Pending page to resolve (protocol separation)
+      // Navigate to Pending page to resolve (protocol separation).
+      // One request is pending per iteration, so the scheme option control is
+      // unique; the stale non-scheme 'pending-select' testid never existed in
+      // the portal source (pre-Phase-1.1 leftover) and strict-mode-violated.
       await page.click('nav >> text=Pending')
-      const card = page.getByTestId('pending-select')
-      await expect(card).toBeVisible({ timeout: 15_000 })
-      await card.getByRole('button', { name: 'Approve', exact: true }).click()
-      await expect(card).toBeHidden({ timeout: 15_000 })
+      const approve = page.getByTestId('ohpp.pending.option.approve')
+      await approve.click()
+      await approve.waitFor({ state: 'detached', timeout: 15_000 })
 
       // Navigate back to Lab to verify resolution and continue
       await page.click('nav >> text=Protocol Lab')
