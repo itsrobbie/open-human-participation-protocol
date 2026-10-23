@@ -29,25 +29,31 @@ export class PortalPage extends BasePage {
   async enableWebApprovals(): Promise<void> {
     await this.goto('/devices')
     const enable = this.testid('ohpp.devices.enable-web-approvals')
-    const browserCard = this.page.locator('[data-testid^="ohpp.devices.card."]').first()
+    const anyCard = this.page.locator('[data-testid^="ohpp.devices.card."]').first()
 
-    // The deterministic end state the attester needs is: an active device card
-    // exists (web approvals live). The portal renders the "Enable web approvals"
-    // button ONLY when there are zero active devices.
-    //
-    // IDEMPOTENT: if an active device card already exists, web approvals are
-    // already live — return. (The CI failure screenshot showed a "This browser"
-    // card present while the code still waited for the enable button, which is
-    // correctly HIDDEN whenever any device exists — so waiting for it hangs.)
-    // The demo account in the reset test tenant only ever yields a browser
-    // device here, so an existing card means approvals are live.
-    if (await browserCard.isVisible().catch(() => false)) {
+    // The Devices list loads ASYNCHRONOUSLY (react-query) after the page mounts,
+    // so an instant isVisible() right after goto() loses the race and reports
+    // false before the card renders. Instead wait for whichever terminal state
+    // settles first:
+    //   - a device card appears  -> web approvals already live, nothing to do
+    //   - the enable button appears (zero devices) -> click it to register one
+    // The portal renders the enable button ONLY when activeDevices.length === 0,
+    // so exactly one of these two becomes visible. Racing their waitFor()s is
+    // deterministic (auto-retrying locators, no sleep, no instant snapshot).
+    await Promise.race([
+      anyCard.waitFor({ state: 'visible', timeout: 15_000 }),
+      enable.waitFor({ state: 'visible', timeout: 15_000 }),
+    ])
+
+    if (await anyCard.isVisible().catch(() => false)) {
+      // A device already exists -> approvals live. (Reset test tenant only ever
+      // yields a browser device here.)
       return
     }
-    // Zero devices: the enable button renders. Click it and confirm a card.
-    await this.waitFor('ohpp.devices.enable-web-approvals')
+    // Zero devices: the enable button is the one that resolved. Click it and
+    // confirm a device card appears.
     await enable.click()
-    await browserCard.waitFor({ state: 'visible', timeout: 15_000 })
+    await anyCard.waitFor({ state: 'visible', timeout: 15_000 })
   }
 
   /** Connect a requester app by pasting its ohpp:// challenge URI. */

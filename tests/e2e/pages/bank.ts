@@ -40,10 +40,34 @@ export class BankPage implements RequesterDriver {
   }
 
   async confirmConnected(): Promise<void> {
-    // Bank auto-connects via callback; reload and wait for the OHPP badge.
-    await this.page.goto(BANK_URL)
-    await expect(this.page.locator('#balance')).not.toHaveText('Loading...', { timeout: 15_000 })
-    await expect(this.page.locator('.ohpp-badge')).toContainText('OHPP Connected', { timeout: 15_000 })
+    // The bank learns it is connected via an ASYNC server->server callback:
+    // the resolver POSTs /ohpp/callback once the Portal registers the challenge,
+    // and only then does the account gain an OhppRegistration that flips the
+    // badge to "OHPP Connected". That callback lags the Portal's "App registered
+    // successfully" banner, and the demo bank reflects connection state only on
+    // load/poll — it does NOT hold it reactively. So poll: reload the bank and
+    // re-check the badge until it flips, bounded, no fixed sleep.
+    const badge = this.page.locator('.ohpp-badge')
+    const deadline = Date.now() + 30_000
+    for (;;) {
+      await this.page.goto(BANK_URL)
+      await expect(this.page.locator('#balance')).not.toHaveText('Loading...', { timeout: 15_000 })
+      if (
+        await badge
+          .filter({ hasText: 'OHPP Connected' })
+          .isVisible()
+          .catch(() => false)
+      ) {
+        return
+      }
+      if (Date.now() > deadline) {
+        // One last authoritative wait so the failure message is the badge
+        // assertion (shows the actual badge text), not a bare loop timeout.
+        await expect(badge).toContainText('OHPP Connected', { timeout: 5_000 })
+        return
+      }
+      await this.page.waitForTimeout(1_000) // between reloads only; the connect is async server-side
+    }
   }
 
   async initiateAction(): Promise<void> {
