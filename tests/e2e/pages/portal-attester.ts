@@ -36,44 +36,51 @@ export class PortalAttester extends BasePage {
   }
 
   /**
-   * Answer the single currently-pending step. Deterministic: waits for the
-   * type-specific keyed control, acts, then waits for that control to DETACH —
-   * the answered card leaves the pending list only once the Resolver accepts
-   * the answer. Returning before that detach is the race that left the bank's
-   * transfer stuck on "Waiting for approval" on the (slower, cold) CI runner
-   * while it passed locally. We confirm acceptance, never fire-and-return.
+   * Answer the single currently-pending step. Deterministic AND card-scoped:
+   * every ohpp.pending.* control is rendered once PER CARD (non-unique across
+   * cards), so a page-wide locator strict-mode-violates the moment more than
+   * one card is pending. The suite resets the DB only once at global-setup, so
+   * by the time a later spec runs, earlier specs' unresolved requests linger
+   * and the current user can have several cards. We therefore resolve the FIRST
+   * card's id, scope the control locators INSIDE that card, act, then wait for
+   * THAT card to DETACH — the card leaves the pending list only once the
+   * Resolver accepts the answer. Scoping kills the ambiguity; waiting for the
+   * specific card's detach (never a page-wide control) is what keeps it
+   * deterministic on the slower, cold CI runner.
    */
   async answerCurrentStep(answer: StepAnswer): Promise<void> {
+    const first = this.page.locator('[data-testid^="ohpp.pending.card."]').first()
+    await first.waitFor({ state: 'visible', timeout: 20_000 })
+    const testid = await first.getAttribute('data-testid')
+    if (!testid) throw new Error('first pending card has no data-testid')
+    const requestId = testid.replace('ohpp.pending.card.', '')
+    const card = this.page.locator(`[data-testid="ohpp.pending.card.${requestId}"]`)
+
     switch (answer.kind) {
       case 'select': {
-        const option = this.testid(`ohpp.pending.option.${answer.option}`)
-        await option.click()
-        await option.waitFor({ state: 'detached', timeout: 20_000 })
-        return
+        await card.getByTestId(`ohpp.pending.option.${answer.option}`).click()
+        break
       }
       case 'multiselect': {
         for (const opt of answer.options) {
-          await this.clickTestId(`ohpp.pending.multioption.${opt}`)
+          await card.getByTestId(`ohpp.pending.multioption.${opt}`).click()
         }
-        const submit = this.testid('ohpp.pending.multiselect.submit')
-        await submit.click()
-        await submit.waitFor({ state: 'detached', timeout: 20_000 })
-        return
+        await card.getByTestId('ohpp.pending.multiselect.submit').click()
+        break
       }
       case 'input': {
-        await this.fillTestId('ohpp.pending.input.field', answer.value)
-        const submit = this.testid('ohpp.pending.input.submit')
-        await submit.click()
-        await submit.waitFor({ state: 'detached', timeout: 20_000 })
-        return
+        await card.getByTestId('ohpp.pending.input.field').fill(answer.value)
+        await card.getByTestId('ohpp.pending.input.submit').click()
+        break
       }
       case 'signature': {
-        const submit = this.testid('ohpp.pending.signature.submit')
-        await submit.click()
-        await submit.waitFor({ state: 'detached', timeout: 20_000 })
-        return
+        await card.getByTestId('ohpp.pending.signature.submit').click()
+        break
       }
     }
+
+    // The specific card detaches once the Resolver accepts the answer.
+    await card.waitFor({ state: 'detached', timeout: 20_000 })
   }
 
   /** Wait until some pending request's select option is present (a card arrived). */
@@ -86,15 +93,48 @@ export class PortalAttester extends BasePage {
     return this.page.locator('[data-testid^="ohpp.pending.card."]').count()
   }
 
+  /** Request ids of all currently-pending cards (from ohpp.pending.card.<id>). */
+  async pendingCardIds(): Promise<string[]> {
+    const cards = this.page.locator('[data-testid^="ohpp.pending.card."]')
+    const n = await cards.count()
+    const ids: string[] = []
+    for (let i = 0; i < n; i++) {
+      const testid = await cards.nth(i).getAttribute('data-testid')
+      if (testid) ids.push(testid.replace('ohpp.pending.card.', ''))
+    }
+    return ids
+  }
+
   /**
-   * Answer a SPECIFIC pending card by request id — for batch scenarios where
-   * several cards coexist and `ohpp.pending.option.<key>` would match many.
-   * Scopes the option click within that card and waits for the card to detach
-   * (the Resolver accepted the answer), same determinism as answerCurrentStep.
+   * Answer a SPECIFIC pending card by request id — for scenarios where several
+   * cards coexist (the suite resets the DB once, so prior specs' unresolved
+   * requests linger) and the caller KNOWS which request is its own. Scopes
+   * every control inside that card and waits for the card to detach (the
+   * Resolver accepted the answer). Prefer this over answerCurrentStep whenever
+   * the request id is in hand — answering "the first card" is wrong when a
+   * stale card from another spec precedes your own.
    */
-  async answerCard(requestId: string, optionKey: string): Promise<void> {
+  async answerCard(requestId: string, answer: StepAnswer): Promise<void> {
     const card = this.page.locator(`[data-testid="ohpp.pending.card.${requestId}"]`)
-    await card.getByTestId(`ohpp.pending.option.${optionKey}`).click()
+    await card.waitFor({ state: 'visible', timeout: 20_000 })
+    switch (answer.kind) {
+      case 'select':
+        await card.getByTestId(`ohpp.pending.option.${answer.option}`).click()
+        break
+      case 'multiselect':
+        for (const opt of answer.options) {
+          await card.getByTestId(`ohpp.pending.multioption.${opt}`).click()
+        }
+        await card.getByTestId('ohpp.pending.multiselect.submit').click()
+        break
+      case 'input':
+        await card.getByTestId('ohpp.pending.input.field').fill(answer.value)
+        await card.getByTestId('ohpp.pending.input.submit').click()
+        break
+      case 'signature':
+        await card.getByTestId('ohpp.pending.signature.submit').click()
+        break
+    }
     await card.waitFor({ state: 'detached', timeout: 20_000 })
   }
 
@@ -111,6 +151,6 @@ export class PortalAttester extends BasePage {
     const testid = await first.getAttribute('data-testid')
     if (!testid) throw new Error('first pending card has no data-testid')
     const requestId = testid.replace('ohpp.pending.card.', '')
-    await this.answerCard(requestId, optionKey)
+    await this.answerCard(requestId, { kind: 'select', option: optionKey })
   }
 }

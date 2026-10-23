@@ -41,6 +41,15 @@ test.describe('Bank — Batch transfers (multiple pending, then resolve)', () =>
     const startBalanceText = await bankPage.locator('#balance').textContent()
     const startBalance = parseFloat(startBalanceText!.replace('£', '').replace(',', ''))
 
+    // Capture any pre-existing pending cards. The suite resets the DB ONCE at
+    // global-setup, so earlier specs' unresolved requests can still be pending
+    // for the demo user. We must resolve ONLY this spec's three transfers —
+    // approving a leftover (a different amount) is exactly what made the balance
+    // delta wrong (150 instead of 20). Steering forbids a per-spec DB reset
+    // (DB calls are global-setup only), so we isolate by request id instead.
+    await attester.openPending()
+    const preExistingIds = await attester.pendingCardIds()
+
     // --- Create 3 transfers WITHOUT resolving any ---
     const transfers = [
       { amount: '10.00', reference: 'Batch test 1' },
@@ -66,16 +75,21 @@ test.describe('Bank — Batch transfers (multiple pending, then resolve)', () =>
     await expect(bankPage.locator('.txn-item').first()).toBeVisible({ timeout: 10_000 })
     expect(await bankPage.locator('.txn-status.pendingapproval').count()).toBeGreaterThanOrEqual(3)
 
-    // --- Resolve on the Portal: approve 2, deny 1 (scheme controls, detach-waited) ---
+    // --- Resolve on the Portal: approve 2, deny 1 of THIS SPEC'S OWN cards ---
     await attester.openPending()
-    // Wait until all 3 cards have propagated to the Pending page.
+    // Wait until this spec's three new cards have propagated to the Pending page
+    // (cards present now that were not present before we created the transfers).
     await expect
-      .poll(async () => attester.pendingCardCount(), { timeout: 70_000, intervals: [1_000, 2_000, 5_000] })
+      .poll(async () => (await attester.pendingCardIds()).filter((id) => !preExistingIds.includes(id)).length, {
+        timeout: 70_000,
+        intervals: [1_000, 2_000, 5_000],
+      })
       .toBeGreaterThanOrEqual(3)
 
-    await attester.answerFirstCard('approve')
-    await attester.answerFirstCard('approve')
-    await attester.answerFirstCard('deny')
+    const myCardIds = (await attester.pendingCardIds()).filter((id) => !preExistingIds.includes(id))
+    await attester.answerCard(myCardIds[0], { kind: 'select', option: 'approve' })
+    await attester.answerCard(myCardIds[1], { kind: 'select', option: 'approve' })
+    await attester.answerCard(myCardIds[2], { kind: 'select', option: 'deny' })
 
     // --- Verify final statuses in bank history (bank polls the resolver) ---
     // Poll (reload + re-read) until the async resolver->bank status propagation

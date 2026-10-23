@@ -86,7 +86,7 @@ test.describe.serial('Portal Protocol Lab', () => {
     } else {
       step = { kind: 'input', value: answer.value! }
     }
-    await attester.answerCurrentStep(step)
+    await attester.answerCard(requestId, step)
 
     // Navigate back to Protocol Lab to check status
     await page.click('nav >> text=Protocol Lab')

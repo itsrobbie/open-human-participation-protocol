@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { BrowserContext, expect, Page, test } from '@playwright/test'
 import { PORTAL_URL } from '../test-urls'
+import { PortalAttester } from '../pages/portal-attester'
 
 async function login(page: Page) {
   await page.goto(`${PORTAL_URL}/login`)
@@ -114,13 +115,13 @@ test.describe.serial('Portal quality evidence', () => {
       await expect(page.getByTestId('protocol-status')).toContainText('pending')
 
       // Navigate to Pending page to resolve (protocol separation).
-      // One request is pending per iteration, so the scheme option control is
-      // unique; the stale non-scheme 'pending-select' testid never existed in
-      // the portal source (pre-Phase-1.1 leftover) and strict-mode-violated.
+      // The suite resets the DB once, so prior specs' unresolved requests can
+      // linger and the ohpp.pending.option.approve control is NOT unique
+      // page-wide (it is rendered per card) — a page-wide click strict-mode
+      // violates. Answer THIS iteration's own card by its request id.
       await page.click('nav >> text=Pending')
-      const approve = page.getByTestId('ohpp.pending.option.approve')
-      await approve.click()
-      await approve.waitFor({ state: 'detached', timeout: 15_000 })
+      const attester = new PortalAttester(page)
+      await attester.answerCard(priorRequestId!, { kind: 'select', option: 'approve' })
 
       // Navigate back to Lab to verify resolution and continue
       await page.click('nav >> text=Protocol Lab')
