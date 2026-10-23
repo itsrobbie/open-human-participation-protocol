@@ -37,29 +37,40 @@ export class PortalAttester extends BasePage {
 
   /**
    * Answer the single currently-pending step. Deterministic: waits for the
-   * type-specific keyed control, then acts. Returns when the control has been
-   * actioned (the request leaves the pending list on success).
+   * type-specific keyed control, acts, then waits for that control to DETACH —
+   * the answered card leaves the pending list only once the Resolver accepts
+   * the answer. Returning before that detach is the race that left the bank's
+   * transfer stuck on "Waiting for approval" on the (slower, cold) CI runner
+   * while it passed locally. We confirm acceptance, never fire-and-return.
    */
   async answerCurrentStep(answer: StepAnswer): Promise<void> {
     switch (answer.kind) {
       case 'select': {
-        await this.clickTestId(`ohpp.pending.option.${answer.option}`)
+        const option = this.testid(`ohpp.pending.option.${answer.option}`)
+        await option.click()
+        await option.waitFor({ state: 'detached', timeout: 20_000 })
         return
       }
       case 'multiselect': {
         for (const opt of answer.options) {
           await this.clickTestId(`ohpp.pending.multioption.${opt}`)
         }
-        await this.clickTestId('ohpp.pending.multiselect.submit')
+        const submit = this.testid('ohpp.pending.multiselect.submit')
+        await submit.click()
+        await submit.waitFor({ state: 'detached', timeout: 20_000 })
         return
       }
       case 'input': {
         await this.fillTestId('ohpp.pending.input.field', answer.value)
-        await this.clickTestId('ohpp.pending.input.submit')
+        const submit = this.testid('ohpp.pending.input.submit')
+        await submit.click()
+        await submit.waitFor({ state: 'detached', timeout: 20_000 })
         return
       }
       case 'signature': {
-        await this.clickTestId('ohpp.pending.signature.submit')
+        const submit = this.testid('ohpp.pending.signature.submit')
+        await submit.click()
+        await submit.waitFor({ state: 'detached', timeout: 20_000 })
         return
       }
     }
