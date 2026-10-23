@@ -79,8 +79,23 @@ export class PortalAttester extends BasePage {
       }
     }
 
-    // The specific card detaches once the Resolver accepts the answer.
+    // The card detaches once the answer is submitted — but the Pending page
+    // removes it OPTIMISTICALLY (react-query onMutate) before the server
+    // confirms. If the resolve POST then fails, onError ROLLS BACK and the card
+    // reappears. So detach alone is not acceptance: wait for detach, then
+    // confirm the card STAYS gone through a short settle window. A reappearing
+    // card means the server rejected the answer — surface that as the failure,
+    // not a false green (this is why the bank stayed "Waiting for approval"
+    // while answerCurrentStep returned "successfully").
     await card.waitFor({ state: 'detached', timeout: 20_000 })
+    await this.page.waitForTimeout(1_500)
+    if (await card.count()) {
+      throw new Error(
+        `pending card ${requestId} reappeared after answering — the Resolver ` +
+          `rejected the response (react-query rolled back the optimistic removal). ` +
+          `The answer was not accepted.`,
+      )
+    }
   }
 
   /** Wait until some pending request's select option is present (a card arrived). */

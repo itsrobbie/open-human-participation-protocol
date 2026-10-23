@@ -22,38 +22,69 @@ export class PortalPage extends BasePage {
   }
 
   /**
-   * Ensure web approvals are enabled: revoke any key-bearing devices (which
-   * would disable web approvals), then register a keyless browser device.
-   * Deterministic — each step waits on a keyed element.
+   * GUARANTEE web approvals are enabled for the web attester.
+   *
+   * The resolver disables web approvals whenever an ACTIVE KEYED device exists
+   * (HasActiveDeviceWithKeyAsync) — the /resolve POST then 403s and the
+   * requester stays stuck "Waiting for approval". The suite resets the DB only
+   * once at global-setup, so by the time this runs, earlier specs (e.g. device
+   * or CLI specs) can have left an active keyed device behind. The old
+   * "a device card exists -> approvals live" shortcut was WRONG for exactly
+   * that case: a leftover keyed card looks identical to a browser card but
+   * disables approvals.
+   *
+   * So we restore a known-good state deterministically: revoke every active
+   * device (leftovers this web-attester scenario does not own), then register a
+   * fresh keyless browser device via the enable button (which the portal shows
+   * only at zero active devices), then VERIFY on the Pending page that approvals
+   * are actually enabled (no "Web approvals disabled" notice).
    */
   async enableWebApprovals(): Promise<void> {
     await this.goto('/devices')
     const enable = this.testid('ohpp.devices.enable-web-approvals')
-    const anyCard = this.page.locator('[data-testid^="ohpp.devices.card."]').first()
+    const anyCard = this.page.locator('[data-testid^="ohpp.devices.card."]')
 
-    // The Devices list loads ASYNCHRONOUSLY (react-query) after the page mounts,
-    // so an instant isVisible() right after goto() loses the race and reports
-    // false before the card renders. Instead wait for whichever terminal state
-    // settles first:
-    //   - a device card appears  -> web approvals already live, nothing to do
-    //   - the enable button appears (zero devices) -> click it to register one
-    // The portal renders the enable button ONLY when activeDevices.length === 0,
-    // so exactly one of these two becomes visible. Racing their waitFor()s is
-    // deterministic (auto-retrying locators, no sleep, no instant snapshot).
+    // Wait for the async device list to settle on one of the two terminal
+    // states (a card, or the zero-devices enable button) — never an instant
+    // post-goto snapshot.
     await Promise.race([
-      anyCard.waitFor({ state: 'visible', timeout: 15_000 }),
+      anyCard.first().waitFor({ state: 'visible', timeout: 15_000 }),
       enable.waitFor({ state: 'visible', timeout: 15_000 }),
     ])
 
-    if (await anyCard.isVisible().catch(() => false)) {
-      // A device already exists -> approvals live. (Reset test tenant only ever
-      // yields a browser device here.)
-      return
+    // Revoke EVERY active device so no keyed leftover blocks web approvals.
+    // Revoke buttons are keyed ohpp.devices.revoke.<id>; each opens a confirm
+    // dialog (ohpp.confirm.confirm). Loop until none remain.
+    for (;;) {
+      const revoke = this.page.locator('[data-testid^="ohpp.devices.revoke."]').first()
+      if (!(await revoke.isVisible().catch(() => false))) break
+      await revoke.click()
+      await this.clickTestId('ohpp.confirm.confirm')
+      // The revoked card moves to the "Revoked" section; its revoke button
+      // detaches. Wait for this revoke control to go before the next iteration.
+      await revoke.waitFor({ state: 'detached', timeout: 15_000 })
     }
-    // Zero devices: the enable button is the one that resolved. Click it and
-    // confirm a device card appears.
+
+    // Now at zero ACTIVE devices -> the enable button renders. Register a fresh
+    // keyless browser device.
+    await enable.waitFor({ state: 'visible', timeout: 15_000 })
     await enable.click()
-    await anyCard.waitFor({ state: 'visible', timeout: 15_000 })
+    await anyCard.first().waitFor({ state: 'visible', timeout: 15_000 })
+
+    // VERIFY approvals are truly enabled: the Pending page shows a "Web approvals
+    // disabled" notice when the resolver still considers them off. Its absence
+    // (and the pending surface being interactive) is the real precondition the
+    // web attester depends on.
+    await this.goto('/pending')
+    await this.page.waitForLoadState('networkidle')
+    const disabledNotice = this.page.getByText('Web approvals disabled', { exact: false })
+    if (await disabledNotice.isVisible().catch(() => false)) {
+      throw new Error(
+        'web approvals are still DISABLED after registering a browser device — ' +
+          'an active keyed device is blocking them (resolver HasActiveDeviceWithKey). ' +
+          'The revoke-all step did not clear it.',
+      )
+    }
   }
 
   /** Connect a requester app by pasting its ohpp:// challenge URI. */
