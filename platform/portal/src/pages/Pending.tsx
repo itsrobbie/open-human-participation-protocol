@@ -187,7 +187,7 @@ function RequestCard({
 }) {
   return (
     <div
-      data-testid={`pending-${request.type.toLowerCase()}`}
+      data-testid={`ohpp.pending.card.${request.id}`}
       className="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm dark:shadow-slate-900/20 border border-gray-200 dark:border-slate-700"
     >
       <div className="flex justify-between items-start mb-3">

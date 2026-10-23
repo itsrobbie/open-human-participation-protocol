@@ -80,4 +80,37 @@ export class PortalAttester extends BasePage {
   async waitForOption(optionKey: string, timeoutMs = 20_000): Promise<void> {
     await waitForTestId(this.page, `ohpp.pending.option.${optionKey}`, { timeout: timeoutMs })
   }
+
+  /** How many pending cards are currently shown (keyed ohpp.pending.card.<id>). */
+  async pendingCardCount(): Promise<number> {
+    return this.page.locator('[data-testid^="ohpp.pending.card."]').count()
+  }
+
+  /**
+   * Answer a SPECIFIC pending card by request id — for batch scenarios where
+   * several cards coexist and `ohpp.pending.option.<key>` would match many.
+   * Scopes the option click within that card and waits for the card to detach
+   * (the Resolver accepted the answer), same determinism as answerCurrentStep.
+   */
+  async answerCard(requestId: string, optionKey: string): Promise<void> {
+    const card = this.page.locator(`[data-testid="ohpp.pending.card.${requestId}"]`)
+    await card.getByTestId(`ohpp.pending.option.${optionKey}`).click()
+    await card.waitFor({ state: 'detached', timeout: 20_000 })
+  }
+
+  /**
+   * Answer the FIRST pending card with the given option key (batch convenience
+   * when the exact id is not tracked). Resolves the first card's specific id
+   * BEFORE clicking, then waits for THAT id to detach — a bare `.first()`
+   * locator over a set that still has members is never 'detached' (the next
+   * card becomes first), which would hang.
+   */
+  async answerFirstCard(optionKey: string): Promise<void> {
+    const first = this.page.locator('[data-testid^="ohpp.pending.card."]').first()
+    await first.waitFor({ state: 'visible', timeout: 20_000 })
+    const testid = await first.getAttribute('data-testid')
+    if (!testid) throw new Error('first pending card has no data-testid')
+    const requestId = testid.replace('ohpp.pending.card.', '')
+    await this.answerCard(requestId, optionKey)
+  }
 }
