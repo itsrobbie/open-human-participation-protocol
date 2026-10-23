@@ -1,5 +1,6 @@
 import { expect, Page, test } from '@playwright/test'
 import { PORTAL_URL } from '../test-urls'
+import { PortalAttester, type StepAnswer } from '../pages/portal-attester'
 
 type RequestType = 'Select' | 'Multiselect' | 'Text' | 'Number' | 'Date' | 'DateTime' | 'Signature'
 
@@ -67,25 +68,25 @@ test.describe.serial('Portal Protocol Lab', () => {
       .not.toBe(priorRequestId)
     const requestId = (await page.getByTestId('protocol-request-id').textContent())!
 
-    // Navigate to the Pending page to resolve the request (protocol separation)
-    await page.click('nav >> text=Pending')
-    const card = page.getByTestId(`pending-${type.toLowerCase()}`)
-    await expect(card).toBeVisible({ timeout: 15_000 })
-
+    // Navigate to the Pending page and resolve via the shared PortalAttester
+    // (P3/P4 one-driver-per-role). The old inline block targeted stale
+    // pre-Phase-1.1 'pending-<type>' testids that no longer exist in the Pending
+    // page (now ohpp.pending.option/multioption/input/signature.*), which is why
+    // line 73 timed out. answerCurrentStep dispatches on the request type using
+    // the real scheme controls and waits for the card to detach on acceptance.
+    const attester = new PortalAttester(page)
+    await attester.openPending()
+    let step: StepAnswer
     if (answer.selectedOption) {
-      await card.getByRole('button', { name: 'Approve', exact: true }).click()
+      step = { kind: 'select', option: answer.selectedOption }
     } else if (answer.selectedOptions) {
-      for (const option of answer.selectedOptions) {
-        const optionIndex = ['approve', 'decline', 'review'].indexOf(option)
-        await card.locator('input[type="checkbox"]').nth(optionIndex).check()
-      }
-      await card.getByRole('button', { name: 'Submit' }).click()
+      step = { kind: 'multiselect', options: answer.selectedOptions }
     } else if (type === 'Signature') {
-      await card.getByRole('button', { name: 'I acknowledge' }).click()
+      step = { kind: 'signature' }
     } else {
-      await card.getByRole('textbox').or(card.locator('input')).first().fill(answer.value!)
-      await card.getByRole('button', { name: 'Submit' }).click()
+      step = { kind: 'input', value: answer.value! }
     }
+    await attester.answerCurrentStep(step)
 
     // Navigate back to Protocol Lab to check status
     await page.click('nav >> text=Protocol Lab')
