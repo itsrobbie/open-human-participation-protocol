@@ -29,9 +29,15 @@ test.describe.serial('CLI attester simulator', () => {
     // table, which failed the whole spec on the Linux CI runner.
 
     // --- Start the CLI as a long-running process with piped stdin ---
+    // Use the SAME project + compose file as the build/reset above. A prior
+    // version hardcoded '-p ohpp-test' here while build/reset used OHPP_PROJECT
+    // (ohpp-0), so the config reset cleared a DIFFERENT cli_config volume than
+    // the spawned CLI mounted — leaving a stale device token that sent the CLI
+    // straight to "Listening..." and never printed the "Username" prompt the
+    // test waits for (the CI timeout at this step).
     const cli = spawn('docker', [
-      'compose', '-p', 'ohpp-test', '-f', composeFile,
-      '--profile', 'backing', '--profile', 'apps', '--profile', 'tools',
+      'compose', '-p', OHPP_PROJECT, '-f', composeFile,
+      '--profile', 'apps', '--profile', 'tools',
       'run', '--rm', '-T', 'cli'
     ], { cwd: resolve(__dirname, '../../..') })
 
