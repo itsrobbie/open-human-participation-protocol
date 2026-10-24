@@ -257,6 +257,10 @@ export class PortalPage extends BasePage {
   async enableWebApprovalsButtonAndConfirm(): Promise<void> {
     await this.clickTestId('ohpp.devices.enable-web-approvals')
     await expect(this.testid('ohpp.devices.registered-toast')).toBeVisible({ timeout: 10_000 })
+    // The device LIST refetches (react-query) after registration, so the new
+    // active revoke button lags the toast. Wait for it, else an immediate
+    // activeDeviceCount() races and reads 0.
+    await expect(this.activeRevokeButtons().first()).toBeVisible({ timeout: 15_000 })
   }
 
   /** Open a device revoke confirm dialog then CANCEL it (device stays active). */
