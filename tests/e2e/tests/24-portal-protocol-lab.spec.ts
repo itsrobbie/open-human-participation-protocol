@@ -1,8 +1,14 @@
-import { expect, Page, test } from '@playwright/test'
-import { PORTAL_URL } from '../test-urls'
-import { PortalAttester, type StepAnswer } from '../pages/portal-attester'
+import { expect, test } from '@playwright/test'
+import { PortalPage } from '../pages/portal'
+import { ProtocolLabPage, type RequestType } from '../pages/protocol-lab'
+import type { StepAnswer } from '../pages/portal-attester'
 
-type RequestType = 'Select' | 'Multiselect' | 'Text' | 'Number' | 'Date' | 'DateTime' | 'Signature'
+/**
+ * Portal Protocol Lab — converted to page objects (Phase 4.1). Login via
+ * PortalPage; the Lab compose/send/resolve goes through ProtocolLabPage +
+ * PortalAttester. No raw getByRole/selectOption-by-aria test logic; the
+ * attestation envelope is read from the keyed protocol-attestation element.
+ */
 
 interface AttestationEnvelope {
   innerAttestation: {
@@ -21,79 +27,14 @@ interface AttestationEnvelope {
 test.describe.serial('Portal Protocol Lab', () => {
   test.describe.configure({ timeout: 180_000 })
 
-  async function login(page: Page) {
-    await page.goto(`${PORTAL_URL}/login`)
-    await page.fill('input[placeholder="demo"]', 'demo')
-    await page.fill('input[type="password"]', 'demo')
-    await page.click('button[type="submit"]')
-    await expect(page).toHaveURL(PORTAL_URL + '/')
-  }
-
-  async function openLabAndRegister(page: Page) {
-    await page.click('nav >> text=Protocol Lab')
-    await expect(page.getByTestId('protocol-lab')).toBeVisible()
-
-    // Enable browser approvals if needed
-    const enableDevice = page.getByRole('button', { name: 'Enable browser approvals' })
-    if (await enableDevice.isVisible()) {
-      await enableDevice.click()
-      await expect(enableDevice).not.toBeVisible({ timeout: 10_000 })
-    }
-
-    // Register the Protocol Lab as a Requester app (real ceremony)
-    const registerButton = page.getByTestId('register-lab')
-    if (await registerButton.isVisible()) {
-      await registerButton.click()
-      await expect(page.getByRole('status')).toContainText('Protocol Lab registered', { timeout: 15_000 })
-    }
-
-    // Verify the compose section is visible (means Lab is registered)
-    await expect(page.getByTestId('protocol-payload')).toBeVisible()
-    await expect(page.getByTestId('protocol-payload')).toHaveValue(/protocol-lab-/)
-  }
-
-  async function roundTrip(
-    page: Page,
+  function stepFor(
     type: RequestType,
     answer: { selectedOption?: string; selectedOptions?: string[]; value?: string },
-  ) {
-    const requestIdElement = page.getByTestId('protocol-request-id')
-    const priorRequestId = await requestIdElement.count() ? await requestIdElement.textContent() : null
-    await page.selectOption('select[aria-label="Request type"]', type)
-    await page.getByRole('button', { name: `Load ${type} preset` }).click()
-    const request = JSON.parse(await page.getByTestId('protocol-payload').inputValue()) as { createdAt: string; expiry: string }
-    await page.getByRole('button', { name: 'Send over protocol' }).click()
-
-    await expect.poll(async () => page.getByTestId('protocol-request-id').textContent(), { timeout: 15_000 })
-      .not.toBe(priorRequestId)
-    const requestId = (await page.getByTestId('protocol-request-id').textContent())!
-
-    // Navigate to the Pending page and resolve via the shared PortalAttester
-    // (P3/P4 one-driver-per-role). The old inline block targeted stale
-    // pre-Phase-1.1 'pending-<type>' testids that no longer exist in the Pending
-    // page (now ohpp.pending.option/multioption/input/signature.*), which is why
-    // line 73 timed out. answerCurrentStep dispatches on the request type using
-    // the real scheme controls and waits for the card to detach on acceptance.
-    const attester = new PortalAttester(page)
-    await attester.openPending()
-    let step: StepAnswer
-    if (answer.selectedOption) {
-      step = { kind: 'select', option: answer.selectedOption }
-    } else if (answer.selectedOptions) {
-      step = { kind: 'multiselect', options: answer.selectedOptions }
-    } else if (type === 'Signature') {
-      step = { kind: 'signature' }
-    } else {
-      step = { kind: 'input', value: answer.value! }
-    }
-    await attester.answerCard(requestId, step)
-
-    // Navigate back to Protocol Lab to check status
-    await page.click('nav >> text=Protocol Lab')
-    await expect(page.getByTestId('protocol-status')).toContainText('resolved', { timeout: 15_000 })
-    await expect(page.getByTestId('protocol-attestation')).toBeVisible({ timeout: 15_000 })
-    const envelope = JSON.parse(await page.getByTestId('protocol-attestation').textContent() ?? '') as AttestationEnvelope
-    return { envelope, request, requestId }
+  ): StepAnswer {
+    if (answer.selectedOption) return { kind: 'select', option: answer.selectedOption }
+    if (answer.selectedOptions) return { kind: 'multiselect', options: answer.selectedOptions }
+    if (type === 'Signature') return { kind: 'signature' }
+    return { kind: 'input', value: answer.value! }
   }
 
   function assertProtocolEnvelope(
@@ -121,16 +62,19 @@ test.describe.serial('Portal Protocol Lab', () => {
   }
 
   test('is available in the web development build with all seven request types', async ({ page }) => {
-    await login(page)
-    await openLabAndRegister(page)
-
-    await expect(page.locator('select[aria-label="Request type"] option')).toHaveCount(7)
-    await expect(page.getByTestId('protocol-payload')).toHaveValue(/Protocol Lab Select request/)
+    const portal = new PortalPage(page)
+    const lab = new ProtocolLabPage(page)
+    await portal.login()
+    await lab.openAndRegister()
+    expect(await lab.requestTypeOptionCount()).toBe(7)
+    expect(await lab.payloadValue()).toMatch(/Protocol Lab Select request/)
   })
 
   test('round trips all request types and validates every attestation envelope', async ({ page }) => {
-    await login(page)
-    await openLabAndRegister(page)
+    const portal = new PortalPage(page)
+    const lab = new ProtocolLabPage(page)
+    await portal.login()
+    await lab.openAndRegister()
 
     const cases: { type: RequestType; answer: { selectedOption?: string; selectedOptions?: string[]; value?: string } }[] = [
       { type: 'Select', answer: { selectedOption: 'approve' } },
@@ -143,31 +87,42 @@ test.describe.serial('Portal Protocol Lab', () => {
     ]
 
     for (const item of cases) {
-      const result = await roundTrip(page, item.type, item.answer)
-      assertProtocolEnvelope(result.envelope, result.request, result.requestId)
-      expect(result.envelope.innerAttestation.decision.selectedOption).toBe(item.answer.selectedOption)
-      expect(result.envelope.innerAttestation.decision.selectedOptions).toEqual(item.answer.selectedOptions)
-      expect(result.envelope.innerAttestation.decision.value).toBe(item.answer.value)
-      if (item.answer.selectedOption) await expect(page.getByTestId('protocol-status')).toContainText(`selectedOption: ${item.answer.selectedOption}`)
-      if (item.answer.selectedOptions) await expect(page.getByTestId('protocol-status')).toContainText(`selectedOptions: ${item.answer.selectedOptions.join(', ')}`)
-      if (item.answer.value) await expect(page.getByTestId('protocol-status')).toContainText(`value: ${item.answer.value}`)
+      const prior = await lab.currentRequestId()
+      await lab.selectType(item.type)
+      await lab.loadPreset()
+      const request = JSON.parse(await lab.payloadValue()) as { createdAt: string; expiry: string }
+      const requestId = await lab.send(prior)
+      await lab.resolveViaAttester(requestId, stepFor(item.type, item.answer))
+      await lab.assertStatusContains('resolved')
+      await lab.assertAttestationVisible()
+      const envelope = JSON.parse(await lab.attestationJson()) as AttestationEnvelope
+      assertProtocolEnvelope(envelope, request, requestId)
+      expect(envelope.innerAttestation.decision.selectedOption).toBe(item.answer.selectedOption)
+      expect(envelope.innerAttestation.decision.selectedOptions).toEqual(item.answer.selectedOptions)
+      expect(envelope.innerAttestation.decision.value).toBe(item.answer.value)
+      if (item.answer.selectedOption) await lab.assertStatusContains(`selectedOption: ${item.answer.selectedOption}`)
+      if (item.answer.selectedOptions) await lab.assertStatusContains(`selectedOptions: ${item.answer.selectedOptions.join(', ')}`)
+      if (item.answer.value) await lab.assertStatusContains(`value: ${item.answer.value}`)
     }
   })
 
   test('shows invalid JSON and protocol validation failures without sending a request', async ({ page }) => {
-    await login(page)
-    await openLabAndRegister(page)
+    const portal = new PortalPage(page)
+    const lab = new ProtocolLabPage(page)
+    await portal.login()
+    await lab.openAndRegister()
 
-    await page.getByTestId('protocol-payload').fill('{ invalid JSON')
-    await page.getByRole('button', { name: 'Send over protocol' }).click()
-    await expect(page.getByRole('alert')).toBeVisible()
+    await lab.setPayload('{ invalid JSON')
+    await lab.clickSend()
+    await lab.assertAlertVisible()
 
-    await page.getByRole('button', { name: 'Load Select preset' }).click()
-    const invalidProtocol = JSON.parse(await page.getByTestId('protocol-payload').inputValue())
-    invalidProtocol.action.summary = ''
-    await page.getByTestId('protocol-payload').fill(JSON.stringify(invalidProtocol, null, 2))
-    await page.getByRole('button', { name: 'Send over protocol' }).click()
-    await expect(page.getByRole('alert')).toContainText('HTTP 422')
-    await expect(page.getByTestId('protocol-request-id')).toHaveCount(0)
+    await lab.selectType('Select')
+    await lab.loadPreset()
+    const invalid = JSON.parse(await lab.payloadValue())
+    invalid.action.summary = ''
+    await lab.setPayload(JSON.stringify(invalid, null, 2))
+    await lab.clickSend()
+    await lab.assertAlertContains('HTTP 422')
+    await lab.assertNoRequestId()
   })
 })

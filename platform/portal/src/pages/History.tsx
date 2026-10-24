@@ -114,7 +114,7 @@ export function History() {
           >
             Previous
           </button>
-          <span className="text-sm text-gray-500 dark:text-slate-400">
+          <span className="text-sm text-gray-500 dark:text-slate-400" data-testid="ohpp.history.page-indicator">
             Page {page} of {totalPages}
           </span>
           <button
