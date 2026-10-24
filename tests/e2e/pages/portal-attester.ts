@@ -82,19 +82,25 @@ export class PortalAttester extends BasePage {
     // The card detaches once the answer is submitted — but the Pending page
     // removes it OPTIMISTICALLY (react-query onMutate) before the server
     // confirms. If the resolve POST then fails, onError ROLLS BACK and the card
-    // reappears. So detach alone is not acceptance: wait for detach, then
-    // confirm the card STAYS gone through a short settle window. A reappearing
-    // card means the server rejected the answer — surface that as the failure,
-    // not a false green (this is why the bank stayed "Waiting for approval"
-    // while answerCurrentStep returned "successfully").
+    // reappears; onSettled also refetches (3s refetchInterval), which re-adds a
+    // card the server still considers Pending. detach alone is NOT acceptance.
+    // A single short settle is a RACE: on a slow cold CI runner the server
+    // round-trip + rollback/refetch lands AFTER ~1.5s, so the card reappears
+    // once we have already returned — leaving the requester stuck "Waiting for
+    // approval" while answerCurrentStep reported success. So after detach, poll
+    // for a bounded window spanning the refetch cycle, asserting the card does
+    // NOT come back. A reappearance = the Resolver rejected the answer.
     await card.waitFor({ state: 'detached', timeout: 20_000 })
-    await this.page.waitForTimeout(1_500)
-    if (await card.count()) {
-      throw new Error(
-        `pending card ${requestId} reappeared after answering — the Resolver ` +
-          `rejected the response (react-query rolled back the optimistic removal). ` +
-          `The answer was not accepted.`,
-      )
+    const settleDeadline = Date.now() + 6_000
+    while (Date.now() < settleDeadline) {
+      if (await card.count()) {
+        throw new Error(
+          `pending card ${requestId} reappeared after answering — the Resolver ` +
+            `rejected the response (react-query rolled back / refetched a still-Pending ` +
+            `request). The answer was not accepted.`,
+        )
+      }
+      await this.page.waitForTimeout(500)
     }
   }
 
