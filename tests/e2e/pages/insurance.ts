@@ -42,6 +42,19 @@ export class InsurancePage implements RequesterDriver {
   async generateChallengeUri(): Promise<string> {
     await this.signIn()
     await this.page.getByTestId('nav-ohpp-settings').click()
+    // The insurance app's OHPP connection persists in the once-reset shared DB
+    // (e.g. spec 23 connects it earlier). When already connected,
+    // generate-challenge errors ("Already connected to OHPP") and never reveals
+    // the challenge-uri panel. So reset to a clean slate first: if a connection
+    // exists, disconnect it (DELETE /api/ohpp/disconnect), then generate fresh.
+    const disconnect = this.page.getByTestId('disconnect-ohpp')
+    if (await disconnect.isEnabled().catch(() => false)) {
+      await disconnect.click()
+      // After disconnect the app re-loads status; the challenge panel hides.
+      await expect(this.page.locator('#ohpp-status')).not.toContainText('Connected to the Resolver', {
+        timeout: 10_000,
+      })
+    }
     const gen = this.page.getByTestId('generate-challenge')
     await expect(gen).toBeVisible({ timeout: 10_000 })
     await gen.click()

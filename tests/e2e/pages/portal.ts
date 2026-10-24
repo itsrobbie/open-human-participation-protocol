@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { BasePage } from './base'
 import { PORTAL_URL } from '../test-urls'
 
@@ -54,15 +54,20 @@ export class PortalPage extends BasePage {
 
     // Revoke EVERY active device so no keyed leftover blocks web approvals.
     // Revoke buttons are keyed ohpp.devices.revoke.<id>; each opens a confirm
-    // dialog (ohpp.confirm.confirm). Loop until none remain.
+    // dialog (ohpp.confirm.confirm). A revoked device's button becomes DISABLED
+    // and STAYS attached (the card moves to the "Revoked" section but keeps its
+    // testid) — this is especially true for CLI/keyed devices left by spec 28 —
+    // so waiting for the button to DETACH times out. Instead target only ENABLED
+    // revoke buttons and, after confirming, wait for the clicked button to go
+    // disabled (revocation accepted). Loop until no enabled revoke remains.
     for (;;) {
-      const revoke = this.page.locator('[data-testid^="ohpp.devices.revoke."]').first()
+      const revoke = this.page
+        .locator('[data-testid^="ohpp.devices.revoke."]:not([disabled])')
+        .first()
       if (!(await revoke.isVisible().catch(() => false))) break
       await revoke.click()
       await this.clickTestId('ohpp.confirm.confirm')
-      // The revoked card moves to the "Revoked" section; its revoke button
-      // detaches. Wait for this revoke control to go before the next iteration.
-      await revoke.waitFor({ state: 'detached', timeout: 15_000 })
+      await expect(revoke).toBeDisabled({ timeout: 15_000 }).catch(() => {})
     }
 
     // Now at zero ACTIVE devices -> the enable button renders. Register a fresh
