@@ -52,7 +52,7 @@ test.describe('Pizza — Pages', () => {
     await page.fill('[data-testid="address-city"]', 'London')
     await page.fill('[data-testid="address-postcode"]', 'E1 1AA')
     await page.getByTestId('place-order-button').click()
-    await expect(page.locator('text=Confirmed').first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('status-badge-confirmed').first()).toBeVisible({ timeout: 10000 })
   })
 
   test('orders page renders', async ({ page }) => {

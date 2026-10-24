@@ -66,7 +66,7 @@ export function ProductsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Products</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.marketplace.products.heading">Products</h1>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6" data-testid="product-filters">

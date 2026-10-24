@@ -33,7 +33,7 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-lg">
-      <h1 className="text-2xl font-bold mb-6">Settings</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.pizza.settings.heading">Settings</h1>
 
       <div className="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl p-6">
         <div className="flex items-center gap-3 mb-4">

@@ -29,11 +29,11 @@ export function OrdersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">My Orders</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.pizza.orders.heading">My Orders</h1>
 
       {!orders?.length ? (
         <div className="text-center py-12 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg">
-          <p className="text-stone-500 dark:text-stone-400 mb-3">No orders yet</p>
+          <p className="text-stone-500 dark:text-stone-400 mb-3" data-testid="ohpp.pizza.orders.empty">No orders yet</p>
           <button onClick={() => navigate('/menu')} className="text-red-600 font-medium" data-testid="browse-menu-link">
             Browse Menu
           </button>

@@ -31,13 +31,13 @@ test.describe.serial('Marketplace — Auth, Navigation & Purchases', () => {
     await signIn(page)
 
     await page.getByTestId('nav-products').click()
-    await expect(page.locator('h1')).toContainText('Products')
+    await expect(page.getByTestId('ohpp.marketplace.products.heading')).toBeVisible()
 
     await page.getByTestId('nav-purchases').click()
-    await expect(page.locator('h1')).toContainText('Purchases')
+    await expect(page.getByTestId('ohpp.marketplace.purchases.heading')).toBeVisible()
 
     await page.getByTestId('nav-settings').click()
-    await expect(page.locator('h1')).toContainText('Settings')
+    await expect(page.getByTestId('ohpp.marketplace.settings.heading')).toBeVisible()
 
     await page.getByTestId('nav-home').click()
     await expect(page.getByTestId('hero-section')).toBeVisible()
@@ -109,7 +109,7 @@ test.describe.serial('Marketplace — Auth, Navigation & Purchases', () => {
   test('purchases page shows history with status badges', async ({ page }) => {
     await signIn(page)
     await page.getByTestId('nav-purchases').click()
-    await expect(page.getByTestId('purchases-list').or(page.locator('text=No purchases'))).toBeVisible()
+    await expect(page.getByTestId('purchases-list').or(page.getByTestId('ohpp.marketplace.purchases.empty'))).toBeVisible()
   })
 
   test('logout clears session and redirects', async ({ page }) => {
