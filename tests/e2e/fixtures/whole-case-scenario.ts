@@ -66,13 +66,35 @@ export async function runWholeCaseWithPortalAttester(
   await requester.confirmConnected()
 
   // 3. Requester initiates the action -> participation request(s) raised.
+  //
+  // The suite resets the DB only ONCE at global-setup, and earlier specs (e.g.
+  // 02-bank-ohpp "transfer with OHPP shows pending") leave UNRESOLVED requests
+  // for the demo user. So the Pending page can already show stale cards before
+  // this requester acts. We must answer THIS ceremony's own request, never "the
+  // first card" — answering a leftover detaches it (looks like success) while
+  // our real request stays pending and the requester never reaches done-state.
+  // Capture the pre-existing card ids, initiate, then answer only the NEW ones.
+  await attester.openPending()
+  const preExistingIds = await attester.pendingCardIds()
+
   await requester.initiateAction()
 
-  // 4. Attester answers each step deterministically.
+  // 4. Attester answers each step on THIS ceremony's own card(s), by id.
   await attester.openPending()
   await attester.waitForOption(firstOptionKey)
-  for (const answer of answers) {
-    await attester.answerCurrentStep(answer)
+  await expect
+    .poll(async () => (await attester.pendingCardIds()).filter((id) => !preExistingIds.includes(id)).length, {
+      timeout: 20_000,
+      intervals: [500, 1_000, 2_000],
+    })
+    .toBeGreaterThanOrEqual(answers.length)
+  const myIds = (await attester.pendingCardIds()).filter((id) => !preExistingIds.includes(id))
+  for (let i = 0; i < answers.length; i++) {
+    // For a single-step ceremony there is one new card; for multi-step the next
+    // card appears as the prior resolves, so re-resolve the new-id set each time.
+    const currentNew = (await attester.pendingCardIds()).filter((id) => !preExistingIds.includes(id))
+    const targetId = currentNew[0] ?? myIds[i]
+    await attester.answerCard(targetId, answers[i])
   }
 
   // 5. Requester reaches its done-state.
