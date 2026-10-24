@@ -41,6 +41,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  contracts:
+    name: Contracts lint (P1 testids + dev surfaces)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Fast gate, no Docker: lints the P1 data-testid/Key scheme across the UI
+      # surfaces and validates the Makefile + Compose developer surfaces. Fails a
+      # PR in seconds on a missing identifier, without waiting for the full e2e.
+      - name: Run contracts lint
+        run: make test-contracts
+
   e2e:
     name: Playwright whole-case E2E (isolated stack)
     runs-on: ubuntu-latest
