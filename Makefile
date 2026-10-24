@@ -1,4 +1,4 @@
-.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android ci-image ci-flutter ci-flutter-goldens
+.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts validate test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android ci-image ci-flutter ci-flutter-goldens
 
 # Developer-local overrides (git-ignored). Put machine-specific values here, e.g.
 # the iOS simulator to run the Flutter E2E on:
@@ -39,6 +39,7 @@ help: ## Show the getting-started guide and common commands
 	@printf '    make cli              \033[2mRun the terminal attester simulator\033[0m\n'
 	@printf '\n'
 	@printf '  \033[1mTEST\033[0m\n'
+	@printf '    make validate         \033[2mFull layered gate: contracts, unit, integration, web E2E\033[0m\n'
 	@printf '    make test             \033[2mBrowser E2E suite (isolated stack, auto-teardown)\033[0m\n'
 	@printf '    make test-unit        \033[2mAll unit tests (fast)\033[0m\n'
 	@printf '    make test-integration \033[2mResolver integration tests (Docker)\033[0m\n'
@@ -339,6 +340,22 @@ attest-smoke: ## HTTP-only smoke of the device attestation chain (bank transfer 
 	./scripts/attest-smoke.sh
 
 # ─── Unit Tests ──────────────────────────────────────────────────────────────
+
+validate: ## Run the layered validation suite in pyramid order (contracts, unit, integration, web whole-case). Docker required for integration + e2e.
+	@echo ""
+	@echo "═══ validate: layer 1/4 — contracts (lint: Makefile + Compose surfaces, P1 testid scheme) ═══"
+	$(MAKE) test-contracts
+	@echo ""
+	@echo "═══ validate: layer 2/4 — unit + component (SDKs, resolver, apps, portal) ═══"
+	$(MAKE) test-unit
+	@echo ""
+	@echo "═══ validate: layer 3/4 — integration (one service + real deps; requires Docker) ═══"
+	$(MAKE) test-integration
+	@echo ""
+	@echo "═══ validate: layer 4/4 — web whole-case E2E (isolated stack, cross-system ceremonies) ═══"
+	$(MAKE) test
+	@echo ""
+	@echo "═══ validate: all four layers passed. Flutter app-attester layers run separately via 'make flutter-test' (see coverage matrix). ═══"
 
 test-contracts: ## Validate Makefile and Compose developer surfaces
 	node --test --test-reporter=dot tests/contracts/*.test.mjs
