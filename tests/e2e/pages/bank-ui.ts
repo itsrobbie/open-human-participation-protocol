@@ -129,4 +129,52 @@ export class BankUiPage {
   accountList() {
     return this.page.locator('#account-list')
   }
+
+  // --- OHPP connection (spec 02) ---
+
+  /** On Settings, generate the challenge and return the ohpp:// URI. */
+  async generateChallenge(): Promise<string> {
+    await this.gotoNav('settings')
+    await this.tid('generate-challenge').click()
+    const uri = this.tid('challenge-uri')
+    await expect(uri).toHaveValue(/ohpp:\/\/register\?challenge=/, { timeout: 10_000 })
+    return uri.inputValue()
+  }
+
+  /** Poll reload-until the keyed OHPP-connected badge appears (resolver->bank
+   * callback is async and lags a single reload). */
+  async assertOhppConnected(): Promise<void> {
+    const badge = this.tid('ohpp.bank.connected-badge')
+    const deadline = Date.now() + 30_000
+    for (;;) {
+      await this.gotoAndWaitLoaded()
+      if (await badge.isVisible().catch(() => false)) return
+      if (Date.now() > deadline) {
+        await expect(badge).toBeVisible({ timeout: 5_000 })
+        return
+      }
+      await this.page.waitForTimeout(1_000) // between reloads only; connect is async server-side
+    }
+  }
+
+  connectedBadge() {
+    return this.tid('ohpp.bank.connected-badge')
+  }
+
+  // --- Raw form submit (spec 17 validation cases) ---
+
+  /** Fill payee/amount/reference and click the form submit (no review step). */
+  async fillTransferForm(opts: { payeeIndex?: number; amount: string; reference?: string }): Promise<void> {
+    await this.tid('transfer-payee').selectOption({ index: opts.payeeIndex ?? 0 })
+    await this.tid('transfer-amount').fill(opts.amount)
+    if (opts.reference !== undefined) await this.tid('transfer-reference').fill(opts.reference)
+  }
+
+  async submitTransferForm(): Promise<void> {
+    await this.page.locator('#transfer-form button[type="submit"]').click()
+  }
+
+  transferResult() {
+    return this.page.locator('#transfer-result')
+  }
 }
