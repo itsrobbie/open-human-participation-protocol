@@ -175,7 +175,17 @@ const routeTree = rootRoute.addChildren([
   ]),
 ])
 
-export const router = createRouter({ routeTree })
+export const router = createRouter({
+  routeTree,
+  defaultNotFoundComponent: () => (
+    <div className="p-8 text-center" data-testid="ohpp.notfound">
+      <h1 className="text-2xl font-bold mb-2">Page not found</h1>
+      <p className="text-gray-600 dark:text-slate-400 text-sm">
+        The page you are looking for does not exist.
+      </p>
+    </div>
+  ),
+})
 
 declare module '@tanstack/react-router' {
   interface Register {

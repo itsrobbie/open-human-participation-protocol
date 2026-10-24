@@ -129,7 +129,7 @@ export function Pending() {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.pending.heading">Pending Requests</h1>
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6">
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6" data-testid="ohpp.pending.disabled-notice">
           <h2 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Web approvals disabled</h2>
           <p className="text-yellow-700 dark:text-yellow-300 text-sm">
             You have a registered device with a key. Respond to requests from your device instead.
@@ -153,11 +153,13 @@ export function Pending() {
       {pendingLoading && <PendingSkeleton />}
 
       {pending?.length === 0 && (
-        <EmptyState
-          icon="pending"
-          title="No pending requests"
-          description="Requests will appear here when apps need your participation."
-        />
+        <div data-testid="ohpp.pending.empty">
+          <EmptyState
+            icon="pending"
+            title="No pending requests"
+            description="Requests will appear here when apps need your participation."
+          />
+        </div>
       )}
 
       <div className="space-y-4" aria-live="polite" aria-relevant="additions removals">

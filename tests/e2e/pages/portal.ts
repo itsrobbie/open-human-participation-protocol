@@ -192,4 +192,36 @@ export class PortalPage extends BasePage {
     await this.clickTestId('ohpp.settings.save')
     await expect(this.testid('ohpp.settings.saved')).toBeVisible()
   }
+
+  // --- Phase 4.1 batch-2b (20/21 unhappy portal) ---
+
+  /** Submit the login form as-is (no fill), for empty/validation cases. */
+  async submitLoginAsIs(): Promise<void> {
+    await this.goto('/login')
+    await this.clickTestId('ohpp.login.submit')
+  }
+
+  /** Seed an arbitrary garbage device token (invalid, not a JWT). */
+  async seedGarbageToken(): Promise<void> {
+    await this.goto('/login')
+    await this.page.evaluate(() => localStorage.setItem('ohpp_device_token', 'not-a-jwt-at-all'))
+  }
+
+  /** Assert we are on the login page (unauthenticated / bounced). */
+  async assertOnLogin(): Promise<void> {
+    await expect(this.page).toHaveURL(`${PORTAL_URL}/login`, { timeout: 10_000 })
+  }
+
+  /**
+   * Assert the Pending page is in one of its valid non-error states: a keyed
+   * empty-state, the keyed web-approvals-disabled notice, or at least one
+   * pending card. Never an ErrorState.
+   */
+  async assertPendingInValidState(): Promise<void> {
+    const empty = this.testid('ohpp.pending.empty')
+    const disabled = this.testid('ohpp.pending.disabled-notice')
+    const anyCard = this.page.locator('[data-testid^="ohpp.pending.card."]')
+    await expect(empty.or(disabled).or(anyCard).first()).toBeVisible({ timeout: 10_000 })
+    await this.assertNoErrorState()
+  }
 }
