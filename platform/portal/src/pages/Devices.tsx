@@ -98,7 +98,7 @@ export function Devices() {
 
       {/* Token shown after browser registration */}
       {newToken && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4 mb-6">
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4 mb-6" data-testid="ohpp.devices.registered-toast">
           <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">Browser registered</p>
           <p className="text-sm text-green-700 dark:text-green-300">
             Web approvals are now enabled. Go to the <strong>Pending</strong> page to approve requests.

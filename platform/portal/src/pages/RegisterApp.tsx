@@ -97,13 +97,13 @@ export function RegisterApp() {
         </button>
 
         {status === 'success' && (
-          <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded p-3 text-sm text-green-800 dark:text-green-200">
+          <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded p-3 text-sm text-green-800 dark:text-green-200" data-testid="ohpp.registerapp.success">
             {message}
           </div>
         )}
 
         {status === 'error' && (
-          <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded p-3 text-sm text-red-800 dark:text-red-200">
+          <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded p-3 text-sm text-red-800 dark:text-red-200" data-testid="ohpp.registerapp.error">
             {message}
           </div>
         )}

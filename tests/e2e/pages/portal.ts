@@ -224,4 +224,69 @@ export class PortalPage extends BasePage {
     await expect(empty.or(disabled).or(anyCard).first()).toBeVisible({ timeout: 10_000 })
     await this.assertNoErrorState()
   }
+
+  // --- Phase 4.1 batch-2c (05/07/19 device flows) ---
+
+  /** Open the Devices page (keyed heading present). */
+  async gotoDevices(): Promise<void> {
+    await this.goto('/devices')
+    await expect(this.testid('ohpp.devices.heading')).toBeVisible({ timeout: 10_000 })
+  }
+
+  private activeRevokeButtons() {
+    return this.page.locator('[data-testid^="ohpp.devices.revoke."]:not([disabled])')
+  }
+
+  /** Count ACTIVE device cards (via enabled revoke buttons). */
+  async activeDeviceCount(): Promise<number> {
+    return this.activeRevokeButtons().count()
+  }
+
+  /** Revoke every active device (confirm each), leaving zero active. */
+  async revokeAllDevices(): Promise<void> {
+    for (;;) {
+      const revoke = this.activeRevokeButtons().first()
+      if (!(await revoke.isVisible().catch(() => false))) break
+      await revoke.click()
+      await this.clickTestId('ohpp.confirm.confirm')
+      await expect(revoke).toBeDisabled({ timeout: 15_000 }).catch(() => {})
+    }
+  }
+
+  /** Click Enable web approvals (must be at zero active devices) and confirm the toast. */
+  async enableWebApprovalsButtonAndConfirm(): Promise<void> {
+    await this.clickTestId('ohpp.devices.enable-web-approvals')
+    await expect(this.testid('ohpp.devices.registered-toast')).toBeVisible({ timeout: 10_000 })
+  }
+
+  /** Open a device revoke confirm dialog then CANCEL it (device stays active). */
+  async openRevokeThenCancel(): Promise<void> {
+    await this.activeRevokeButtons().first().click()
+    await this.clickTestId('ohpp.confirm.cancel')
+  }
+
+  /** On the Connect-App page, paste a URI, submit, and expect the keyed error banner. */
+  async connectAppExpectingError(uri: string): Promise<string> {
+    await this.goto('/register-app')
+    await this.fillTestId('ohpp.registerapp.uri', uri)
+    await this.clickTestId('ohpp.registerapp.connect')
+    const err = this.testid('ohpp.registerapp.error')
+    await expect(err).toBeVisible({ timeout: 15_000 })
+    return (await err.textContent()) ?? ''
+  }
+
+  /** On the Connect-App page, paste a URI, submit, and expect either banner (success OR error). */
+  async connectAppExpectingResolution(uri: string): Promise<void> {
+    await this.goto('/register-app')
+    await this.fillTestId('ohpp.registerapp.uri', uri)
+    await this.clickTestId('ohpp.registerapp.connect')
+    await expect(
+      this.testid('ohpp.registerapp.success').or(this.testid('ohpp.registerapp.error')).first(),
+    ).toBeVisible({ timeout: 15_000 })
+  }
+
+  /** Assert the Connect-App submit button is disabled (e.g. empty/whitespace input). */
+  async assertConnectDisabled(): Promise<void> {
+    await expect(this.testid('ohpp.registerapp.connect')).toBeDisabled()
+  }
 }
