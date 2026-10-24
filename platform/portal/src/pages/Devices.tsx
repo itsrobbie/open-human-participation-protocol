@@ -72,7 +72,7 @@ export function Devices() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">Devices</h1>
+      <h1 className="text-2xl font-bold mb-2" data-testid="ohpp.devices.heading">Devices</h1>
       <p className="text-gray-600 dark:text-slate-400 text-sm mb-6">
         Devices are where you approve participation requests. Register this browser to approve requests here, or use the CLI/mobile app on another device.
       </p>

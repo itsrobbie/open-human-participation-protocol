@@ -47,7 +47,7 @@ export function History() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Participation History</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.history.heading">Participation History</h1>
 
       {/* Search and filter bar */}
       {(data?.items.length ?? 0) > 0 && (

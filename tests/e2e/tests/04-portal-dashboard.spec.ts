@@ -1,22 +1,19 @@
 import { test, expect } from '@playwright/test'
-import { PORTAL_URL } from '../test-urls'
+import { PortalPage } from '../pages/portal'
 
+/**
+ * Portal dashboard — converted to PortalPage (Phase 4.1). Asserts the keyed
+ * stat cards and welcome block rather than visible text.
+ */
 test.describe('Portal — Dashboard', () => {
   test('7. dashboard shows stats after login', async ({ page }) => {
-    await page.goto(`${PORTAL_URL}/login`)
-    await page.fill('input[placeholder="demo"]', 'demo')
-    await page.fill('input[type="password"]', 'demo')
-    await page.click('button[type="submit"]')
-    await expect(page).toHaveURL(PORTAL_URL + '/')
+    const portal = new PortalPage(page)
+    await portal.login()
+    await portal.assertOnDashboard()
 
-    // Wait for dashboard to load data
-    await expect(page.locator('h1')).toContainText('Dashboard')
-
-    // Dashboard should show stat cards (wait for API data)
-    await expect(page.getByText('Devices').first()).toBeVisible({ timeout: 10000 })
-    await expect(page.getByText('Pending Requests')).toBeVisible({ timeout: 10000 })
-
-    // Welcome message
-    await expect(page.getByText('Welcome')).toBeVisible({ timeout: 10000 })
+    // Keyed stat cards (ohpp.dashboard.stat.<slug>) + welcome block.
+    await expect(portal.testid('ohpp.dashboard.stat.devices')).toBeVisible({ timeout: 10_000 })
+    await expect(portal.testid('ohpp.dashboard.stat.pending-requests')).toBeVisible({ timeout: 10_000 })
+    await expect(portal.testid('ohpp.dashboard.welcome')).toBeVisible({ timeout: 10_000 })
   })
 })

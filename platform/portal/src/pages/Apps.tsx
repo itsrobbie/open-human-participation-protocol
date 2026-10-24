@@ -50,7 +50,7 @@ export function Apps() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Registered Apps</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.apps.heading">Registered Apps</h1>
 
       <p className="text-gray-600 dark:text-slate-400 text-sm mb-4">
         These apps have registered with your account and can send participation requests.

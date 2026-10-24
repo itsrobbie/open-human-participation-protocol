@@ -98,4 +98,70 @@ export class PortalPage extends BasePage {
     await this.fillTestId('ohpp.registerapp.uri', challengeUri)
     await this.clickTestId('ohpp.registerapp.connect')
   }
+
+  // --- Phase 4.1 conversion helpers (03/03a/04/08) ---
+
+  /** Fill the login form and submit without asserting the outcome. */
+  async submitLogin(username = 'demo', password = 'demo'): Promise<void> {
+    await this.goto('/login')
+    await this.fillTestId('ohpp.login.username', username)
+    await this.fillTestId('ohpp.login.password', password)
+    await this.clickTestId('ohpp.login.submit')
+  }
+
+  /** Attempt login expecting it to FAIL: the keyed error shows and we stay on /login. */
+  async loginExpectingError(username = 'demo', password = 'wrongpassword'): Promise<void> {
+    await this.submitLogin(username, password)
+    await expect(this.testid('ohpp.login.error')).toBeVisible()
+    await expect(this.page).toHaveURL(`${PORTAL_URL}/login`)
+  }
+
+  /** Log out via the keyed nav control; lands back on /login. */
+  async logout(): Promise<void> {
+    await this.clickTestId('ohpp.nav.logout')
+    await expect(this.page).toHaveURL(`${PORTAL_URL}/login`)
+  }
+
+  /** Navigate via a keyed nav link, e.g. gotoNav('/devices'). */
+  async gotoNav(to: string): Promise<void> {
+    await this.clickTestId(`ohpp.nav.link.${to}`)
+  }
+
+  /** Assert the dashboard rendered (keyed heading), i.e. we are logged in on /. */
+  async assertOnDashboard(): Promise<void> {
+    await expect(this.page).toHaveURL(`${PORTAL_URL}/`)
+    await expect(this.testid('ohpp.dashboard.heading')).toBeVisible({ timeout: 10_000 })
+  }
+
+  /** Assert a keyed page heading is visible, e.g. assertHeading('devices'). */
+  async assertHeading(area: string): Promise<void> {
+    await expect(this.testid(`ohpp.${area}.heading`)).toBeVisible({ timeout: 10_000 })
+  }
+
+  /** Assert the ErrorState "Failed to load" banner is NOT shown on the current page. */
+  async assertNoErrorState(): Promise<void> {
+    await expect(this.testid('ohpp.errorstate.message')).toHaveCount(0)
+  }
+
+  /** Assert navigating to a protected path redirects to /login. */
+  async assertRedirectsToLogin(path: string): Promise<void> {
+    await this.goto(path)
+    await expect(this.page).toHaveURL(`${PORTAL_URL}/login`, { timeout: 10_000 })
+  }
+
+  /** Clear the stored device token (simulate expiry/logout at the storage layer). */
+  async clearDeviceToken(): Promise<void> {
+    await this.page.evaluate(() => localStorage.removeItem('ohpp_device_token'))
+  }
+
+  /** Seed a deliberately-expired JWT so the next protected call 401s. */
+  async seedExpiredToken(): Promise<void> {
+    await this.goto('/login')
+    await this.page.evaluate(() => {
+      localStorage.setItem(
+        'ohpp_device_token',
+        'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjEwMDAwMDAwMDAsInN1YiI6InRlc3QifQ.fake',
+      )
+    })
+  }
 }

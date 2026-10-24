@@ -128,7 +128,7 @@ export function Pending() {
   if (!status?.enabled) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Pending Requests</h1>
+        <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.pending.heading">Pending Requests</h1>
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6">
           <h2 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Web approvals disabled</h2>
           <p className="text-yellow-700 dark:text-yellow-300 text-sm">
@@ -145,7 +145,7 @@ export function Pending() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Pending Requests</h1>
+      <h1 className="text-2xl font-bold mb-4" data-testid="ohpp.pending.heading">Pending Requests</h1>
       <p className="text-gray-600 dark:text-slate-400 text-sm mb-6">
         Respond to participation requests directly in the browser.
       </p>
