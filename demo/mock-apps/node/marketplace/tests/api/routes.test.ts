@@ -95,13 +95,15 @@ beforeAll(() => {
   app = express();
   app.use(express.json());
 
+  const purchaseService = createMockPurchaseService();
   const apiRouter = createApiRoutes({
     productService: createMockProductService(),
-    purchaseService: createMockPurchaseService(),
+    purchaseService,
     refundService: createMockRefundService(),
     registrationStore: createMockRegistrationStore(),
     challengeGenerator: new ChallengeGenerator({ appId: 'marketplace.demo.test' }),
   });
+  ;(app as unknown as { _purchaseService: PurchaseService })._purchaseService = purchaseService;
 
   app.use('/api', mockAuthMiddleware('test-user'), apiRouter);
 });
@@ -188,6 +190,16 @@ describe('Marketplace API Routes', () => {
     it('returns 404 for unknown purchase', async () => {
       const res = await request(app).get('/api/purchases/not-found');
       expect(res.status).toBe(404);
+    });
+
+    it('reconciles a pending OHPP outcome before returning (detail page polls this route)', async () => {
+      // The detail page polls GET /api/purchases/:id while pending_confirmation
+      // and never calls /status, so the OHPP reconciliation must happen here.
+      const svc = (app as unknown as { _purchaseService: PurchaseService })._purchaseService;
+      (svc.resolvePurchase as unknown as ReturnType<typeof vi.fn>).mockClear();
+      const res = await request(app).get('/api/purchases/pur-1');
+      expect(res.status).toBe(200);
+      expect(svc.resolvePurchase).toHaveBeenCalledWith('pur-1', 'test-user');
     });
   });
 
