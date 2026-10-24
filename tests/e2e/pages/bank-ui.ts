@@ -177,4 +177,30 @@ export class BankUiPage {
   transferResult() {
     return this.page.locator('#transfer-result')
   }
+
+  // --- Protocol scenarios (spec 22a) ---
+
+  /** On Settings, create a protocol scenario; asserts it is awaiting participation. */
+  async createProtocolScenario(scenario: string): Promise<void> {
+    await this.gotoNav('settings')
+    await this.page.locator('#protocol-scenario').selectOption(scenario)
+    await this.tid('create-protocol-scenario').click()
+    await expect(this.page.locator('#protocol-scenario-result')).toContainText('Awaiting human participation', {
+      timeout: 15_000,
+    })
+  }
+
+  /** Poll refresh-until the scenario result reports a verified interpretation containing `value`. */
+  async assertProtocolInterpreted(value: string): Promise<void> {
+    await expect
+      .poll(
+        async () => {
+          await this.tid('refresh-protocol-scenario').click()
+          return this.page.locator('#protocol-scenario-result').textContent()
+        },
+        { timeout: 15_000 },
+      )
+      .toContain('Verified bank interpretation')
+    await expect(this.page.locator('#protocol-scenario-result')).toContainText(value)
+  }
 }
