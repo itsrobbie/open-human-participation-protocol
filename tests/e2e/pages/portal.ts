@@ -289,4 +289,20 @@ export class PortalPage extends BasePage {
   async assertConnectDisabled(): Promise<void> {
     await expect(this.testid('ohpp.registerapp.connect')).toBeDisabled()
   }
+
+  // --- Phase 4.1 batch-2d (27 mobile) ---
+
+  /** Open the mobile menu and navigate via the visible keyed mobile nav link. */
+  async gotoNavMobile(to: string): Promise<void> {
+    await this.clickTestId('ohpp.nav.mobile-menu-toggle')
+    // Desktop + mobile both render ohpp.nav.link.<to>; at 375px the desktop copy
+    // is display:none, so target the visible one to avoid a strict-mode match.
+    const link = this.page.locator(`[data-testid="ohpp.nav.link.${to}"]`).locator('visible=true')
+    await link.first().click()
+  }
+
+  /** True if the document overflows horizontally at the current viewport. */
+  async hasHorizontalOverflow(): Promise<boolean> {
+    return this.page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
+  }
 }
