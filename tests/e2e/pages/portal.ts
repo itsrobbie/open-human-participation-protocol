@@ -164,4 +164,32 @@ export class PortalPage extends BasePage {
       )
     })
   }
+
+  // --- Phase 4.1 batch-2a (06/09/13) ---
+
+  /** Assert every primary nav link + the logout control is visible (keyed). */
+  async assertAllNavLinksVisible(): Promise<void> {
+    for (const to of ['/pending', '/history', '/devices', '/apps', '/register-app']) {
+      await expect(this.testid(`ohpp.nav.link.${to}`)).toBeVisible()
+    }
+    await expect(this.testid('ohpp.nav.home')).toBeVisible()
+    await expect(this.testid('ohpp.nav.logout')).toBeVisible()
+  }
+
+  /** Open the Developer Settings page (not in nav — direct route). */
+  async gotoSettings(): Promise<void> {
+    await this.goto('/settings')
+    await expect(this.testid('ohpp.settings.heading')).toBeVisible({ timeout: 10_000 })
+  }
+
+  /** Read the developer token textarea value. */
+  async readSettingsToken(): Promise<string> {
+    return (await this.testid('ohpp.settings.token').inputValue()).trim()
+  }
+
+  /** Click Save on Settings and assert the keyed confirmation shows. */
+  async saveSettingsAndConfirm(): Promise<void> {
+    await this.clickTestId('ohpp.settings.save')
+    await expect(this.testid('ohpp.settings.saved')).toBeVisible()
+  }
 }

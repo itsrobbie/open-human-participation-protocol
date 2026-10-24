@@ -55,7 +55,7 @@ export function RegisterApp() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">Connect an app</h1>
+      <h1 className="text-2xl font-bold mb-2" data-testid="ohpp.registerapp.heading">Connect an app</h1>
       <p className="text-gray-600 dark:text-slate-400 text-sm mb-6">
         When an app wants to request your participation (approvals, confirmations, signatures), it needs to
         connect to your account first. The app will give you a connection link — paste it below.
