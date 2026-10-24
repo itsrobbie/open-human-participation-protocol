@@ -17,6 +17,13 @@ services:
       Resolver__InternalBaseUrl: "http://resolver:8080"
       Resolver__Name: "OHPP Demo Resolver"
       Resolver__EncryptionKey: ${RESOLVER_ENCRYPTION_KEY:-dev-encryption-key-min-32-chars!!}
+      # Registration rate limit per user per rolling hour. Production/dev default
+      # is 10. The E2E suite resets the DB only once and never restarts the
+      # resolver mid-run, so the single demo user accumulates a whole suite's
+      # worth of registrations in minutes - global-setup raises this so the
+      # connect-heavy specs (bank/insurance/pizza/marketplace + the device/CLI
+      # specs) are not rate-limited by each other. Default keeps prod behaviour.
+      Resolver__MaxRegistrationsPerHour: ${OHPP_MAX_REGISTRATIONS_PER_HOUR:-10}
       Auth__Provider: "Keycloak"
       # Internal JWKS/metadata fetch over HTTPS (U7.1). Browser-issued tokens carry
       # the localhost issuer; the validator accepts both (see KeycloakIdentityTokenValidator).

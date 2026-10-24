@@ -18,8 +18,6 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
     private readonly IResolverConfiguration _resolverConfig;
     private readonly IClock _clock;
 
-    private const int MaxRegistrationsPerHour = 10;
-
     public RegistrationCeremonyOrchestrator(
         IChallengeValidator challengeValidator,
         IAppMetadataFetcher metadataFetcher,
@@ -49,7 +47,7 @@ public class RegistrationCeremonyOrchestrator : IRegistrationCeremonyOrchestrato
     {
         // Rate limit check
         var rateLimitKey = $"registration:{userId}";
-        if (await _rateLimitStore.IsRateLimitedAsync(rateLimitKey, MaxRegistrationsPerHour, TimeSpan.FromHours(1), cancellationToken))
+        if (await _rateLimitStore.IsRateLimitedAsync(rateLimitKey, _resolverConfig.MaxRegistrationsPerHour, TimeSpan.FromHours(1), cancellationToken))
             return Error.RateLimited("Registration rate limit exceeded");
 
         // Decode and validate challenge

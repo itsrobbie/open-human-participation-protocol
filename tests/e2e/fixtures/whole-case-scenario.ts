@@ -24,6 +24,17 @@ import { PORTAL_URL } from '../test-urls'
 export interface RequesterDriver {
   /** Human label for failure messages (e.g. "Bank"). */
   readonly name: string
+  /**
+   * Optional: report whether the app is ALREADY connected to OHPP (its
+   * connection persisted across the once-only reset-db, e.g. pizza/marketplace
+   * connected by their legacy specs). When true, the scenario skips the
+   * generate-challenge / connect / confirm steps and uses the live connection —
+   * a disconnect+reconnect mid-suite does not reliably round-trip resolver-side,
+   * and the ceremony only needs a WORKING connection, not a fresh one. The
+   * implementation should sign the requester in as a side effect so the later
+   * initiateAction runs in a logged-in session.
+   */
+  isAlreadyConnected?(): Promise<boolean>
   /** Generate the ohpp:// challenge URI the portal will connect with. */
   generateChallengeUri(): Promise<string>
   /** Confirm the app auto-connected (OHPP badge etc.). */
@@ -60,10 +71,18 @@ export async function runWholeCaseWithPortalAttester(
   await portal.login()
   await portal.enableWebApprovals()
 
-  // 2. Requester issues a challenge; portal connects the app.
-  const challengeUri = await requester.generateChallengeUri()
-  await portal.connectApp(challengeUri)
-  await requester.confirmConnected()
+  // 2. Requester issues a challenge; portal connects the app — UNLESS the app's
+  //    connection already persists from an earlier spec (once-only reset-db), in
+  //    which case we use the live connection (a mid-suite disconnect+reconnect
+  //    does not reliably round-trip resolver-side).
+  const alreadyConnected = requester.isAlreadyConnected
+    ? await requester.isAlreadyConnected()
+    : false
+  if (!alreadyConnected) {
+    const challengeUri = await requester.generateChallengeUri()
+    await portal.connectApp(challengeUri)
+    await requester.confirmConnected()
+  }
 
   // 3. Requester initiates the action -> participation request(s) raised.
   //
