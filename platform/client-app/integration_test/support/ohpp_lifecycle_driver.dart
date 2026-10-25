@@ -303,6 +303,14 @@ class OhppLifecycleDriver {
     await tester.pumpAndSettle();
   }
 
+  /// Sign out via the drawer logout item; lands back on the login screen
+  /// (authProvider.logout clears credentials, router redirects to /login).
+  Future<void> signOut() async {
+    await openDrawerItem('logout');
+    await pumpUntilKey(tester, 'login-username',
+        timeout: const Duration(seconds: 20));
+  }
+
   // --- Refresh (shared production path) ---------------------------------------
 
   /// Force the pending list to refetch by emitting the production resumed
