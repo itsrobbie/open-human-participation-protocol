@@ -50,6 +50,10 @@ class ResolverAppsDataSource implements AppsDataSource {
 
   @override
   Future<void> revokeApp(String appId) => _api.revokeApp(appId);
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) =>
+      _api.updateNotificationPreference(appId, {'pushEnabled': enabled});
 }
 
 /// Real data source for participation history backed by [TypedApiClient].

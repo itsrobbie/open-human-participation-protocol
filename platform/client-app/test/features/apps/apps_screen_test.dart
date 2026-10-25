@@ -247,4 +247,7 @@ class _StaticAppsSource implements AppsDataSource {
 
   @override
   Future<void> revokeApp(String appId) async {}
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) async {}
 }

@@ -53,15 +53,35 @@ void main() {
     expect(find.byKey(const Key('app-card-0')), findsOneWidget,
         reason: 'the connected app should render in the Apps list');
 
-    // --- Act 2: revoke it through the keyed UI. ---
+    // --- Act 2: toggle push notifications OFF in the app detail. ---
+    await driver.toggleFirstAppNotifications(false);
+
+    // --- Assert 2 (audit by construction): the Resolver persisted the
+    // preference, not just the local toggle state. Poll the backend (the PUT
+    // is dispatched optimistically) until it records pushEnabled=false. ---
+    var persisted = false;
+    final prefDeadline = DateTime.now().add(const Duration(seconds: 15));
+    while (DateTime.now().isBefore(prefDeadline)) {
+      final prefs = await getNotificationPreferences(identity);
+      if (prefs.any((p) =>
+          p['appId'] == 'protocol-lab.dev.test' && p['pushEnabled'] == false)) {
+        persisted = true;
+        break;
+      }
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+    expect(persisted, isTrue,
+        reason: 'the Resolver should record pushEnabled=false after the toggle');
+
+    // --- Act 3: revoke it through the keyed UI. ---
     await driver.revokeFirstApp();
 
-    // --- Assert 2: the Apps tab is now empty. ---
+    // --- Assert 3: the Apps tab is now empty. ---
     await driver.assertNoApps();
     expect(find.byKey(const Key('apps-empty')), findsOneWidget,
         reason: 'after revoke the Apps list should be empty');
 
-    // --- Assert 3 (audit by construction, P5): the RESOLVER dropped the
+    // --- Assert 4 (audit by construction, P5): the RESOLVER dropped the
     // registration, not just the UI. Query the backend for this identity and
     // confirm no active app registration remains. ---
     final remaining = await getRegisteredApps(identity);

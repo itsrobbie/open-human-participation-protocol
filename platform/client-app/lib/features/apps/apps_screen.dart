@@ -148,6 +148,12 @@ class _AppsScreenState extends ConsumerState<AppsScreen> {
       builder: (ctx) => _AppDetailSheet(
         key: const Key('app-detail-sheet'),
         app: app,
+        onToggleNotifications: (enabled) {
+          final appId = app['appId'] as String? ?? '';
+          if (appId.isNotEmpty) {
+            ref.read(appsProvider.notifier).setNotificationPreference(appId, enabled);
+          }
+        },
         onRevoke: () async {
           Navigator.pop(ctx);
           final confirmed = await _showRevokeConfirmation(context);
@@ -266,8 +272,14 @@ class _AppCard extends StatelessWidget {
 class _AppDetailSheet extends StatefulWidget {
   final Map<String, dynamic> app;
   final VoidCallback onRevoke;
+  final void Function(bool enabled)? onToggleNotifications;
 
-  const _AppDetailSheet({super.key, required this.app, required this.onRevoke});
+  const _AppDetailSheet({
+    super.key,
+    required this.app,
+    required this.onRevoke,
+    this.onToggleNotifications,
+  });
 
   @override
   State<_AppDetailSheet> createState() => _AppDetailSheetState();
@@ -357,7 +369,10 @@ class _AppDetailSheetState extends State<_AppDetailSheet> {
                   Switch(
                     key: const Key('app-notification-toggle'),
                     value: _pushEnabled,
-                    onChanged: (val) => setState(() => _pushEnabled = val),
+                    onChanged: (val) {
+                      setState(() => _pushEnabled = val);
+                      widget.onToggleNotifications?.call(val);
+                    },
                   ),
                 ],
               ),

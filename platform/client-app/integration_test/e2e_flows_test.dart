@@ -905,4 +905,7 @@ class _AppsSource implements AppsDataSource {
     await request.close();
     client.close();
   }
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) async {}
 }

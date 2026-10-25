@@ -666,6 +666,9 @@ class _ResolverAppsSource implements AppsDataSource {
     await request.close();
     client.close();
   }
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) async {}
 }
 
 // --- Fallback empty sources for tests that don't need real data ---
@@ -692,4 +695,7 @@ class _EmptyAppsSource implements AppsDataSource {
   Future<List<Map<String, dynamic>>> fetchApps() async => [];
   @override
   Future<void> revokeApp(String appId) async {}
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) async {}
 }

@@ -29,6 +29,7 @@ class AppsState {
 abstract class AppsDataSource {
   Future<List<Map<String, dynamic>>> fetchApps();
   Future<void> revokeApp(String appId);
+  Future<void> setNotificationPreference(String appId, bool enabled);
 }
 
 /// Manages registered apps with optimistic updates.
@@ -67,6 +68,25 @@ class AppsNotifier extends StateNotifier<AppsState> {
       return true;
     } catch (e) {
       // Rollback
+      state = state.copyWith(apps: backup);
+      return false;
+    }
+  }
+
+  /// Persist the push-notification preference for [appId] (the app's string id).
+  /// Optimistically updates the in-memory app so the toggle sticks across a
+  /// sheet re-open; rolls back on failure.
+  Future<bool> setNotificationPreference(String appId, bool enabled) async {
+    final backup = List<Map<String, dynamic>>.from(state.apps);
+    state = state.copyWith(
+      apps: state.apps
+          .map((a) => a['appId'] == appId ? {...a, 'pushEnabled': enabled} : a)
+          .toList(),
+    );
+    try {
+      await _dataSource.setNotificationPreference(appId, enabled);
+      return true;
+    } catch (e) {
       state = state.copyWith(apps: backup);
       return false;
     }

@@ -201,6 +201,27 @@ class OhppLifecycleDriver {
     throw TestFailure('apps-empty never rendered within ${timeout.inSeconds}s after revoke');
   }
 
+  /// Open the first connected app's detail sheet and flip its push-notification
+  /// toggle to [enabled], then close the sheet. Returns after the change has been
+  /// dispatched (the toggle persists via the provider / Resolver).
+  Future<void> toggleFirstAppNotifications(bool enabled) async {
+    await openAppsAndWaitForCard();
+    await tester.tap(find.byKey(const Key('app-card-0')));
+    await tester.pumpAndSettle();
+    await pumpUntilKey(tester, 'app-notification-toggle');
+    final toggle = find.byKey(const Key('app-notification-toggle'));
+    final current = tester.widget<Switch>(toggle).value;
+    if (current != enabled) {
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+    }
+    // Close the detail sheet so the Apps list is in front again.
+    if (find.byKey(const Key('app-detail-sheet')).evaluate().isNotEmpty) {
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+    }
+  }
+
   /// Revoke the first connected app via its detail sheet + confirm dialog.
   /// (App cards are keyed app-card-$index; this opens index 0's detail.)
   Future<void> revokeFirstApp() async {

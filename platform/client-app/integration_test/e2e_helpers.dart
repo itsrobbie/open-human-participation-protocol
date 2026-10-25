@@ -326,6 +326,26 @@ Future<List<Map<String, dynamic>>> getRegisteredApps(String identityToken) async
   }
 }
 
+/// Get notification preferences for the user (one entry per app with a
+/// non-default preference). Used to assert the app's notification toggle
+/// actually persisted to the Resolver.
+Future<List<Map<String, dynamic>>> getNotificationPreferences(String identityToken) async {
+  final client = HttpClient();
+  try {
+    final request =
+        await client.getUrl(Uri.parse('$e2eResolverUrl/api/notification-preferences'));
+    request.headers.set('Authorization', 'Bearer $identityToken');
+    final response = await request.close();
+    final body = await response.transform(utf8.decoder).join();
+    if (response.statusCode == 200) {
+      return (jsonDecode(body) as List).cast<Map<String, dynamic>>();
+    }
+    return [];
+  } finally {
+    client.close();
+  }
+}
+
 // --- Result types ---
 
 class DeviceSetupResult {
