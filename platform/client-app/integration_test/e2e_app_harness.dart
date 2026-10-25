@@ -164,6 +164,66 @@ class E2EHarness {
     );
   }
 
+  /// App that starts UNAUTHENTICATED and wires login + REGISTER to the REAL
+  /// Resolver /api/auth endpoints (the production path, provider hidden). The
+  /// account-creation whole-case uses this: it drives the in-app sign-up UI,
+  /// which calls the resolver broker, then enrolls the device exactly as
+  /// main.dart does. [deviceToken] seeds the device-scoped API client; the real
+  /// enrollment re-derives the device from the brokered identity token.
+  Widget buildAppForAuth({required String deviceToken}) {
+    Future<bool> afterBrokeredAuth(Map<String, dynamic> data, String username, Ref ref) async {
+      final accessToken = data['accessToken'] as String?;
+      if (accessToken == null) return false;
+      // Enroll the device with the brokered identity token (same as main.dart).
+      final device = await setupDevice(accessToken);
+      if (device != null) {
+        // Publish THIS harness's signing key so attestations verify (the
+        // harness instance method, not the free helper of the same name).
+        await registerDeviceKey();
+      }
+      ref.read(authProvider.notifier).login(userId: username, accessToken: accessToken);
+      return true;
+    }
+
+    Future<Map<String, dynamic>?> postAuth(String path, Object body) async {
+      final client = HttpClient();
+      try {
+        final req = await client.postUrl(Uri.parse('$e2eResolverUrl$path'));
+        req.headers.contentType = ContentType.json;
+        req.write(jsonEncode(body));
+        final resp = await req.close();
+        final text = await resp.transform(utf8.decoder).join();
+        if (resp.statusCode != 200 && resp.statusCode != 201) return null;
+        return jsonDecode(text) as Map<String, dynamic>;
+      } catch (_) {
+        return null;
+      } finally {
+        client.close();
+      }
+    }
+
+    return ProviderScope(
+      overrides: [
+        loginProvider.overrideWith((ref) => LoginNotifier(
+              onLogin: (username, password) async {
+                final data = await postAuth('/api/auth/login',
+                    {'username': username, 'password': password});
+                if (data == null) return false;
+                return afterBrokeredAuth(data, username, ref);
+              },
+              onRegister: (username, email, password) async {
+                final data = await postAuth('/api/auth/register',
+                    {'username': username, 'email': email, 'password': password});
+                if (data == null) return false;
+                return afterBrokeredAuth(data, username, ref);
+              },
+            )),
+        ..._overrides(deviceToken: deviceToken),
+      ],
+      child: const OhppApp(),
+    );
+  }
+
   /// App that starts ALREADY AUTHENTICATED with [identityToken]. Skips the UI
   /// login entirely so feature tests don't pay the Keycloak/login cost.
   Widget buildAppSignedIn({

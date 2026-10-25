@@ -30,8 +30,10 @@ services:
       Auth__Keycloak__Authority: "https://keycloak:8443/realms/ohpp"
       # Broker (account creation + token issuance behind /api/auth). Dev admin
       # creds match the Keycloak bootstrap admin (admin/admin) in the backing
-      # compose; the client never sees any of this.
-      Auth__Keycloak__ServerBaseUrl: "https://keycloak:8443"
+      # compose; the client never sees any of this. Uses the HTTP internal URL
+      # (server-to-server inside the compose net), matching the token validator's
+      # own Keycloak authority default and avoiding a dev-CA TLS handshake here.
+      Auth__Keycloak__ServerBaseUrl: "http://keycloak:8080"
       Auth__Keycloak__Realm: "ohpp"
       Auth__Keycloak__TokenClientId: "ohpp-portal"
       Auth__Keycloak__AdminUsername: "admin"

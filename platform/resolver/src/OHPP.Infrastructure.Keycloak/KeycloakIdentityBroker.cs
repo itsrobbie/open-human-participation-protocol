@@ -49,14 +49,19 @@ public sealed class KeycloakIdentityBroker : IIdentityBroker
             {
                 username = request.Username,
                 email = request.Email,
-                firstName = request.FirstName,
-                lastName = request.LastName,
+                // The ohpp realm's user profile requires first/last name, so a
+                // user missing them is "not fully set up" and the password grant
+                // fails with invalid_grant even when no required actions remain.
+                // Default them from the username when the client did not collect
+                // them, so a brokered account is always login-ready.
+                firstName = string.IsNullOrWhiteSpace(request.FirstName) ? request.Username : request.FirstName,
+                lastName = string.IsNullOrWhiteSpace(request.LastName) ? "User" : request.LastName,
                 enabled = true,
                 emailVerified = true,
-                credentials = new[]
-                {
-                    new { type = "password", value = request.Password, temporary = false }
-                }
+                // Clear any admin-default required actions (e.g. VERIFY_EMAIL)
+                // so the account is "fully set up" and the password grant works
+                // immediately.
+                requiredActions = Array.Empty<string>(),
             })
         };
         createReq.Headers.Authorization = new("Bearer", adminToken);
@@ -80,7 +85,33 @@ public sealed class KeycloakIdentityBroker : IIdentityBroker
                 [new ValidationFailure { Field = "registration", Message = Truncate(body) }]);
         }
 
-        // Account created — authenticate immediately so the caller gets tokens.
+        // Set the password via the dedicated reset-password endpoint (more
+        // reliable than an inline credential, which Keycloak sometimes leaves
+        // the account not fully set up). The new user's id is in the Location
+        // header of the create response.
+        var userId = createResp.Headers.Location?.Segments.LastOrDefault()?.Trim('/');
+        if (string.IsNullOrEmpty(userId))
+            return Error.Unauthorized("Account was created but could not be finalised.");
+
+        var pwReq = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"{ServerBaseUrl}/admin/realms/{_options.Realm}/users/{userId}/reset-password")
+        {
+            Content = JsonContent.Create(new { type = "password", value = request.Password, temporary = false })
+        };
+        pwReq.Headers.Authorization = new("Bearer", adminToken);
+        try
+        {
+            var pwResp = await _http.SendAsync(pwReq, cancellationToken);
+            if (!pwResp.IsSuccessStatusCode)
+                return Error.Unauthorized("Account was created but the password could not be set.");
+        }
+        catch (HttpRequestException)
+        {
+            return Error.Unauthorized("The identity service is unavailable.");
+        }
+
+        // Account fully set up — authenticate so the caller gets tokens.
         return await AuthenticateAsync(new AuthenticateRequest(request.Username, request.Password), cancellationToken);
     }
 

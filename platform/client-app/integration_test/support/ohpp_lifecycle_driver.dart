@@ -71,9 +71,32 @@ class OhppLifecycleDriver {
 
   // --- Login / re-auth --------------------------------------------------------
 
-  /// Drive the real UI login against Keycloak, then wait for the authenticated
-  /// shell (Pending tab) to render. Unfocuses before tapping submit so the soft
-  /// keyboard action does not double-submit.
+  /// Create a new account IN-APP (never seeing the identity provider): from the
+  /// login screen, follow the register link, fill the keyed sign-up form, submit,
+  /// and wait for the authenticated shell (Pending tab). On success the resolver
+  /// brokered the account + issued tokens and the app enrolled the device.
+  Future<void> registerViaApp(String username, String email, String password) async {
+    await pumpUntilKey(tester, 'login-register-link');
+    await tester.tap(find.byKey(const Key('login-register-link')));
+    await tester.pumpAndSettle();
+    await pumpUntilKey(tester, 'ohpp.register.username');
+    await tester.enterText(find.byKey(const Key('ohpp.register.username')), username);
+    await tester.enterText(find.byKey(const Key('ohpp.register.email')), email);
+    await tester.enterText(find.byKey(const Key('ohpp.register.password')), password);
+    await tester.pumpAndSettle();
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    final submit = find.byKey(const Key('ohpp.register.submit'));
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    // Account creation + enrollment run server-side then post-auth; the app
+    // lands on the Pending tab once authenticated + registered.
+    await pumpUntilKey(tester, 'tab-pending', timeout: const Duration(seconds: 40));
+  }
+
+  /// Drive the real UI login via the resolver broker, then wait for the
+  /// authenticated shell (Pending tab) to render. Unfocuses before tapping
+  /// submit so the soft keyboard action does not double-submit.
   Future<void> uiLogin(String username, String password) async {
     await pumpUntilKey(tester, 'login-username');
     await tester.enterText(find.byKey(const Key('login-username')), username);
