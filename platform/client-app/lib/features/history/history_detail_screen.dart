@@ -402,6 +402,7 @@ class _HistoryDetailScreenState extends State<HistoryDetailScreen> {
                 const SizedBox(height: 4),
                 Text(
                   payload,
+                  key: const Key('detail-attestation-payload'),
                   style: const TextStyle(
                     fontSize: 12,
                     fontFamily: 'monospace',

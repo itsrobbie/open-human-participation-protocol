@@ -22,6 +22,7 @@ import 'package:ohpp_client/features/settings/settings_screen.dart';
 import 'package:ohpp_client/features/shell/main_shell.dart';
 import 'package:ohpp_client/shared/providers/auth_provider.dart';
 import 'package:ohpp_client/shared/providers/apps_provider.dart';
+import 'package:ohpp_client/shared/providers/user_profile_provider.dart';
 import 'package:ohpp_client/shared/providers/rules_provider.dart';
 
 /// Route path constants.
@@ -166,16 +167,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: AppRoutes.profile,
-            pageBuilder: (context, state) => NoTransitionPage(
-              child: ProfileScreen(
-                user: const {
-                  'username': '',
-                  'email': '',
-                  'resolverUrl': '',
-                },
-                devices: const [],
-                onOpenSettings: () => context.push(AppRoutes.settings),
-              ),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: _ProfilePage(),
             ),
           ),
         ],
@@ -362,4 +355,36 @@ void _showPasteDialog(BuildContext context, Ref ref) {
       ],
     ),
   );
+}
+
+
+/// Profile tab page. Refreshes the profile/device data each time it is shown
+/// (the Profile tab is reached post-enrollment, so a one-shot early cache would
+/// be empty) and renders reactively as the fetch resolves.
+class _ProfilePage extends ConsumerStatefulWidget {
+  const _ProfilePage();
+
+  @override
+  ConsumerState<_ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<_ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(profileDataProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = ref.watch(profileDataProvider).valueOrNull;
+    return ProfileScreen(
+      user: data?.user ??
+          const {'username': '', 'email': '', 'resolverUrl': ''},
+      devices: data?.devices ?? const [],
+      onOpenSettings: () => context.push(AppRoutes.settings),
+    );
+  }
 }

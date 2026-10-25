@@ -35,3 +35,25 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
     resolverBaseUrl: 'http://localhost:5050',
   );
 });
+
+/// Profile screen data: the user map + the real device list (with the current
+/// device marked). Overridden in main.dart with a loader bound to the identity
+/// API client and the locally-stored device id. The default throws so a missing
+/// override is a loud failure, not a silently empty Profile.
+typedef ProfileDataLoader = Future<ProfileData> Function();
+
+class ProfileData {
+  final Map<String, dynamic> user;
+  final List<Map<String, dynamic>> devices;
+  const ProfileData({required this.user, required this.devices});
+}
+
+final profileDataProvider = FutureProvider.autoDispose<ProfileData>((ref) async {
+  final loader = ref.watch(profileDataLoaderProvider);
+  return loader();
+});
+
+/// The loader is injected at composition root (main.dart / test harness).
+final profileDataLoaderProvider = Provider<ProfileDataLoader>((ref) {
+  throw UnimplementedError('profileDataLoaderProvider must be overridden');
+});

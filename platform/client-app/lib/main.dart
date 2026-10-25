@@ -41,6 +41,7 @@ import 'shared/providers/crash_reporter_provider.dart';
 import 'shared/providers/developer_settings_provider.dart';
 import 'shared/providers/history_provider.dart';
 import 'shared/providers/pending_provider.dart';
+import 'shared/providers/user_profile_provider.dart';
 import 'shared/providers/rules_provider.dart';
 import 'shared/providers/telemetry_service_provider.dart';
 
@@ -285,6 +286,23 @@ Future<void> main() async {
         appsProvider.overrideWith((ref) {
           return AppsNotifier(dataSource: appsSource);
         }),
+        profileDataLoaderProvider.overrideWith((ref) => () async {
+              final auth = ref.read(authProvider);
+              final currentId = await deviceService.getDeviceId();
+              List<Map<String, dynamic>> devices = const [];
+              try {
+                final raw = await typedApi.getDevices();
+                devices = raw
+                    .map((d) => {...d, 'isCurrent': d['id'] == currentId})
+                    .toList();
+              } catch (_) {
+                // Fail-open: an empty device list beats a crashed Profile.
+              }
+              return ProfileData(
+                user: {'userId': auth.userId ?? ''},
+                devices: devices,
+              );
+            }),
         attestationServiceProvider.overrideWithValue(
           AttestationService(
             ruleEngine: RuleEngine(),

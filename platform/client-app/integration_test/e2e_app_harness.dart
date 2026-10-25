@@ -24,6 +24,7 @@ import 'package:ohpp_client/shared/providers/auth_provider.dart';
 import 'package:ohpp_client/shared/providers/history_provider.dart';
 import 'package:ohpp_client/shared/providers/pending_provider.dart';
 import 'package:ohpp_client/shared/providers/rules_provider.dart';
+import 'package:ohpp_client/shared/providers/user_profile_provider.dart';
 
 import 'e2e_helpers.dart';
 
@@ -180,6 +181,18 @@ class E2EHarness {
       appsProvider.overrideWith(
           (ref) => AppsNotifier(dataSource: ResolverAppsDataSource(api: identityApi))),
       attestationServiceProvider.overrideWithValue(attestationService),
+      // Profile loads the real device list via the identity client. A fresh
+      // user has exactly one enrolled device, so mark it current (the harness
+      // does not track the resolver-assigned device GUID locally).
+      profileDataLoaderProvider.overrideWithValue(() async {
+        List<Map<String, dynamic>> devices = const [];
+        try {
+          final raw = await identityApi.getDevices();
+          devices =
+              raw.map((d) => {...d, 'isCurrent': true}).toList();
+        } catch (_) {}
+        return ProfileData(user: const {'userId': ''}, devices: devices);
+      }),
     ];
   }
 
