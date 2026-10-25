@@ -1,4 +1,4 @@
-.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts validate test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android ci-image ci-flutter ci-flutter-goldens coverage coverage-portal coverage-node-sdk coverage-resolver-unit coverage-flutter
+.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts validate test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android ci-image ci-flutter ci-flutter-goldens coverage-floors coverage coverage-portal coverage-node-sdk coverage-resolver-unit coverage-flutter
 
 # Developer-local overrides (git-ignored). Put machine-specific values here, e.g.
 # the iOS simulator to run the Flutter E2E on:
@@ -355,6 +355,9 @@ validate: ## Run the layered validation suite in pyramid order (contracts, unit,
 	@echo "═══ validate: layer 4/4 — web whole-case E2E (isolated stack, cross-system ceremonies) ═══"
 	$(MAKE) test
 	@echo ""
+	@echo "═══ validate: coverage floors (Phase 5.1 gate — unit-floored surfaces must clear their floor) ═══"
+	$(MAKE) coverage-floors
+	@echo ""
 	@echo "═══ validate: all four layers passed. Flutter app-attester layers run separately via 'make flutter-test' (see coverage matrix). ═══"
 
 test-contracts: ## Validate Makefile and Compose developer surfaces
@@ -426,6 +429,10 @@ coverage-flutter: ## Flutter coverage (lcov -> platform/client-app/coverage/lcov
 	cd platform/client-app && flutter test --coverage
 
 coverage: coverage-portal coverage-node-sdk coverage-resolver-unit coverage-flutter ## All production-surface coverage reports
+
+coverage-floors: ## Enforce per-surface coverage floors (Phase 5.1 GATE). Fails if a unit-floored surface is below its floor.
+	$(MAKE) coverage-node-sdk
+	node scripts/check-coverage-floors.mjs
 
 # ─── Flutter Client App ──────────────────────────────────────────────────────
 
