@@ -21,7 +21,8 @@ public sealed class TokenDiscriminationMiddleware
         // these must be reachable anonymously. They are the app's only auth
         // surface; the identity provider stays hidden behind them.
         "/api/auth/register",
-        "/api/auth/login"
+        "/api/auth/login",
+        "/api/auth/refresh"
     };
 
     public TokenDiscriminationMiddleware(RequestDelegate next)

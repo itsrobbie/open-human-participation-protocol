@@ -8,6 +8,7 @@ import 'package:ohpp_client/features/apps/qr_scanner_screen.dart';
 import 'package:ohpp_client/features/history/history_detail_screen.dart';
 import 'package:ohpp_client/features/history/history_screen.dart';
 import 'package:ohpp_client/features/login/login_screen.dart';
+import 'package:ohpp_client/features/login/register_screen.dart';
 import 'package:ohpp_client/features/onboarding/onboarding_flow.dart';
 import 'package:ohpp_client/features/pending/pending_screen.dart';
 import 'package:ohpp_client/features/profile/profile_screen.dart';
@@ -26,6 +27,7 @@ import 'package:ohpp_client/shared/providers/rules_provider.dart';
 abstract class AppRoutes {
   static const onboarding = '/onboarding';
   static const login = '/login';
+  static const register = '/register';
   static const pending = '/pending';
   static const history = '/history';
   static const historyDetail = '/history/:id';
@@ -67,14 +69,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = auth.state == AuthState.authenticated;
       final isOnLogin = state.matchedLocation == AppRoutes.login;
       final isOnOnboarding = state.matchedLocation == AppRoutes.onboarding;
+      final isOnRegister = state.matchedLocation == AppRoutes.register;
 
-      // Not authenticated: redirect to login (unless already there or onboarding)
-      if (!isAuthenticated && !isOnLogin && !isOnOnboarding) {
+      // Not authenticated: redirect to login (unless already on an
+      // unauthenticated route: login, register, or onboarding).
+      if (!isAuthenticated && !isOnLogin && !isOnOnboarding && !isOnRegister) {
         return AppRoutes.login;
       }
 
-      // Authenticated but on login page: redirect to home
-      if (isAuthenticated && isOnLogin) {
+      // Authenticated but on login/register page: redirect to home
+      if (isAuthenticated && (isOnLogin || isOnRegister)) {
         return AppRoutes.pending;
       }
 
@@ -91,6 +95,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.register,
+        builder: (context, state) => const RegisterScreen(),
       ),
 
       // --- Authenticated routes (shell with bottom nav) ---

@@ -31,8 +31,7 @@ void main() {
           baseUrl: 'http://localhost:5000',
           authInterceptor: AuthInterceptor(
             storage: const FlutterSecureStorage(),
-            keycloakTokenUrl: 'http://localhost:8080/token',
-            clientId: 'ohpp-test',
+            refreshUrl: 'http://localhost:5050/api/auth/refresh',
             onSessionExpired: () {},
           ),
         ),

@@ -31,6 +31,13 @@ public interface IIdentityBroker
     /// Fails with <see cref="Error.Unauthorized"/> on bad credentials.
     /// </summary>
     Task<Result<BrokeredAuth>> AuthenticateAsync(AuthenticateRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Exchange a refresh token for a fresh access token, so the client renews a
+    /// session without ever contacting the provider directly. Fails with
+    /// <see cref="Error.Unauthorized"/> when the refresh token is invalid/expired.
+    /// </summary>
+    Task<Result<BrokeredAuth>> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default);
 }
 
 /// <summary>New-account details supplied by the client (never the provider).</summary>

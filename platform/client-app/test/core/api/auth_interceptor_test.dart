@@ -13,8 +13,7 @@ void main() {
 
       final interceptor = AuthInterceptor(
         storage: const FlutterSecureStorage(),
-        keycloakTokenUrl: 'http://localhost:8080/realms/ohpp/protocol/openid-connect/token',
-        clientId: 'ohpp-test',
+        refreshUrl: 'http://localhost:5050/api/auth/refresh',
         onSessionExpired: () => sessionExpired = true,
       );
 
@@ -27,8 +26,7 @@ void main() {
 
       AuthInterceptor(
         storage: const FlutterSecureStorage(),
-        keycloakTokenUrl: 'http://localhost:8080/realms/ohpp/protocol/openid-connect/token',
-        clientId: 'ohpp-test',
+        refreshUrl: 'http://localhost:5050/api/auth/refresh',
         onSessionExpired: () => sessionExpired = true,
       );
 

@@ -112,7 +112,43 @@ public sealed class KeycloakIdentityBroker : IIdentityBroker
         if (!resp.IsSuccessStatusCode)
             return Error.Unauthorized("Authentication failed.");
 
-        var json = await resp.Content.ReadAsStringAsync(cancellationToken);
+        return await ParseTokenResponse(resp, request.Username, cancellationToken);
+    }
+
+    public async Task<Result<BrokeredAuth>> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return Error.Unauthorized("A refresh token is required.");
+
+        var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "refresh_token",
+            ["client_id"] = _options.TokenClientId,
+            ["refresh_token"] = refreshToken,
+        });
+
+        HttpResponseMessage resp;
+        try
+        {
+            resp = await _http.PostAsync(
+                $"{ServerBaseUrl}/realms/{_options.Realm}/protocol/openid-connect/token",
+                form, cancellationToken);
+        }
+        catch (HttpRequestException)
+        {
+            return Error.Unauthorized("The identity service is unavailable.");
+        }
+
+        if (!resp.IsSuccessStatusCode)
+            return Error.Unauthorized("The session has expired. Please sign in again.");
+
+        return await ParseTokenResponse(resp, username: null, cancellationToken);
+    }
+
+    private static async Task<Result<BrokeredAuth>> ParseTokenResponse(
+        HttpResponseMessage resp, string? username, CancellationToken ct)
+    {
+        var json = await resp.Content.ReadAsStringAsync(ct);
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
         var access = root.TryGetProperty("access_token", out var a) ? a.GetString() : null;
@@ -122,7 +158,7 @@ public sealed class KeycloakIdentityBroker : IIdentityBroker
         var expires = root.TryGetProperty("expires_in", out var e) ? e.GetInt32() : 300;
 
         // Derive the user id from the token's 'sub' without a second round-trip.
-        var userId = ReadSubClaim(access) ?? request.Username;
+        var userId = ReadSubClaim(access) ?? username ?? string.Empty;
 
         return new BrokeredAuth(access, refresh, expires, userId);
     }

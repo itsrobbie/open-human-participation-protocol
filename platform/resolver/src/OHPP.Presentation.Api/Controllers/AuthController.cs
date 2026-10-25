@@ -44,6 +44,17 @@ public sealed class AuthController : ControllerBase
         return Map(result);
     }
 
+    /// <summary>Renew a session from a refresh token, so the client never
+    /// contacts the identity provider directly for refresh either.</summary>
+    [HttpPost("refresh", Name = "Refresh")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Refresh([FromBody] RefreshBody body, CancellationToken ct)
+    {
+        var result = await _broker.RefreshAsync(body.RefreshToken, ct);
+        return Map(result);
+    }
+
     private IActionResult Map(OHPP.Domain.Shared.Result<BrokeredAuth> result)
     {
         if (result.IsSuccess)
@@ -73,6 +84,9 @@ public sealed record RegisterBody(
 
 /// <summary>Sign-in request body.</summary>
 public sealed record LoginBody(string Username, string Password);
+
+/// <summary>Refresh request body.</summary>
+public sealed record RefreshBody(string RefreshToken);
 
 /// <summary>
 /// Provider-agnostic auth response. The client receives only these fields —

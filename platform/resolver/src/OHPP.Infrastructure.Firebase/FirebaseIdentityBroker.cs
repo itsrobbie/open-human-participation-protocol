@@ -25,4 +25,8 @@ public sealed class FirebaseIdentityBroker : IIdentityBroker
     public Task<Result<BrokeredAuth>> AuthenticateAsync(AuthenticateRequest request, CancellationToken cancellationToken = default)
         => Task.FromResult<Result<BrokeredAuth>>(
             Error.Unauthorized("Sign-in is not available right now."));
+
+    public Task<Result<BrokeredAuth>> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+        => Task.FromResult<Result<BrokeredAuth>>(
+            Error.Unauthorized("Session refresh is not available right now."));
 }
