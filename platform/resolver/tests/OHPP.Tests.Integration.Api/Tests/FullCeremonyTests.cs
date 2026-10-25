@@ -149,6 +149,92 @@ public sealed class FullCeremonyTests : IntegrationTestBase
         secondBody.Should().Contain("Resolved");
     }
 
+    // 3.2 gap: a DENY resolution end-to-end, with the audit record reflecting
+    // the deny decision (P5). Deny was previously only a request OPTION, never
+    // an asserted resolved outcome.
+    [Fact]
+    public async Task Participation_FullCeremony_Deny_AuditRecordsDenyDecision()
+    {
+        var (userClient, userId) = await CreateAuthenticatedUserAsync();
+        var (deviceClient, _, _) = await CreateAuthenticatedDeviceAsync(userId);
+        var (appClient, _, _) = await CreateAuthenticatedAppAsync(userId, "deny-ceremony.test", "Deny Ceremony");
+
+        var (publicKey, privateKey) = TestCryptoHelper.GenerateEcKeyPair();
+        await deviceClient.PostAsJsonAsync("/api/devices/me/keys", new { publicKey, algorithm = "ES256" });
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var keyStore = scope.ServiceProvider.GetRequiredService<IKeyStore>();
+            var keyEncryptor = scope.ServiceProvider.GetRequiredService<IKeyEncryptor>();
+            var (rPub, rPriv) = TestCryptoHelper.GenerateEcKeyPair();
+            await keyStore.CreateKeyAsync(new SigningKey
+            {
+                KeyId = "resolver_key_deny",
+                Algorithm = "ES256",
+                PublicKeyPem = rPub,
+                PrivateKeyPem = keyEncryptor.Encrypt(rPriv),
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+
+        var payload = BuildProtocolPayload(userId, "deny-ceremony.test", "select");
+        var submitResponse = await appClient.PostAsJsonAsync("/api/participate", new { payload });
+        var submitBody = await submitResponse.Content.ReadAsStringAsync();
+        submitResponse.StatusCode.Should().Be(HttpStatusCode.Created, because: submitBody);
+        var requestId = JsonDocument.Parse(submitBody).RootElement.GetProperty("requestId").GetGuid();
+
+        // Device signs a DENY attestation.
+        var attestationPayload = JsonSerializer.Serialize(new
+        {
+            requestId = requestId.ToString(),
+            decision = "deny",
+            type = "Select",
+            method = "Direct",
+            decisionTimestamp = DateTimeOffset.UtcNow.ToString("o")
+        });
+        var deviceSignature = TestCryptoHelper.Sign(attestationPayload, privateKey);
+        var attestResponse = await deviceClient.PostAsJsonAsync("/api/devices/me/attestations", new
+        {
+            requestId, attestationPayload, deviceSignature
+        });
+        attestResponse.StatusCode.Should().Be(HttpStatusCode.OK,
+            because: await attestResponse.Content.ReadAsStringAsync());
+
+        // Audit by construction (P5): the history record reflects the deny.
+        var historyResponse = await userClient.GetAsync($"/api/history/{requestId}");
+        historyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var record = JsonDocument.Parse(await historyResponse.Content.ReadAsStringAsync()).RootElement;
+        record.GetProperty("resolvedAt").ValueKind.Should().NotBe(JsonValueKind.Null,
+            because: "a denied ceremony still resolves");
+        record.GetProperty("attestationPayload").GetString().Should().Contain("deny",
+            because: "the signed proof must carry the deny decision");
+    }
+
+    // 3.2 gap: a CANCELLED request is a terminal state the audit reflects.
+    [Fact]
+    public async Task Participation_Cancelled_AuditReflectsTerminalState()
+    {
+        var (userClient, userId) = await CreateAuthenticatedUserAsync();
+        var (appClient, _, _) = await CreateAuthenticatedAppAsync(userId, "cancel-audit.test", "Cancel Audit");
+
+        var payload = BuildProtocolPayload(userId, "cancel-audit.test", "select");
+        var submitResponse = await appClient.PostAsJsonAsync("/api/participate", new { payload });
+        var submitBody = await submitResponse.Content.ReadAsStringAsync();
+        var requestId = JsonDocument.Parse(submitBody).RootElement.GetProperty("requestId").GetGuid();
+
+        // App cancels the pending request.
+        var cancel = await appClient.PostAsync($"/api/participate/{requestId}/cancel", null);
+        cancel.StatusCode.Should().Be(HttpStatusCode.OK, because: await cancel.Content.ReadAsStringAsync());
+        (await cancel.Content.ReadAsStringAsync()).Should().Contain("cancelled");
+
+        // The status reflects the cancelled terminal state.
+        var status = await appClient.GetAsync($"/api/participate/{requestId}/status");
+        status.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await status.Content.ReadAsStringAsync()).ToLowerInvariant()
+            .Should().Contain("cancel", because: "a cancelled request reports a cancelled terminal state");
+    }
+
     private static string BuildProtocolPayload(Guid userId, string appId, string type)
     {
         var request = new
