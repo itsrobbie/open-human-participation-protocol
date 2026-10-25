@@ -84,6 +84,38 @@ public sealed class ProtocolLabController : OhppControllerBase
     }
 
     /// <summary>
+    /// Mints a real registration challenge for the Lab app and returns it as a
+    /// scannable <c>ohpp://register?challenge={base64url}</c> URI (and the bare
+    /// payload). Unlike <see cref="Register"/>, this does NOT self-process the
+    /// challenge: it hands the URI back so a client can connect the Lab through
+    /// its OWN connect UI (paste or QR scan) via
+    /// POST /api/registrations/process-challenge — the production connect path.
+    /// Dev-only (gated by the Protocol Lab availability middleware), so it never
+    /// exists in production and no provider detail leaks: the client only ever
+    /// sees an opaque challenge URI.
+    /// </summary>
+    [HttpGet("connect-challenge", Name = "GetProtocolLabConnectChallenge")]
+    [RequireTokenType(OHPP.Domain.Auth.TokenType.IdentityProvider)]
+    public IActionResult GetConnectChallenge()
+    {
+        var challenge = new RegistrationChallenge
+        {
+            ChallengeId = Guid.NewGuid().ToString("N"),
+            RequesterAppId = LabAppId,
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5),
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        var encoded = ChallengeGenerator.EncodeChallenge(challenge);
+        return Ok(new
+        {
+            challengeUri = $"ohpp://register?challenge={encoded}",
+            challenge = encoded,
+            appId = LabAppId,
+            expiresAt = challenge.ExpiresAt,
+        });
+    }
+
+    /// <summary>
     /// Registers the Protocol Lab as a Requester app with the Resolver using the real ceremony.
     /// The user clicks "Register Protocol Lab" in the Portal and this generates a challenge,
     /// submits it to the ceremony orchestrator, which fetches our app-metadata, validates it,

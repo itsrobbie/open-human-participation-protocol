@@ -517,6 +517,29 @@ Future<String?> raiseLabRequest({
   }
 }
 
+/// Fetch a real, scannable `ohpp://register?challenge=` URI for the Lab app from
+/// the resolver's dev-only connect-challenge endpoint. Unlike [connectLabApp]
+/// (which registers server-side), this hands back the URI so a test can drive
+/// the app's OWN QR/paste connect UI — the production connect path for a fresh
+/// user, provider hidden. Returns null if the endpoint is unavailable.
+Future<String?> fetchLabConnectChallengeUri({required String identityToken}) async {
+  final client = HttpClient();
+  try {
+    final req = await client
+        .getUrl(Uri.parse('$e2eResolverUrl/api/protocol-lab/connect-challenge'));
+    req.headers.set('Authorization', 'Bearer $identityToken');
+    final resp = await req.close();
+    final text = await resp.transform(utf8.decoder).join();
+    if (resp.statusCode != 200) return null;
+    final body = jsonDecode(text) as Map<String, dynamic>;
+    return body['challengeUri'] as String?;
+  } catch (_) {
+    return null;
+  } finally {
+    client.close();
+  }
+}
+
 /// Connect the Protocol Lab as a requester app for the signed-in user (the
 /// per-user connect path that works for a freshly-created account, since demo
 /// apps bind to their own realms). Returns true on success. After this the

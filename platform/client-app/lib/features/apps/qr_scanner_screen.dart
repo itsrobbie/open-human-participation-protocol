@@ -97,6 +97,26 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
           // Bottom overlay for state indicators
           if (_state == QrScannerState.processing) _buildProcessingOverlay(),
           if (_state == QrScannerState.error) _buildErrorOverlay(),
+
+          // P7 seam (test mode only): a full-width button ON TOP of every
+          // overlay so a test tap always lands on it, feeding testScanValue
+          // through the real detection path (_onDetected).
+          if (widget.testMode && widget.testScanValue != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: ElevatedButton(
+                    key: const Key('scanner-simulate-detect'),
+                    onPressed: () => _onDetected(widget.testScanValue!),
+                    child: const Text('Simulate scan'),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -117,14 +137,6 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 color: AppColors.slate600,
                 size: 64,
               ),
-              // P7 seam: inject a scanned value through the real detection path.
-              if (widget.testScanValue != null)
-                TextButton(
-                  key: const Key('scanner-simulate-detect'),
-                  onPressed: () => _onDetected(widget.testScanValue!),
-                  child: const Text('Simulate scan',
-                      style: TextStyle(color: AppColors.slate600)),
-                ),
             ],
           ),
         ),

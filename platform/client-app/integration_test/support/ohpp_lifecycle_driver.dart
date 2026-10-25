@@ -184,6 +184,23 @@ class OhppLifecycleDriver {
     await tester.pumpAndSettle();
   }
 
+  /// Connect an app via the QR scanner path: open the apps FAB, choose QR,
+  /// then fire the P7 scanner seam (keyed 'scanner-simulate-detect'), which
+  /// emits the injected `ohpp://register` URI through the real detection path.
+  /// The scanner value is injected test-side via qrTestScanValueProvider.
+  Future<void> connectAppByQrScan() async {
+    await gotoTab('apps');
+    await pumpUntilKey(tester, 'apps-fab');
+    await tester.tap(find.byKey(const Key('apps-fab')));
+    await tester.pumpAndSettle();
+    await pumpUntilKey(tester, 'connect-option-qr');
+    await tester.tap(find.byKey(const Key('connect-option-qr')));
+    await tester.pumpAndSettle();
+    await pumpUntilKey(tester, 'scanner-simulate-detect');
+    await tester.tap(find.byKey(const Key('scanner-simulate-detect')));
+    await tester.pumpAndSettle();
+  }
+
   /// Open the Apps tab and poll (via the keyed refresh) until the first app
   /// card renders — a connect done via API lands slightly after, and the list
   /// is populated on demand.

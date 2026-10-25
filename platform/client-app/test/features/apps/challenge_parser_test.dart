@@ -26,9 +26,50 @@ void main() {
 
   String makeFullUri(String challenge) => 'ohpp://register?challenge=$challenge';
 
+  /// The CANONICAL RegistrationChallenge wire shape the SDK's ChallengeGenerator
+  /// and the resolver actually emit: challengeId / requesterAppId / expiresAt
+  /// (camelCase of the C# model). The parser must read THIS, not the legacy
+  /// appId / id / expiry shape (regression guard for the connect-never-parsed bug).
+  String makeCanonicalChallenge({
+    String requesterAppId = 'protocol-lab.dev.test',
+    String challengeId = 'abc123',
+    DateTime? expiresAt,
+  }) {
+    final exp =
+        expiresAt ?? DateTime.now().toUtc().add(const Duration(minutes: 5));
+    final json = jsonEncode({
+      'challengeId': challengeId,
+      'requesterAppId': requesterAppId,
+      'expiresAt': exp.toIso8601String(),
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+    });
+    return base64Url.encode(utf8.encode(json));
+  }
+
   // --- Happy path ---
 
   group('Valid parsing', () {
+    test('parse_CanonicalWireShape_ReturnsChallenge', () {
+      // The real on-the-wire challenge (challengeId/requesterAppId/expiresAt).
+      final challenge = makeCanonicalChallenge();
+
+      final result = parser.parse(challenge);
+
+      expect(result.isSuccess, isTrue,
+          reason: 'the parser must accept the canonical RegistrationChallenge shape');
+      expect(result.challenge!.appId, equals('protocol-lab.dev.test'));
+      expect(result.challenge!.id, equals('abc123'));
+    });
+
+    test('parse_CanonicalWireShape_FullUri_ReturnsChallenge', () {
+      final uri = makeFullUri(makeCanonicalChallenge());
+
+      final result = parser.parse(uri);
+
+      expect(result.isSuccess, isTrue);
+      expect(result.challenge!.appId, equals('protocol-lab.dev.test'));
+    });
+
     test('parse_ValidBase64url_ReturnsChallenge', () {
       final challenge = makeValidChallenge();
 

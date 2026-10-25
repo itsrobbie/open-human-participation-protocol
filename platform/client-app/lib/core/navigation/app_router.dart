@@ -25,6 +25,18 @@ import 'package:ohpp_client/shared/providers/apps_provider.dart';
 import 'package:ohpp_client/shared/providers/user_profile_provider.dart';
 import 'package:ohpp_client/shared/providers/rules_provider.dart';
 
+/// Anti-agent test mode flag (software signer + keyed test seams), set by
+/// --dart-define=OHPP_ANTI_AGENT_MODE=test on the e2e-device runs.
+const bool _kAntiAgentTestMode =
+    String.fromEnvironment('OHPP_ANTI_AGENT_MODE', defaultValue: 'real') ==
+        'test';
+
+/// The scan value the QR scanner's P7 test seam emits when
+/// 'scanner-simulate-detect' is tapped. The e2e QR connect whole-case sets this
+/// (via its notifier) to the real minted `ohpp://register?challenge=` URI after
+/// sign-up, so the scan path is driven without a camera. Null in production.
+final qrTestScanValueProvider = StateProvider<String?>((ref) => null);
+
 /// Route path constants.
 abstract class AppRoutes {
   static const onboarding = '/onboarding';
@@ -185,6 +197,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.qrScanner,
         builder: (context, state) => QrScannerScreen(
+          // P7 seam: in anti-agent test mode, render the keyed
+          // 'scanner-simulate-detect' button that feeds [qrTestScanValueProvider]
+          // (the harness injects the minted ohpp://register URI) through the real
+          // detection path. In real mode the camera runs unchanged.
+          testMode: _kAntiAgentTestMode,
+          testScanValue: ref.read(qrTestScanValueProvider),
           onResult: (value) {
             // Process registration challenge via ChallengeParser
             context.pop(value);
