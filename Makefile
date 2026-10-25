@@ -1,4 +1,4 @@
-.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts validate test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android ci-image ci-flutter ci-flutter-goldens
+.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts validate test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android ci-image ci-flutter ci-flutter-goldens coverage coverage-portal coverage-node-sdk coverage-resolver-unit coverage-flutter
 
 # Developer-local overrides (git-ignored). Put machine-specific values here, e.g.
 # the iOS simulator to run the Flutter E2E on:
@@ -406,6 +406,26 @@ test-unit-marketplace: ## Run Marketplace app unit + integration tests
 test-integration: ## Run resolver integration tests (requires Docker postgres)
 	dotnet build platform/resolver/tests/OHPP.Tests.Integration.Api/OHPP.Tests.Integration.Api.csproj --configuration Release --maxcpucount:1
 	dotnet test platform/resolver/tests/OHPP.Tests.Integration.Api/OHPP.Tests.Integration.Api.csproj --configuration Release --no-build --filter "Category=RequiresDocker" --logger "console;verbosity=detailed"
+
+# ─── Coverage (production-lifecycle plan, Phase 0.2 / 5.1) ───────────────────
+# Each emits a machine-readable coverage report for one production surface.
+# Floors are enforced in Phase 5.1; these targets just produce the numbers.
+
+coverage-portal: ## Portal coverage (vitest v8 -> platform/portal/coverage)
+	npm --prefix platform/portal run test:coverage
+
+coverage-node-sdk: ## Node SDK coverage (vitest v8)
+	npm --prefix sdks/node run test:coverage
+
+coverage-resolver-unit: ## Resolver unit coverage (coverlet cobertura, no Docker)
+	for p in platform/resolver/tests/OHPP.Tests.Unit.*/; do \
+		dotnet test "$$p" --collect:"XPlat Code Coverage" --results-directory coverage/resolver || exit 1; \
+	done
+
+coverage-flutter: ## Flutter coverage (lcov -> platform/client-app/coverage/lcov.info)
+	cd platform/client-app && flutter test --coverage
+
+coverage: coverage-portal coverage-node-sdk coverage-resolver-unit coverage-flutter ## All production-surface coverage reports
 
 # ─── Flutter Client App ──────────────────────────────────────────────────────
 
