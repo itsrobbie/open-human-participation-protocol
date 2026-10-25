@@ -84,7 +84,7 @@ public sealed class KeycloakIdentityTokenValidator : IIdentityTokenValidator
     /// the internal scheme/host. This is derived by realm path rather than by a
     /// brittle host-string replacement so it survives the HTTP-to-HTTPS migration.
     /// </summary>
-    internal static string[] BuildValidIssuers(string authority)
+    public static string[] BuildValidIssuers(string authority)
     {
         var trimmed = authority.TrimEnd('/');
         var issuers = new List<string> { trimmed };
