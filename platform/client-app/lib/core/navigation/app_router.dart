@@ -263,7 +263,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, ref, _) => RuleEditorScreen(
               existingRule: rule,
               onSave: (updated) {
-                ref.read(rulesProvider.notifier).create(updated);
+                final id = updated['id'] as String?;
+                if (id != null) {
+                  ref.read(rulesProvider.notifier).update(id, updated);
+                } else {
+                  ref.read(rulesProvider.notifier).create(updated);
+                }
                 context.pop();
               },
             ),

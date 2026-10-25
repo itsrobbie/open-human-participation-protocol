@@ -29,6 +29,7 @@ class RulesState {
 abstract class RulesDataSource {
   Future<List<Map<String, dynamic>>> fetchRules();
   Future<Map<String, dynamic>> createRule(Map<String, dynamic> data);
+  Future<Map<String, dynamic>> updateRule(String id, Map<String, dynamic> data);
   Future<void> deleteRule(String id);
 }
 
@@ -78,6 +79,27 @@ class RulesNotifier extends StateNotifier<RulesState> {
       return true;
     } catch (_) {
       // Rollback
+      state = state.copyWith(rules: previous);
+      return false;
+    }
+  }
+
+  /// Optimistic update: replace the rule in place by id, sync to server,
+  /// rollback on failure. Used by the editor's save on an EXISTING rule, so
+  /// editing does not create a duplicate.
+  Future<bool> update(String id, Map<String, dynamic> ruleData) async {
+    final previous = List<Map<String, dynamic>>.from(state.rules);
+    final merged = {...ruleData, 'id': id};
+    state = state.copyWith(
+      rules: state.rules.map((r) => r['id'] == id ? merged : r).toList(),
+    );
+    try {
+      final saved = await _dataSource.updateRule(id, ruleData);
+      state = state.copyWith(
+        rules: state.rules.map((r) => r['id'] == id ? saved : r).toList(),
+      );
+      return true;
+    } catch (_) {
       state = state.copyWith(rules: previous);
       return false;
     }

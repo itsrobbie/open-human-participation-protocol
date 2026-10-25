@@ -28,6 +28,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     final queueBadge = pendingState.offlineQueueCount;
 
     return Scaffold(
+      key: const Key('ohpp.shell.scaffold'),
       body: widget.child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: widget.currentIndex,

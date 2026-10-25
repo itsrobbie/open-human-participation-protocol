@@ -232,6 +232,13 @@ class _FakeRulesDataSource implements RulesDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> updateRule(String id, Map<String, dynamic> data) async {
+    final saved = {...data, 'id': id};
+    rules = rules.map((r) => r['id'] == id ? saved : r).toList();
+    return saved;
+  }
+
+  @override
   Future<void> deleteRule(String id) async {
     if (shouldFailDelete) throw Exception('Delete failed');
     rules = rules.where((r) => r['id'] != id).toList();

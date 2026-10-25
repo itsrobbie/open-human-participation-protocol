@@ -36,6 +36,10 @@ class ResolverRulesDataSource implements RulesDataSource {
       _api.createRule(data);
 
   @override
+  Future<Map<String, dynamic>> updateRule(String id, Map<String, dynamic> data) =>
+      _api.updateRule(id, data);
+
+  @override
   Future<void> deleteRule(String id) => _api.deleteRule(id);
 }
 

@@ -123,7 +123,21 @@ class OhppLifecycleDriver {
 
   // --- Navigation -------------------------------------------------------------
 
+  /// Pop any pushed full-screen routes (Rules/Security/editor etc. live OUTSIDE
+  /// the ShellRoute) until the shell Scaffold is back in the tree, so tab and
+  /// drawer navigation have the shell to act on. Bounded and canPop-guarded.
+  Future<void> _popToShell() async {
+    final shell = find.byKey(const Key('ohpp.shell.scaffold'));
+    for (var i = 0; i < 6 && shell.evaluate().isEmpty; i++) {
+      final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
+      if (!nav.canPop()) break;
+      nav.pop();
+      await tester.pumpAndSettle();
+    }
+  }
+
   Future<void> gotoTab(String tab) async {
+    await _popToShell();
     final key = 'tab-$tab';
     await pumpUntilKey(tester, key);
     await tester.tap(find.byKey(Key(key)));
@@ -131,12 +145,20 @@ class OhppLifecycleDriver {
   }
 
   Future<void> openDrawerItem(String item) async {
-    final drawer = find.byKey(const Key('app-drawer'));
-    if (drawer.evaluate().isNotEmpty) {
-      await tester.tap(drawer);
+    // Screens like Rules/Security are pushed FULL-SCREEN routes OUTSIDE the
+    // ShellRoute, so the shell Scaffold (key 'ohpp.shell.scaffold') and the
+    // drawer are not in the tree while one is showing. Pop back to the shell
+    // first, then open its drawer through the ScaffoldState (the drawer is a
+    // Material [Drawer] opened via its Scaffold, not a tappable widget).
+    final key = 'drawer-$item';
+    await _popToShell();
+    final shellKey = find.byKey(const Key('ohpp.shell.scaffold'));
+    if (find.byKey(Key(key)).evaluate().isEmpty) {
+      await pumpUntil(tester, shellKey, reason: 'ohpp.shell.scaffold');
+      final scaffoldState = tester.state<ScaffoldState>(shellKey);
+      scaffoldState.openDrawer();
       await tester.pumpAndSettle();
     }
-    final key = 'drawer-$item';
     await pumpUntilKey(tester, key);
     await tester.tap(find.byKey(Key(key)));
     await tester.pumpAndSettle();
@@ -261,8 +283,10 @@ class OhppLifecycleDriver {
     await pumpUntil(tester, del, reason: 'rule-delete-$index');
     await tester.tap(del);
     await tester.pumpAndSettle();
+    // The confirm dialog carries key 'rule-delete-confirm'; its destructive
+    // action BUTTON is a separate key. Wait for the dialog, then tap the button.
     await pumpUntilKey(tester, 'rule-delete-confirm');
-    await tester.tap(find.byKey(const Key('rule-delete-confirm')));
+    await tester.tap(find.byKey(const Key('ohpp.rules.dialog-delete')));
     await tester.pumpAndSettle();
   }
 

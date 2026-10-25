@@ -867,6 +867,21 @@ class _RulesSource implements RulesDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> updateRule(
+      String id, Map<String, dynamic> data) async {
+    final client = HttpClient();
+    final request = await client.putUrl(Uri.parse('$_baseUrl/api/rules/$id'));
+    request.headers.set('Authorization', 'Bearer $_token');
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(data));
+    final response = await request.close();
+    final body = await response.transform(utf8.decoder).join();
+    client.close();
+    if (response.statusCode == 200) return jsonDecode(body) as Map<String, dynamic>;
+    return {...data, 'id': id};
+  }
+
+  @override
   Future<void> deleteRule(String id) async {
     final client = HttpClient();
     final request = await client.deleteUrl(Uri.parse('$_baseUrl/api/rules/$id'));
