@@ -233,4 +233,21 @@ class OhppLifecycleDriver {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pumpAndSettle(const Duration(milliseconds: 700));
   }
+
+  /// Poll-refresh the pending list until the keyed card for [requestId] renders.
+  /// A just-raised request propagates to the resolver's pending list slightly
+  /// after the raise returns, and the harness has no live poll, so a single
+  /// refresh races it — loop the production resumed-refresh until the card is
+  /// there (bounded), mirroring the pizza whole-case's between-steps refresh.
+  Future<void> refreshUntilCard(String requestId,
+      {Duration timeout = const Duration(seconds: 40)}) async {
+    final key = 'ohpp.pending.card.$requestId';
+    final end = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(end)) {
+      if (find.byKey(Key(key)).evaluate().isNotEmpty) return;
+      await refreshPending();
+    }
+    throw TestFailure('pending card $key never appeared within '
+        '${timeout.inSeconds}s after refresh-polling');
+  }
 }

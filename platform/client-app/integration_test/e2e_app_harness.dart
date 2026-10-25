@@ -47,12 +47,32 @@ class E2EHarness {
     required this.attestationService,
     required this.cryptoService,
     required this.deviceToken,
-  });
+    required Dio deviceDio,
+  }) : _deviceDio = deviceDio;
 
   final ResolverPendingDataSource pendingSource;
   final AttestationService attestationService;
   final AgentCryptoService cryptoService;
   final String deviceToken;
+
+  /// The device-scoped Dio that the pending/history/apps data sources share.
+  /// Its Authorization header can be re-pointed after a fresh enrollment (see
+  /// [setDeviceToken]) so the app polls the NEWLY-created user's device, not the
+  /// seed device the harness was built with.
+  final Dio _deviceDio;
+
+  /// The device token currently in effect (starts as the seed token, re-pointed
+  /// by [setDeviceToken] after a fresh enrollment). Used for direct device-API
+  /// calls like key publication.
+  late String _currentDeviceToken = deviceToken;
+
+  /// Re-point the shared device-scoped client at [deviceToken] (the token a
+  /// fresh enrollment returned), so pending-list fetches query that device and
+  /// key publication targets it.
+  void setDeviceToken(String deviceToken) {
+    _currentDeviceToken = deviceToken;
+    _deviceDio.options.headers['Authorization'] = 'Bearer $deviceToken';
+  }
 
   /// Build the harness. Pass [deviceToken] so device-scoped API calls
   /// (pending fetch, attestation submit) authenticate as that device.
@@ -95,6 +115,7 @@ class E2EHarness {
       attestationService: attestation,
       cryptoService: crypto,
       deviceToken: deviceToken,
+      deviceDio: dio,
     );
   }
 
@@ -109,7 +130,7 @@ class E2EHarness {
     try {
       final req =
           await client.postUrl(Uri.parse('$e2eResolverUrl/api/devices/me/keys'));
-      req.headers.set('Authorization', 'Bearer $deviceToken');
+      req.headers.set('Authorization', 'Bearer $_currentDeviceToken');
       req.headers.contentType = ContentType.json;
       req.write(jsonEncode(
           {'publicKey': pub.publicKeyPem, 'algorithm': pub.algorithm}));
@@ -177,6 +198,11 @@ class E2EHarness {
       // Enroll the device with the brokered identity token (same as main.dart).
       final device = await setupDevice(accessToken);
       if (device != null) {
+        // Re-point the shared device-scoped client at the NEW user's device so
+        // the pending list polls that device (not the seed device the harness
+        // was built with) — otherwise a request raised for the new user never
+        // appears in the app.
+        setDeviceToken(device.deviceToken);
         // Publish THIS harness's signing key so attestations verify (the
         // harness instance method, not the free helper of the same name).
         await registerDeviceKey();
