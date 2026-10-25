@@ -47,8 +47,18 @@ public sealed class KeycloakIdentityBrokerTests
             var path = req.RequestUri!.AbsolutePath;
             if (path.EndsWith("/token") && req.RequestUri.AbsolutePath.Contains("/master/"))
                 return Json(HttpStatusCode.OK, "{\"access_token\":\"admin-token\"}");
-            if (path.EndsWith("/users"))
-                return new HttpResponseMessage(HttpStatusCode.Created);
+            // User create: the broker reads the new user's id from the Location
+            // header (Keycloak returns it there), then sets the password.
+            if (path.EndsWith("/users") && req.Method == HttpMethod.Post)
+            {
+                var resp = new HttpResponseMessage(HttpStatusCode.Created);
+                resp.Headers.Location = new Uri(
+                    "http://kc:8080/admin/realms/ohpp/users/user-123");
+                return resp;
+            }
+            // Password set via the dedicated reset-password endpoint.
+            if (path.EndsWith("/reset-password") && req.Method == HttpMethod.Put)
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
             if (path.EndsWith("/token"))
                 return Json(HttpStatusCode.OK,
                     $"{{\"access_token\":\"{JwtWithSub("user-123")}\",\"refresh_token\":\"r\",\"expires_in\":300}}");
