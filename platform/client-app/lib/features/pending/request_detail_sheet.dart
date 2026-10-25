@@ -640,8 +640,12 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
   Future<void> _pickDate() async {
     if (_kAntiAgentTestMode) {
       // Test seam: no native modal; pick a deterministic date so the headless
-      // OhppAttester can drive the date step.
-      setState(() => _selectedDate = DateTime(2026, 1, 15));
+      // OhppAttester can drive the date step. Use tomorrow (relative to now),
+      // not a fixed calendar date: requester flows validate the chosen date
+      // against a window (the pizza flow requires now <= date <= now + 7 days),
+      // so a hardcoded past date would be rejected and abandon the flow.
+      setState(() =>
+          _selectedDate = DateTime.now().add(const Duration(days: 1)));
       return;
     }
     final picked = await showDatePicker(

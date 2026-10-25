@@ -7,6 +7,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'e2e_app_harness.dart';
 import 'e2e_helpers.dart';
+import 'support/ohpp_attester.dart';
 
 /// Whole-case end-to-end test for the PIZZA requester, against the real dev
 /// stack (make dev). Pizza is the headline onboarding case: a human orders a
@@ -140,101 +141,99 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // --- Act 3: drive each of the 7 steps: answer the pending request in
-      // the app, then poll the requester's /advance so the next step is sent.
+      // --- Act 3: drive each of the 7 steps through the SHARED OhppAttester
+      // driver (P3: one driver per role; 4.2: no bespoke modal mechanics in the
+      // test). Each step is addressed by its real OHPP request id — step 1's id
+      // comes from startFlow, each later step's from the prior /advance — so the
+      // keyed card Key('ohpp.pending.card.<requestId>') is unambiguous even as
+      // the list reorders. Between steps we force a pending-list refresh (the
+      // harness has no live SSE/poll), then let the driver wait for the fresh
+      // keyed card deterministically.
+      final attester = OhppAttester(tester);
+      // The per-step answer, matching ohpp-pizza-flow-controller.ts step order:
+      //   1 select base, 2 select size, 3 multiselect toppings, 4 text,
+      //   5 date, 6 number tip, 7 select confirm.
+      OhppStep stepAnswerFor(int step) => switch (step) {
+            1 => const SelectStep('margherita'),
+            2 => const SelectStep('small'),
+            3 => const MultiselectStep(['none']),
+            4 => const TextStep('e2e'),
+            5 => const DateStep(),
+            6 => const NumberStep('0'),
+            _ => const SelectStep('confirm'),
+          };
+
+      String? requestId = flow['activeRequestId'] as String?;
       String? lastRequestId;
       for (var step = 1; step <= totalSteps; step++) {
-        // Wait for a pending request card to render. After the previous step's
-        // /advance sent the next request, the app learns about it via SSE/poll,
-        // so give it time and refresh the pending list if needed.
-        final card = find.byType(InkWell);
-        var appeared = false;
+        expect(requestId, isNotNull,
+            reason: 'step $step should have an active OHPP request id from the '
+                'requester (startFlow for step 1, /advance thereafter)');
+        lastRequestId = requestId;
+
+        // Force the pending list to re-fetch so this step's just-sent request
+        // renders. In production the list stays live via SSE + a foreground
+        // poller started on AppLifecycleState.resumed; a headless integration
+        // test never emits that lifecycle event, so the poller never starts and
+        // the list goes stale after step 1. Drive the REAL production refresh
+        // path by emitting a resumed lifecycle transition (which runs
+        // AppLifecycleManager._onAppResumed -> pendingProvider.refresh()), then
+        // poll-until THIS request's keyed card appears.
+        final cardKey = 'ohpp.pending.card.$requestId';
         final cardEnd = DateTime.now().add(const Duration(seconds: 40));
+        var appeared = false;
         while (DateTime.now().isBefore(cardEnd)) {
-          await tester.pump(const Duration(milliseconds: 500));
-          if (card.evaluate().isNotEmpty) {
+          if (find.byKey(Key(cardKey)).evaluate().isNotEmpty) {
             appeared = true;
             break;
           }
+          tester.binding
+              .handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 100));
+          await tester.pumpAndSettle(const Duration(milliseconds: 700));
         }
         if (!appeared) {
-          // No pending card: either the flow already completed (step 7 ends it)
-          // or the next request hasn't propagated. If the requester says the
-          // flow is done, stop driving steps; otherwise fail with context.
+          // The flow may already be complete (step 7 ends it) — if so, stop.
           final st = await pizzaGet(pizzaToken, '/api/orders/ohpp-pizza/status');
           final flowStatusNow = (st?['flow'] as Map<String, dynamic>?)?['status'];
           if (flowStatusNow == null || flowStatusNow == 'completed') break;
-          fail('step $step: no pending request card appeared in the app within '
-              '40s (flow status=$flowStatusNow). Inter-step propagation gap?');
-        }
-        await tester.tap(card.first);
-        await tester.pumpAndSettle();
-        expect(find.byKey(const Key('detail-header')), findsOneWidget,
-            reason: 'step $step request should open a detail sheet');
-
-        // Answer by the detail sheet's real input control, keyed by type:
-        //   select     -> ChoiceChip  (key select-chip-*)
-        //   multiselect -> FilterChip
-        //   text/number -> TextField (keys response-input-text/-number)
-        //   date        -> OutlinedButton opens a native date picker
-        final choiceChip = find.byType(ChoiceChip);
-        final filterChip = find.byType(FilterChip);
-        final textField = find.byType(TextField);
-        final dateInput = find.byKey(const Key('response-input-date'));
-        if (choiceChip.evaluate().isNotEmpty) {
-          await tester.ensureVisible(choiceChip.first);
-          await tester.pumpAndSettle();
-          await tester.tap(choiceChip.first);
-          await tester.pumpAndSettle();
-        } else if (filterChip.evaluate().isNotEmpty) {
-          await tester.ensureVisible(filterChip.first);
-          await tester.pumpAndSettle();
-          await tester.tap(filterChip.first);
-          await tester.pumpAndSettle();
-        } else if (dateInput.evaluate().isNotEmpty) {
-          // Open the native date picker and accept the default (today).
-          await tester.tap(find.descendant(
-              of: dateInput, matching: find.byType(OutlinedButton)));
-          await tester.pumpAndSettle();
-          final ok = find.text('OK');
-          if (ok.evaluate().isNotEmpty) {
-            await tester.tap(ok.first);
-            await tester.pumpAndSettle();
-          }
-        } else if (textField.evaluate().isNotEmpty) {
-          await tester.enterText(textField.first, step == 6 ? '0' : 'e2e');
-          await tester.pumpAndSettle();
+          fail('step $step: card $cardKey never appeared within 40s '
+              '(flow status=$flowStatusNow). Inter-step propagation gap?');
         }
 
-        final submit = find.byKey(const Key('detail-submit'));
-        await tester.ensureVisible(submit);
-        await tester.pumpAndSettle();
-        await tester.tap(submit);
+        // Drive the keyed card -> detail sheet -> keyed answer -> submit.
+        await attester.answerStep(requestId!, stepAnswerFor(step));
+
+        // answerStep returns right after the submit tap; the detail sheet is a
+        // modal bottom sheet the screen owns, so dismiss it if it is still open
+        // so the next step's card is reachable (a lingering sheet would sit over
+        // the pending list and the next fling/lookup would miss).
         await tester.pumpAndSettle(const Duration(seconds: 2));
-
-        // The detail sheet is a modal bottom sheet; if it is still open after
-        // submit, dismiss it so the loop returns to the pending list and the
-        // NEXT step's card is reachable (otherwise we re-tap the stale sheet
-        // and the flow stalls at the current step).
         if (find.byKey(const Key('detail-header')).evaluate().isNotEmpty) {
           await tester.pageBack();
           await tester.pumpAndSettle();
         }
+
+        // Poll the requester's /advance until the flow leaves this step (the
+        // next request is sent) or the flow terminates; capture the next id.
         Map<String, dynamic>? adv;
-        final advEnd = DateTime.now().add(const Duration(seconds: 20));
+        String? nextRequestId;
+        final advEnd = DateTime.now().add(const Duration(seconds: 25));
         while (DateTime.now().isBefore(advEnd)) {
           adv = await pizzaPost(
               pizzaToken, '/api/orders/ohpp-pizza/$flowId/advance');
           final advFlow = adv?['flow'] as Map<String, dynamic>?;
           final curStep = (advFlow?['currentStep'] as num?)?.toInt();
           final status = advFlow?['status'] as String?;
-          if (status != 'in_progress' || (curStep != null && curStep > step)) {
+          nextRequestId = advFlow?['activeRequestId'] as String?;
+          if (status != 'in_progress' ||
+              (curStep != null && curStep > step && nextRequestId != null)) {
             break;
           }
           await Future<void>.delayed(const Duration(seconds: 1));
         }
-        lastRequestId = (adv?['flow'] as Map<String, dynamic>?)?['activeRequestId']
-            as String?;
+        requestId = nextRequestId;
       }
 
       // --- Assert: the flow completed and produced a confirmed order. ---

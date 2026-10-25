@@ -511,7 +511,9 @@ FLUTTER_DEVICE_DEFINES = \
 FLUTTER_DEVICE_E2E_DEFINES = \
 	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_KEYCLOAK_URL=http://$(FLUTTER_DEVICE_HOST):8080,) \
 	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_RESOLVER_URL=http://$(FLUTTER_DEVICE_HOST):5050,) \
-	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_BANK_URL=http://$(FLUTTER_DEVICE_HOST):5010,)
+	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_BANK_URL=http://$(FLUTTER_DEVICE_HOST):5010,) \
+	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_PIZZA_URL=http://$(FLUTTER_DEVICE_HOST):5030,) \
+	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_MARKETPLACE_URL=http://$(FLUTTER_DEVICE_HOST):5040,)
 
 flutter-test-e2e: ## Run Flutter E2E on a booted iOS simulator against the dev stack (set FLUTTER_E2E_DEVICE in .env.local; run 'make dev' first)
 	@echo "Checking dev stack is running..."
