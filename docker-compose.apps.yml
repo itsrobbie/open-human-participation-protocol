@@ -28,6 +28,14 @@ services:
       # Internal JWKS/metadata fetch over HTTPS (U7.1). Browser-issued tokens carry
       # the localhost issuer; the validator accepts both (see KeycloakIdentityTokenValidator).
       Auth__Keycloak__Authority: "https://keycloak:8443/realms/ohpp"
+      # Broker (account creation + token issuance behind /api/auth). Dev admin
+      # creds match the Keycloak bootstrap admin (admin/admin) in the backing
+      # compose; the client never sees any of this.
+      Auth__Keycloak__ServerBaseUrl: "https://keycloak:8443"
+      Auth__Keycloak__Realm: "ohpp"
+      Auth__Keycloak__TokenClientId: "ohpp-portal"
+      Auth__Keycloak__AdminUsername: "admin"
+      Auth__Keycloak__AdminPassword: "admin"
       Features__ProtocolLab: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
       OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"

@@ -26,6 +26,17 @@ public static class IdentityProviderRegistration
                         ?? "http://keycloak:8080/realms/ohpp";
                     options.Audience = config["Auth:Keycloak:Audience"];
                     options.ValidateAudience = !string.IsNullOrEmpty(config["Auth:Keycloak:Audience"]);
+
+                    // Broker config (account creation + token issuance). These
+                    // stay server-side; no client ever sees them. ServerBaseUrl
+                    // derives from Authority when unset.
+                    options.ServerBaseUrl = config["Auth:Keycloak:ServerBaseUrl"];
+                    options.Realm = config["Auth:Keycloak:Realm"] ?? "ohpp";
+                    options.TokenClientId = config["Auth:Keycloak:TokenClientId"] ?? "ohpp-portal";
+                    options.AdminUsername = config["Auth:Keycloak:AdminUsername"];
+                    options.AdminPassword = config["Auth:Keycloak:AdminPassword"];
+                    options.AdminRealm = config["Auth:Keycloak:AdminRealm"] ?? "master";
+                    options.AdminClientId = config["Auth:Keycloak:AdminClientId"] ?? "admin-cli";
                 });
                 break;
 

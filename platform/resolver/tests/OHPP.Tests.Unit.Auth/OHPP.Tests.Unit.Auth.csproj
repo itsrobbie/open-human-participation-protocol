@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\OHPP.Services.Auth\OHPP.Services.Auth.csproj" />
     <ProjectReference Include="..\..\src\OHPP.Infrastructure.DotNet\OHPP.Infrastructure.DotNet.csproj" />
+    <ProjectReference Include="..\..\src\OHPP.Infrastructure.Keycloak\OHPP.Infrastructure.Keycloak.csproj" />
   </ItemGroup>
 
   <ItemGroup>

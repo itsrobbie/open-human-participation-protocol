@@ -16,7 +16,12 @@ public sealed class TokenDiscriminationMiddleware
         "/health",
         "/health/ready",
         "/.well-known/ohpp/metadata",
-        "/.well-known/ohpp/keys"
+        "/.well-known/ohpp/keys",
+        // Account creation + sign-in happen BEFORE the caller holds any token, so
+        // these must be reachable anonymously. They are the app's only auth
+        // surface; the identity provider stays hidden behind them.
+        "/api/auth/register",
+        "/api/auth/login"
     };
 
     public TokenDiscriminationMiddleware(RequestDelegate next)
