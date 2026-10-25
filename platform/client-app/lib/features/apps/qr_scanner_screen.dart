@@ -20,6 +20,12 @@ class QrScannerScreen extends StatefulWidget {
   final void Function(String value) onResult;
   final VoidCallback? onCancel;
 
+  /// P7 test seam: in [testMode], tapping the keyed `scanner-simulate-detect`
+  /// button feeds this value through the real detection path (`_onDetected`),
+  /// so a whole-case test can drive the QR scan deterministically without a
+  /// camera. Ignored outside test mode.
+  final String? testScanValue;
+
   const QrScannerScreen({
     super.key,
     this.testMode = false,
@@ -27,6 +33,7 @@ class QrScannerScreen extends StatefulWidget {
     this.errorMessage,
     required this.onResult,
     this.onCancel,
+    this.testScanValue,
   });
 
   @override
@@ -46,8 +53,8 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   }
 
   // Wired to MobileScanner's onDetect once the camera view is implemented
-  // (see _buildCameraView). Retained as the QR result handler.
-  // ignore: unused_element
+  // (see _buildCameraView), and to the P7 test seam (scanner-simulate-detect)
+  // in test mode. Retained as the QR result handler.
   void _onDetected(String rawValue) {
     if (_state != QrScannerState.scanning) return;
 
@@ -101,11 +108,24 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       return Container(
         key: const Key('scanner-viewfinder'),
         color: AppColors.slate900,
-        child: const Center(
-          child: Icon(
-            Icons.camera_alt,
-            color: AppColors.slate600,
-            size: 64,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.camera_alt,
+                color: AppColors.slate600,
+                size: 64,
+              ),
+              // P7 seam: inject a scanned value through the real detection path.
+              if (widget.testScanValue != null)
+                TextButton(
+                  key: const Key('scanner-simulate-detect'),
+                  onPressed: () => _onDetected(widget.testScanValue!),
+                  child: const Text('Simulate scan',
+                      style: TextStyle(color: AppColors.slate600)),
+                ),
+            ],
           ),
         ),
       );

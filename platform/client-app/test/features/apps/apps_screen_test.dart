@@ -215,6 +215,8 @@ void main() {
       );
     });
   });
+
+  _connectViaChallengeTests();
 }
 
 class _TestAppsNotifier extends AppsNotifier {
@@ -250,4 +252,70 @@ class _StaticAppsSource implements AppsDataSource {
 
   @override
   Future<void> setNotificationPreference(String appId, bool enabled) async {}
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) async => {};
+}
+
+/// Records what connectViaChallenge dispatches, so the regression test for the
+/// "parse but never register" bug can assert processChallenge is actually
+/// called and the list is refreshed afterwards.
+class _RecordingAppsSource implements AppsDataSource {
+  final List<Map<String, dynamic>> appsAfterConnect;
+  String? processedPayload;
+  int fetchCount = 0;
+  bool throwOnProcess = false;
+
+  _RecordingAppsSource({this.appsAfterConnect = const []});
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchApps() async {
+    fetchCount++;
+    return appsAfterConnect;
+  }
+
+  @override
+  Future<void> revokeApp(String appId) async {}
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) async {}
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) async {
+    if (throwOnProcess) throw Exception('process failed');
+    processedPayload = base64Payload;
+    return {'appId': 'demo.app'};
+  }
+}
+
+void _connectViaChallengeTests() {
+  group('AppsNotifier.connectViaChallenge (regression: connect must register)', () {
+    test('calls processChallenge with the payload and refreshes the list', () async {
+      final source = _RecordingAppsSource(
+        appsAfterConnect: [
+          {'id': 'reg-1', 'appId': 'demo.app', 'appName': 'Demo', 'isActive': true},
+        ],
+      );
+      final notifier = AppsNotifier(dataSource: source);
+
+      final ok = await notifier.connectViaChallenge('BASE64PAYLOAD');
+
+      expect(ok, isTrue);
+      expect(source.processedPayload, 'BASE64PAYLOAD',
+          reason: 'the challenge payload must reach the Resolver, not just be parsed');
+      expect(source.fetchCount, greaterThanOrEqualTo(1),
+          reason: 'the apps list must refresh so the new app appears');
+      expect(notifier.state.apps, isNotEmpty);
+    });
+
+    test('returns false and records an error when processChallenge fails', () async {
+      final source = _RecordingAppsSource()..throwOnProcess = true;
+      final notifier = AppsNotifier(dataSource: source);
+
+      final ok = await notifier.connectViaChallenge('BAD');
+
+      expect(ok, isFalse);
+      expect(notifier.state.error, isNotNull);
+    });
+  });
 }

@@ -18,10 +18,16 @@ class ParsedChallenge {
   final String id;
   final DateTime expiry;
 
+  /// The base64url challenge payload (the `{challenge}` param, or the raw input
+  /// when the input was already a bare payload). This is what the Resolver's
+  /// POST /api/registrations/process-challenge expects as `challengePayload`.
+  final String base64Payload;
+
   const ParsedChallenge({
     required this.appId,
     required this.id,
     required this.expiry,
+    required this.base64Payload,
   });
 }
 
@@ -117,6 +123,7 @@ class ChallengeParser {
       appId: appId,
       id: id,
       expiry: expiry,
+      base64Payload: base64Payload,
     ));
   }
 

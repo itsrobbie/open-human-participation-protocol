@@ -669,6 +669,9 @@ class _ResolverAppsSource implements AppsDataSource {
 
   @override
   Future<void> setNotificationPreference(String appId, bool enabled) async {}
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) async => {};
 }
 
 // --- Fallback empty sources for tests that don't need real data ---
@@ -698,4 +701,7 @@ class _EmptyAppsSource implements AppsDataSource {
 
   @override
   Future<void> setNotificationPreference(String appId, bool enabled) async {}
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) async => {};
 }

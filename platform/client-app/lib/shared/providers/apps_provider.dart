@@ -30,6 +30,10 @@ abstract class AppsDataSource {
   Future<List<Map<String, dynamic>>> fetchApps();
   Future<void> revokeApp(String appId);
   Future<void> setNotificationPreference(String appId, bool enabled);
+
+  /// Process a registration challenge (base64url payload) to connect an app.
+  /// Returns the resolver's response (the new registration).
+  Future<Map<String, dynamic>> processChallenge(String base64Payload);
 }
 
 /// Manages registered apps with optimistic updates.
@@ -69,6 +73,19 @@ class AppsNotifier extends StateNotifier<AppsState> {
     } catch (e) {
       // Rollback
       state = state.copyWith(apps: backup);
+      return false;
+    }
+  }
+
+  /// Connect an app by processing a registration challenge (base64url payload),
+  /// then refresh the list so the new app appears. Returns true on success.
+  Future<bool> connectViaChallenge(String base64Payload) async {
+    try {
+      await _dataSource.processChallenge(base64Payload);
+      await fetchApps();
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
       return false;
     }
   }

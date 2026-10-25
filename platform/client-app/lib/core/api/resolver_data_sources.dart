@@ -54,6 +54,10 @@ class ResolverAppsDataSource implements AppsDataSource {
   @override
   Future<void> setNotificationPreference(String appId, bool enabled) =>
       _api.updateNotificationPreference(appId, {'pushEnabled': enabled});
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) =>
+      _api.processChallenge(base64Payload);
 }
 
 /// Real data source for participation history backed by [TypedApiClient].

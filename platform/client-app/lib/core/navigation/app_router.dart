@@ -21,6 +21,7 @@ import 'package:ohpp_client/features/settings/security_screen.dart';
 import 'package:ohpp_client/features/settings/settings_screen.dart';
 import 'package:ohpp_client/features/shell/main_shell.dart';
 import 'package:ohpp_client/shared/providers/auth_provider.dart';
+import 'package:ohpp_client/shared/providers/apps_provider.dart';
 import 'package:ohpp_client/shared/providers/rules_provider.dart';
 
 /// Route path constants.
@@ -135,8 +136,31 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.apps,
             pageBuilder: (context, state) => NoTransitionPage(
               child: AppsScreen(
-                onQrScan: (_) => context.push(AppRoutes.qrScanner),
-                onPaste: (_) => _showPasteDialog(context),
+                onQrScan: (_) async {
+                  // The scanner pops the scanned value; process it to actually
+                  // connect the app (push alone does not register).
+                  final scanned = await context.push<String>(AppRoutes.qrScanner);
+                  if (scanned == null || scanned.isEmpty || !context.mounted) return;
+                  final result = ChallengeParser().parse(scanned);
+                  if (!result.isSuccess) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Invalid QR code. Not a valid registration link.'),
+                      behavior: SnackBarBehavior.floating,
+                    ));
+                    return;
+                  }
+                  final ok = await ref
+                      .read(appsProvider.notifier)
+                      .connectViaChallenge(result.challenge!.base64Payload);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(ok
+                        ? 'Connected ${result.challenge!.appId}'
+                        : 'Could not connect. The link may be invalid or expired.'),
+                    behavior: SnackBarBehavior.floating,
+                  ));
+                },
+                onPaste: (_) => _showPasteDialog(context, ref),
               ),
             ),
           ),
@@ -261,7 +285,7 @@ int _indexFromLocation(String location) {
 
 
 /// Show a dialog for pasting a registration link.
-void _showPasteDialog(BuildContext context) {
+void _showPasteDialog(BuildContext context, Ref ref) {
   final controller = TextEditingController();
   final parser = ChallengeParser();
 
@@ -294,12 +318,22 @@ void _showPasteDialog(BuildContext context) {
             Navigator.pop(ctx);
 
             if (result.isSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Registered with ${result.challenge!.appId}'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              // Actually connect the app: process the challenge against the
+              // Resolver, then refresh. (Parsing alone does not register.)
+              ref
+                  .read(appsProvider.notifier)
+                  .connectViaChallenge(result.challenge!.base64Payload)
+                  .then((ok) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(ok
+                        ? 'Connected ${result.challenge!.appId}'
+                        : 'Could not connect. The link may be invalid or expired.'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              });
             } else {
               String errorMsg;
               switch (result.error!) {

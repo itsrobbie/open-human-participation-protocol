@@ -908,4 +908,7 @@ class _AppsSource implements AppsDataSource {
 
   @override
   Future<void> setNotificationPreference(String appId, bool enabled) async {}
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) async => {};
 }
