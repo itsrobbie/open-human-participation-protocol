@@ -3,8 +3,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { setTokens } from '../auth/token'
 import { Logo } from '../components/Logo'
 
-const KEYCLOAK_URL = '/auth/realms/ohpp/protocol/openid-connect/token'
-
 export function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,28 +16,25 @@ export function Login() {
     setLoading(true)
 
     try {
-      const res = await fetch(KEYCLOAK_URL, {
+      // Route through the resolver's broker so the IdP stays hidden (same model
+      // as the app's in-app sign-in). The Portal never talks to Keycloak.
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'password',
-          client_id: 'ohpp-portal',
-          username: email,
-          password: password,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: email, password }),
       })
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        setError(body.error_description || 'Login failed. Check your credentials.')
+        setError(body.error || body.error_description || 'Login failed. Check your credentials.')
         return
       }
 
       const data = await res.json()
-      setTokens(data.access_token, data.refresh_token)
+      setTokens(data.accessToken, data.refreshToken)
       navigate({ to: '/' })
     } catch {
-      setError('Could not reach the identity provider.')
+      setError('Could not reach the resolver.')
     } finally {
       setLoading(false)
     }
@@ -94,6 +89,15 @@ export function Login() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        <button
+          type="button"
+          data-testid="ohpp.login.create-account"
+          onClick={() => navigate({ to: '/register' })}
+          className="mt-4 w-full text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+        >
+          Create an account
+        </button>
 
         <p className="mt-4 text-xs text-slate-400 text-center">
           Demo account: <strong className="text-slate-600">demo</strong> / <strong className="text-slate-600">demo</strong>

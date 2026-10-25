@@ -22,6 +22,26 @@ export class PortalPage extends BasePage {
   }
 
   /**
+   * Native Portal sign-up (Phase 4.1): from the login page, open the register
+   * form, create a brand-new account through the resolver broker (IdP hidden),
+   * and land authenticated on the dashboard. Returns the username created.
+   */
+  async registerNewUser(): Promise<string> {
+    const unique = Date.now()
+    const username = `e2e_portal_${unique}`
+    await this.goto('/login')
+    await this.clickTestId('ohpp.login.create-account')
+    await this.page.waitForURL(`${PORTAL_URL}/register`, { timeout: 15_000 })
+    await this.fillTestId('ohpp.register.username', username)
+    await this.fillTestId('ohpp.register.email', `${username}@example.com`)
+    await this.fillTestId('ohpp.register.password', `Pw-${unique}!`)
+    await this.clickTestId('ohpp.register.submit')
+    // Auto-signed-in on success -> dashboard.
+    await this.page.waitForURL(`${PORTAL_URL}/`, { timeout: 20_000 })
+    return username
+  }
+
+  /**
    * GUARANTEE web approvals are enabled for the web attester.
    *
    * The resolver disables web approvals whenever an ACTIVE KEYED device exists

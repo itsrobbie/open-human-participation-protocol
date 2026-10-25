@@ -13,6 +13,7 @@ import { Devices } from './pages/Devices'
 import { Apps } from './pages/Apps'
 import { Settings } from './pages/Settings'
 import { Login } from './pages/Login'
+import { Register } from './pages/Register'
 import { Pending } from './pages/Pending'
 import { RegisterApp } from './pages/RegisterApp'
 import { ProtocolLab } from './pages/ProtocolLab'
@@ -152,6 +153,7 @@ const authenticatedLayout = createRoute({
 })
 
 const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login', component: Login })
+const registerRoute = createRoute({ getParentRoute: () => rootRoute, path: '/register', component: Register })
 const indexRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/', component: Dashboard })
 const pendingRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/pending', component: Pending })
 const historyRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/history', component: History })
@@ -163,6 +165,7 @@ const protocolLabRoute = createRoute({ getParentRoute: () => authenticatedLayout
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  registerRoute,
   authenticatedLayout.addChildren([
     indexRoute,
     pendingRoute,
