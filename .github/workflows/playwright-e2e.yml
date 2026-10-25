@@ -59,6 +59,24 @@ jobs:
       - name: Run contracts lint
         run: make test-contracts
 
+  coverage-floors:
+    name: Coverage floors (Phase 5.1 gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Enforce the measured per-surface coverage floors (Node SDK 90/80;
+      # Portal + resolver are layer-gated by the e2e / integration jobs, not a
+      # misleading unit-line floor). Fast, Node-only, no Docker.
+      - name: Enforce coverage floors
+        run: make coverage-floors
+
   e2e:
     name: Playwright whole-case E2E (isolated stack)
     runs-on: ubuntu-latest
