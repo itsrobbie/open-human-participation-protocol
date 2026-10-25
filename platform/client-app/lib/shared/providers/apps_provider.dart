@@ -52,14 +52,18 @@ class AppsNotifier extends StateNotifier<AppsState> {
     }
   }
 
-  Future<bool> revokeApp(String appId) async {
-    // Optimistic remove
+  Future<bool> revokeApp(String registrationId) async {
+    // Optimistic remove. registrationId is the registration GUID (what the
+    // resolver's DELETE expects); match it against either the registration id
+    // or the app's string id so the card disappears immediately regardless.
     final backup = List<Map<String, dynamic>>.from(state.apps);
     state = state.copyWith(
-      apps: state.apps.where((a) => a['appId'] != appId).toList(),
+      apps: state.apps
+          .where((a) => a['id'] != registrationId && a['appId'] != registrationId)
+          .toList(),
     );
     try {
-      await _dataSource.revokeApp(appId);
+      await _dataSource.revokeApp(registrationId);
       return true;
     } catch (e) {
       // Rollback

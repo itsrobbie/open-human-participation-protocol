@@ -5,18 +5,42 @@ import 'package:ohpp_client/core/theme/app_colors.dart';
 import 'package:ohpp_client/shared/providers/apps_provider.dart';
 
 /// Registered apps list with FAB for connecting new apps.
-class AppsScreen extends ConsumerWidget {
+class AppsScreen extends ConsumerStatefulWidget {
   final void Function(String appId)? onQrScan;
   final void Function(String appId)? onPaste;
 
   const AppsScreen({super.key, this.onQrScan, this.onPaste});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppsScreen> createState() => _AppsScreenState();
+}
+
+class _AppsScreenState extends ConsumerState<AppsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load the connected apps once the screen mounts (mirrors HistoryScreen).
+    // Without this the Apps tab renders empty even when apps are connected.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(appsProvider.notifier).fetchApps();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(appsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Apps')),
+      appBar: AppBar(
+        title: const Text('Apps'),
+        actions: [
+          IconButton(
+            key: const Key('apps-refresh'),
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.read(appsProvider.notifier).fetchApps(),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         key: const Key('apps-fab'),
         onPressed: () => _showConnectOptions(context),
@@ -97,7 +121,7 @@ class AppsScreen extends ConsumerWidget {
                 subtitle: const Text('Scan a registration QR code'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  onQrScan?.call('');
+                  widget.onQrScan?.call('');
                 },
               ),
               ListTile(
@@ -107,7 +131,7 @@ class AppsScreen extends ConsumerWidget {
                 subtitle: const Text('Paste a registration link'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  onPaste?.call('');
+                  widget.onPaste?.call('');
                 },
               ),
             ],
@@ -128,8 +152,12 @@ class AppsScreen extends ConsumerWidget {
           Navigator.pop(ctx);
           final confirmed = await _showRevokeConfirmation(context);
           if (confirmed == true) {
-            final appId = app['appId'] as String;
-            ref.read(appsProvider.notifier).revokeApp(appId);
+            // Revoke by the REGISTRATION id (the GUID), which the resolver's
+            // DELETE /api/registrations/apps/{id} expects — NOT app['appId']
+            // (the app's string id like 'protocol-lab.dev.test'), which 404s so
+            // the app is never actually revoked.
+            final registrationId = (app['id'] ?? app['appId']) as String;
+            ref.read(appsProvider.notifier).revokeApp(registrationId);
           }
         },
       ),

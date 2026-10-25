@@ -162,11 +162,49 @@ class OhppLifecycleDriver {
     await tester.pumpAndSettle();
   }
 
+  /// Open the Apps tab and poll (via the keyed refresh) until the first app
+  /// card renders — a connect done via API lands slightly after, and the list
+  /// is populated on demand.
+  Future<void> openAppsAndWaitForCard(
+      {Duration timeout = const Duration(seconds: 30)}) async {
+    await gotoTab('apps');
+    final end = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(end)) {
+      if (find.byKey(const Key('app-card-0')).evaluate().isNotEmpty) return;
+      final refresh = find.byKey(const Key('apps-refresh'));
+      if (refresh.evaluate().isNotEmpty) await tester.tap(refresh);
+      await tester.pumpAndSettle(const Duration(milliseconds: 600));
+    }
+    throw TestFailure('no app-card-0 on the Apps tab within ${timeout.inSeconds}s');
+  }
+
+  /// Assert the Apps tab shows no connected apps after a revoke. The revoke flow
+  /// already closes the detail sheet (the revoke button pops it before the
+  /// confirm dialog), so do NOT pageBack here — that would pop the Apps route
+  /// itself. Just stay on Apps and poll-refresh until the keyed empty state
+  /// renders (the optimistic remove empties the list; a refresh re-confirms
+  /// against the backend, which filters revoked apps).
+  Future<void> assertNoApps({Duration timeout = const Duration(seconds: 30)}) async {
+    final end = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(end)) {
+      if (find.byKey(const Key('apps-empty')).evaluate().isNotEmpty) return;
+      // Make sure we are on the Apps tab (revoke may leave focus elsewhere).
+      final appsTab = find.byKey(const Key('tab-apps'));
+      if (appsTab.evaluate().isNotEmpty) {
+        await tester.tap(appsTab);
+        await tester.pumpAndSettle();
+      }
+      final refresh = find.byKey(const Key('apps-refresh'));
+      if (refresh.evaluate().isNotEmpty) await tester.tap(refresh);
+      await tester.pumpAndSettle(const Duration(milliseconds: 600));
+    }
+    throw TestFailure('apps-empty never rendered within ${timeout.inSeconds}s after revoke');
+  }
+
   /// Revoke the first connected app via its detail sheet + confirm dialog.
   /// (App cards are keyed app-card-$index; this opens index 0's detail.)
   Future<void> revokeFirstApp() async {
-    await gotoTab('apps');
-    await pumpUntilKey(tester, 'app-card-0');
+    await openAppsAndWaitForCard();
     await tester.tap(find.byKey(const Key('app-card-0')));
     await tester.pumpAndSettle();
     await pumpUntilKey(tester, 'app-revoke-button');

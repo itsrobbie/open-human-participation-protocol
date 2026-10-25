@@ -496,3 +496,22 @@ Future<String?> raiseLabRequest({
     client.close();
   }
 }
+
+/// Connect the Protocol Lab as a requester app for the signed-in user (the
+/// per-user connect path that works for a freshly-created account, since demo
+/// apps bind to their own realms). Returns true on success. After this the
+/// user's registered-apps list shows 'protocol-lab.dev.test' as active.
+Future<bool> connectLabApp({required String identityToken}) async {
+  final client = HttpClient();
+  try {
+    final req = await client.postUrl(Uri.parse('$e2eResolverUrl/api/protocol-lab/register'));
+    req.headers.set('Authorization', 'Bearer $identityToken');
+    final resp = await req.close();
+    await resp.drain<void>();
+    return resp.statusCode == 200;
+  } catch (_) {
+    return false;
+  } finally {
+    client.close();
+  }
+}

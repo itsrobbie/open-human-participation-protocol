@@ -48,18 +48,25 @@ class E2EHarness {
     required this.cryptoService,
     required this.deviceToken,
     required Dio deviceDio,
-  }) : _deviceDio = deviceDio;
+    required Dio identityDio,
+  })  : _deviceDio = deviceDio,
+        _identityDio = identityDio;
 
   final ResolverPendingDataSource pendingSource;
   final AttestationService attestationService;
   final AgentCryptoService cryptoService;
   final String deviceToken;
 
-  /// The device-scoped Dio that the pending/history/apps data sources share.
-  /// Its Authorization header can be re-pointed after a fresh enrollment (see
-  /// [setDeviceToken]) so the app polls the NEWLY-created user's device, not the
-  /// seed device the harness was built with.
+  /// The device-scoped Dio that the pending/attestation calls share (device
+  /// token). Re-pointable via [setDeviceToken].
   final Dio _deviceDio;
+
+  /// The identity-scoped Dio that apps/history/rules calls share. Those resolver
+  /// routes require the IDENTITY-PROVIDER token (PortalController /
+  /// RegistrationController are RequireTokenType(IdentityProvider)), NOT the
+  /// device token — in production the AuthInterceptor routes by path; the
+  /// harness splits them into two clients. Re-pointable via [setIdentityToken].
+  final Dio _identityDio;
 
   /// The device token currently in effect (starts as the seed token, re-pointed
   /// by [setDeviceToken] after a fresh enrollment). Used for direct device-API
@@ -74,6 +81,12 @@ class E2EHarness {
     _deviceDio.options.headers['Authorization'] = 'Bearer $deviceToken';
   }
 
+  /// Re-point the identity-scoped client (apps/history/rules) at [identityToken]
+  /// — the newly-created user's access token — so those tabs query that user.
+  void setIdentityToken(String identityToken) {
+    _identityDio.options.headers['Authorization'] = 'Bearer $identityToken';
+  }
+
   /// Build the harness. Pass [deviceToken] so device-scoped API calls
   /// (pending fetch, attestation submit) authenticate as that device.
   static E2EHarness create({required String deviceToken}) {
@@ -86,6 +99,13 @@ class E2EHarness {
       },
     ));
     final typedApi = TypedApiClient(dio: DioAdapter(dio));
+    // Identity-scoped client for apps/history/rules (those routes require the
+    // IDENTITY-PROVIDER token, not the device token). Starts unauthenticated and
+    // is re-pointed by setIdentityToken after the in-app registration/login.
+    final identityDio = Dio(BaseOptions(
+      baseUrl: e2eResolverUrl,
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+    ));
     final crypto = AgentCryptoService();
 
     final attestation = AttestationService(
@@ -116,6 +136,7 @@ class E2EHarness {
       cryptoService: crypto,
       deviceToken: deviceToken,
       deviceDio: dio,
+      identityDio: identityDio,
     );
   }
 
@@ -144,21 +165,20 @@ class E2EHarness {
     }
   }
 
-  List<Override> _overrides({required String deviceToken}) {
-    final dio = Dio(BaseOptions(
-      baseUrl: e2eResolverUrl,
-      headers: {'Authorization': 'Bearer $deviceToken'},
-    ));
-    final api = TypedApiClient(dio: DioAdapter(dio));
+  List<Override> _overrides() {
+    // pending/attestation use the DEVICE token (pendingSource built on the
+    // device dio). apps/history/rules use the IDENTITY token, so build their
+    // client from the re-pointable _identityDio.
+    final identityApi = TypedApiClient(dio: DioAdapter(_identityDio));
     return [
       pendingProvider.overrideWith(
           (ref) => PendingNotifier(dataSource: pendingSource)),
       historyProvider.overrideWith(
-          (ref) => HistoryNotifier(dataSource: ResolverHistoryDataSource(api: api))),
+          (ref) => HistoryNotifier(dataSource: ResolverHistoryDataSource(api: identityApi))),
       rulesProvider.overrideWith(
-          (ref) => RulesNotifier(dataSource: ResolverRulesDataSource(api: api))),
+          (ref) => RulesNotifier(dataSource: ResolverRulesDataSource(api: identityApi))),
       appsProvider.overrideWith(
-          (ref) => AppsNotifier(dataSource: ResolverAppsDataSource(api: api))),
+          (ref) => AppsNotifier(dataSource: ResolverAppsDataSource(api: identityApi))),
       attestationServiceProvider.overrideWithValue(attestationService),
     ];
   }
@@ -179,7 +199,7 @@ class E2EHarness {
                 return true;
               },
             )),
-        ..._overrides(deviceToken: deviceToken),
+        ..._overrides(),
       ],
       child: const OhppApp(),
     );
@@ -195,6 +215,8 @@ class E2EHarness {
     Future<bool> afterBrokeredAuth(Map<String, dynamic> data, String username, Ref ref) async {
       final accessToken = data['accessToken'] as String?;
       if (accessToken == null) return false;
+      // Point the identity-scoped client (apps/history/rules) at the new user.
+      setIdentityToken(accessToken);
       // Enroll the device with the brokered identity token (same as main.dart).
       final device = await setupDevice(accessToken);
       if (device != null) {
@@ -244,7 +266,7 @@ class E2EHarness {
                 return afterBrokeredAuth(data, username, ref);
               },
             )),
-        ..._overrides(deviceToken: deviceToken),
+        ..._overrides(),
       ],
       child: const OhppApp(),
     );
@@ -265,7 +287,7 @@ class E2EHarness {
           n.login(userId: username, accessToken: identityToken);
           return n;
         }),
-        ..._overrides(deviceToken: deviceToken),
+        ..._overrides(),
       ],
       child: const OhppApp(),
     );
