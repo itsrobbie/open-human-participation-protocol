@@ -71,6 +71,12 @@ jobs:
         with:
           node-version: '20'
 
+      # coverage-floors runs the Node SDK vitest coverage, which needs the SDK's
+      # dev deps (vitest/v8) installed first — setup-node alone does not install them.
+      - name: Install Node SDK dependencies
+        working-directory: sdks/node
+        run: npm ci
+
       # Enforce the measured per-surface coverage floors (Node SDK 90/80;
       # Portal + resolver are layer-gated by the e2e / integration jobs, not a
       # misleading unit-line floor). Fast, Node-only, no Docker.
