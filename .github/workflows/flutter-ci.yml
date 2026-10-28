@@ -6,12 +6,14 @@ name: Flutter Client App CI
 # byte-identical to what `make ci-flutter` runs locally. Font parity with the
 # image is what makes the golden tests deterministic across macOS/Linux/CI.
 
+# Gating model (see playwright-e2e.yml for the full rationale):
+#   pull_request  -> pre-merge gate, path-filtered to client-app changes.
+#   push to main  -> post-merge trunk baseline, no path filter so every commit on
+#                    main runs this unconditionally.
 on:
   push:
-    paths:
-      - 'platform/client-app/**'
-      - '.github/workflows/flutter-ci.yml'
-      - '.devcontainer/**'
+    branches:
+      - main
   pull_request:
     paths:
       - 'platform/client-app/**'
@@ -60,6 +62,9 @@ jobs:
           docker run --rm -v "$PWD":/workspace -w /workspace/platform/client-app
           ohpp-dev-image:ci bash -c "flutter pub get && flutter test"
 
-  # E2E device tests require a real iOS simulator (Xcode), so they stay on
-  # macOS and cannot run in this Linux image. They live in flutter-e2e.yml
-  # (nightly / manual), which is the one irreducibly macOS-native workflow.
+  # E2E device tests require a real iOS simulator (Xcode), which no hosted CI
+  # runner can provide alongside the Docker-hosted backend stack. They run
+  # locally via `make flutter-e2e-device` on the wired iPhone — the documented
+  # hardware boundary — not in hosted CI. (The former macOS nightly that tried
+  # to run them was retired: hosted mac runners cannot boot Docker via Colima,
+  # so it could never pass.)

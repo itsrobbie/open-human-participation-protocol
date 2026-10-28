@@ -12,18 +12,23 @@ name: Playwright E2E (web whole-case)
 # ships Docker + Compose; we add Node 20, python3 (keycloak redirect generator),
 # and the pinned Playwright browser.
 
+# Gating model (industry-standard two-trigger shape):
+#   pull_request  -> the PRE-MERGE gate. Path-filtered so a PR only pays for the
+#                    web E2E suite when it touches a surface that can affect it.
+#                    This is a required status check, so a red run blocks merge.
+#   push to main  -> the POST-MERGE trunk baseline. NO path filter: every commit
+#                    that lands on main runs the full suite unconditionally, so a
+#                    cross-cutting change that dodged every PR path filter still
+#                    gets caught on trunk. A future deploy job gates on this run.
+# There is no scheduled nightly: hosted CI cannot run the iOS-simulator device
+# suite (needs Docker + a simulator on one runner, which no hosted runner gives),
+# so the device leg runs locally via `make flutter-e2e-device` on the wired iPhone
+# — the documented hardware boundary. Per-push + per-PR CI plus local device runs
+# cover everything a nightly would, so the nightly was retired.
 on:
   push:
-    paths:
-      - 'tests/e2e/**'
-      - 'platform/portal/**'
-      - 'platform/resolver/**'
-      - 'demo/mock-apps/**'
-      - 'docker-compose.backing.yml'
-      - 'docker-compose.apps.yml'
-      - 'Makefile'
-      - 'scripts/**'
-      - '.github/workflows/playwright-e2e.yml'
+    branches:
+      - main
   pull_request:
     paths:
       - 'tests/e2e/**'
