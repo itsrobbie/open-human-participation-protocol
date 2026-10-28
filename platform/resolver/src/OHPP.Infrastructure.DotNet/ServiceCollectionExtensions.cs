@@ -21,14 +21,16 @@ public static class ServiceCollectionExtensions
     /// <param name="resolverBaseUrl">Base URL of the Resolver (for registration callbacks)</param>
     /// <param name="encryptionKey">AES encryption key for signing key storage</param>
     /// <param name="appIdOverrides">Optional mapping of appId to internal base URL (for Docker/dev environments)</param>
+    /// <param name="maxRegistrationsPerHour">Max app registrations one user may complete per rolling hour (default 10; raised in the E2E stack)</param>
     public static IServiceCollection AddOhppInfrastructure(
         this IServiceCollection services,
         string resolverBaseUrl,
         string encryptionKey,
-        IReadOnlyDictionary<string, string>? appIdOverrides = null)
+        IReadOnlyDictionary<string, string>? appIdOverrides = null,
+        int maxRegistrationsPerHour = 10)
     {
         // Configuration
-        services.AddSingleton<IResolverConfiguration>(new ResolverConfigurationRecord(resolverBaseUrl));
+        services.AddSingleton<IResolverConfiguration>(new ResolverConfigurationRecord(resolverBaseUrl, maxRegistrationsPerHour));
         services.AddSingleton<IKeyEncryptionConfiguration>(new KeyEncryptionConfigurationRecord(encryptionKey));
 
         // Shared
@@ -69,5 +71,5 @@ public static class ServiceCollectionExtensions
     }
 }
 
-internal sealed record ResolverConfigurationRecord(string BaseUrl) : IResolverConfiguration;
+internal sealed record ResolverConfigurationRecord(string BaseUrl, int MaxRegistrationsPerHour) : IResolverConfiguration;
 internal sealed record KeyEncryptionConfigurationRecord(string EncryptionKey) : IKeyEncryptionConfiguration;

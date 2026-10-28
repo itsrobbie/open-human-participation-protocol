@@ -36,6 +36,10 @@ class ResolverRulesDataSource implements RulesDataSource {
       _api.createRule(data);
 
   @override
+  Future<Map<String, dynamic>> updateRule(String id, Map<String, dynamic> data) =>
+      _api.updateRule(id, data);
+
+  @override
   Future<void> deleteRule(String id) => _api.deleteRule(id);
 }
 
@@ -50,6 +54,14 @@ class ResolverAppsDataSource implements AppsDataSource {
 
   @override
   Future<void> revokeApp(String appId) => _api.revokeApp(appId);
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) =>
+      _api.updateNotificationPreference(appId, {'pushEnabled': enabled});
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) =>
+      _api.processChallenge(base64Payload);
 }
 
 /// Real data source for participation history backed by [TypedApiClient].

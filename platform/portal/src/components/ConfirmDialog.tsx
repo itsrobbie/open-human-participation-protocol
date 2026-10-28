@@ -38,11 +38,15 @@ export function ConfirmDialog({
 
           <div className="flex justify-end gap-3 mt-6">
             <Dialog.Close asChild>
-              <button className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600">
+              <button
+                data-testid="ohpp.confirm.cancel"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600"
+              >
                 {cancelLabel}
               </button>
             </Dialog.Close>
             <button
+              data-testid="ohpp.confirm.confirm"
               onClick={() => {
                 onConfirm()
                 onOpenChange(false)

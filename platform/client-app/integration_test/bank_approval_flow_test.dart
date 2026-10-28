@@ -265,5 +265,33 @@ void main() {
     );
     expect(bankStatus, 'Completed',
         reason: 'once the app approves, the bank status should resolve to Completed');
+
+    // --- Assert: the Resolver recorded an auditable human-participation proof. ---
+    // The whole point of OHPP: not just that the bank completed, but that a
+    // verifiable record of a human's signed decision exists. Poll briefly since
+    // the record is written as the resolution is persisted.
+    Map<String, dynamic>? record;
+    final auditDeadline = DateTime.now().add(const Duration(seconds: 15));
+    while (DateTime.now().isBefore(auditDeadline)) {
+      record = await fetchParticipationHistoryDetail(
+        identityToken: identityToken,
+        requestId: requestId,
+      );
+      if (record != null && record['resolvedAt'] != null) break;
+      await Future<void>.delayed(const Duration(seconds: 1));
+    }
+    expect(record, isNotNull,
+        reason: 'GET /api/history/$requestId should return the audit record '
+            'after the ceremony resolves');
+    expect(record!['requestId']?.toString().toLowerCase(),
+        requestId.toLowerCase(),
+        reason: 'the audit record must be for this ceremony');
+    expect(record['resolvedAt'], isNotNull,
+        reason: 'a resolved ceremony must stamp resolvedAt');
+    expect(record['resolvingDeviceId'], isNotNull,
+        reason: 'the proof must name the device that produced the attestation');
+    expect(record['attestationPayload'], isNotNull,
+        reason: 'the proof must carry the signed attestation payload -- the '
+            'cryptographic evidence a human participated');
   });
 }

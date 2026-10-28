@@ -624,6 +624,23 @@ class _ResolverRulesSource implements RulesDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> updateRule(
+      String id, Map<String, dynamic> data) async {
+    final client = HttpClient();
+    final request = await client.putUrl(Uri.parse('$_baseUrl/api/rules/$id'));
+    request.headers.set('Authorization', 'Bearer $_token');
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(data));
+    final response = await request.close();
+    final body = await response.transform(utf8.decoder).join();
+    client.close();
+    if (response.statusCode == 200) {
+      return jsonDecode(body) as Map<String, dynamic>;
+    }
+    return {...data, 'id': id};
+  }
+
+  @override
   Future<void> deleteRule(String id) async {
     final client = HttpClient();
     final request =
@@ -666,6 +683,12 @@ class _ResolverAppsSource implements AppsDataSource {
     await request.close();
     client.close();
   }
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) async {}
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) async => {};
 }
 
 // --- Fallback empty sources for tests that don't need real data ---
@@ -684,6 +707,9 @@ class _EmptyRulesSource implements RulesDataSource {
   Future<Map<String, dynamic>> createRule(Map<String, dynamic> data) async =>
       data;
   @override
+  Future<Map<String, dynamic>> updateRule(String id, Map<String, dynamic> data) async =>
+      {...data, 'id': id};
+  @override
   Future<void> deleteRule(String id) async {}
 }
 
@@ -692,4 +718,10 @@ class _EmptyAppsSource implements AppsDataSource {
   Future<List<Map<String, dynamic>>> fetchApps() async => [];
   @override
   Future<void> revokeApp(String appId) async {}
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) async {}
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) async => {};
 }

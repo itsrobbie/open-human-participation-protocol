@@ -47,13 +47,14 @@ export function History() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Participation History</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.history.heading">Participation History</h1>
 
       {/* Search and filter bar */}
       {(data?.items.length ?? 0) > 0 && (
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <input
             type="text"
+            data-testid="ohpp.history.search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by app or action..."
@@ -61,6 +62,7 @@ export function History() {
           />
           <select
             aria-label="Filter by status"
+            data-testid="ohpp.history.status-filter"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-800 dark:text-slate-100"
@@ -86,6 +88,7 @@ export function History() {
         <div className="text-center py-8">
           <p className="text-gray-500 dark:text-slate-400 text-sm">No results match your filters.</p>
           <button
+            data-testid="ohpp.history.clear-filters"
             onClick={() => { setSearch(''); setStatusFilter('all') }}
             className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
           >
@@ -104,16 +107,18 @@ export function History() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-slate-700">
           <button
+            data-testid="ohpp.history.prev-page"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm font-medium rounded-md bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Previous
           </button>
-          <span className="text-sm text-gray-500 dark:text-slate-400">
+          <span className="text-sm text-gray-500 dark:text-slate-400" data-testid="ohpp.history.page-indicator">
             Page {page} of {totalPages}
           </span>
           <button
+            data-testid="ohpp.history.next-page"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm font-medium rounded-md bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed"

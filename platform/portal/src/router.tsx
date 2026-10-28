@@ -13,6 +13,7 @@ import { Devices } from './pages/Devices'
 import { Apps } from './pages/Apps'
 import { Settings } from './pages/Settings'
 import { Login } from './pages/Login'
+import { Register } from './pages/Register'
 import { Pending } from './pages/Pending'
 import { RegisterApp } from './pages/RegisterApp'
 import { ProtocolLab } from './pages/ProtocolLab'
@@ -51,7 +52,7 @@ function AuthenticatedLayout() {
       <a href="#main-content" className="skip-to-content">Skip to content</a>
       <nav className="bg-brand-dark border-b border-slate-700 px-4 sm:px-6 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+          <Link to="/" className="flex items-center gap-2" data-testid="ohpp.nav.home" onClick={() => setMobileMenuOpen(false)}>
             <Logo size={28} />
             <span className="font-bold text-lg text-white">OHPP</span>
           </Link>
@@ -62,6 +63,7 @@ function AuthenticatedLayout() {
               <Link
                 key={link.to}
                 to={link.to}
+                data-testid={`ohpp.nav.link.${link.to}`}
                 className="text-slate-300 hover:text-white [&.active]:text-brand-accent [&.active]:font-medium"
               >
                 {link.label}
@@ -72,6 +74,7 @@ function AuthenticatedLayout() {
           <div className="hidden md:flex items-center gap-3">
             <ThemeToggle />
             <button
+              data-testid="ohpp.nav.logout"
               onClick={() => { clearTokens(); window.location.href = '/login' }}
               className="text-sm text-slate-400 hover:text-white"
             >
@@ -81,6 +84,7 @@ function AuthenticatedLayout() {
 
           {/* Mobile hamburger */}
           <button
+            data-testid="ohpp.nav.mobile-menu-toggle"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="md:hidden text-slate-300 hover:text-white p-1"
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
@@ -106,6 +110,7 @@ function AuthenticatedLayout() {
                 <Link
                   key={link.to}
                   to={link.to}
+                  data-testid={`ohpp.nav.link.${link.to}`}
                   className="text-slate-300 hover:text-white hover:bg-slate-800 px-3 py-2 rounded-md text-sm [&.active]:text-brand-accent [&.active]:font-medium [&.active]:bg-slate-800"
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -113,6 +118,7 @@ function AuthenticatedLayout() {
                 </Link>
               ))}
               <button
+                data-testid="ohpp.nav.logout-mobile"
                 onClick={() => { clearTokens(); window.location.href = '/login' }}
                 className="text-left text-slate-400 hover:text-white hover:bg-slate-800 px-3 py-2 rounded-md text-sm mt-2 border-t border-slate-700 pt-3"
               >
@@ -147,6 +153,7 @@ const authenticatedLayout = createRoute({
 })
 
 const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login', component: Login })
+const registerRoute = createRoute({ getParentRoute: () => rootRoute, path: '/register', component: Register })
 const indexRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/', component: Dashboard })
 const pendingRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/pending', component: Pending })
 const historyRoute = createRoute({ getParentRoute: () => authenticatedLayout, path: '/history', component: History })
@@ -158,6 +165,7 @@ const protocolLabRoute = createRoute({ getParentRoute: () => authenticatedLayout
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  registerRoute,
   authenticatedLayout.addChildren([
     indexRoute,
     pendingRoute,
@@ -170,7 +178,17 @@ const routeTree = rootRoute.addChildren([
   ]),
 ])
 
-export const router = createRouter({ routeTree })
+export const router = createRouter({
+  routeTree,
+  defaultNotFoundComponent: () => (
+    <div className="p-8 text-center" data-testid="ohpp.notfound">
+      <h1 className="text-2xl font-bold mb-2">Page not found</h1>
+      <p className="text-gray-600 dark:text-slate-400 text-sm">
+        The page you are looking for does not exist.
+      </p>
+    </div>
+  ),
+})
 
 declare module '@tanstack/react-router' {
   interface Register {

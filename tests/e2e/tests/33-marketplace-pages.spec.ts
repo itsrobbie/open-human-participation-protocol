@@ -56,7 +56,7 @@ test.describe('Marketplace — Pages', () => {
   test('purchases page renders', async ({ page }) => {
     await signIn(page)
     await page.getByTestId('nav-purchases').click()
-    await expect(page.getByTestId('purchases-list').or(page.locator('text=No purchases'))).toBeVisible({ timeout: 5000 })
+    await expect(page.getByTestId('purchases-list').or(page.getByTestId('ohpp.marketplace.purchases.empty'))).toBeVisible({ timeout: 5000 })
   })
 
   test('settings page shows OHPP connection UI', async ({ page }) => {

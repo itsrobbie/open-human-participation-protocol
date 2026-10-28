@@ -3,20 +3,21 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Interceptor that attaches Bearer token to requests and handles 401 with
-/// automatic token refresh via Keycloak's refresh_token grant.
+/// Interceptor that attaches the Bearer token to requests and handles 401 with
+/// automatic token refresh. Refresh goes through the RESOLVER's /api/auth/refresh,
+/// never the identity provider directly, so the app names no provider.
 class AuthInterceptor extends Interceptor {
   final FlutterSecureStorage _storage;
-  final String keycloakTokenUrl;
-  final String clientId;
+
+  /// Resolver refresh endpoint, e.g. "https://<host>/api/auth/refresh".
+  final String refreshUrl;
   final void Function() onSessionExpired;
 
   Completer<String?>? _refreshCompleter;
 
   AuthInterceptor({
     required FlutterSecureStorage storage,
-    required this.keycloakTokenUrl,
-    required this.clientId,
+    required this.refreshUrl,
     required this.onSessionExpired,
   }) : _storage = storage;
 
@@ -26,9 +27,9 @@ class AuthInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     // Device-scoped endpoints (/api/devices/me/*) require the DEVICE token
-    // issued by POST /api/devices, not the Keycloak identity token. The
-    // resolver enforces [RequireTokenType(TokenType.Device)] on those routes,
-    // so sending the Keycloak access_token there returns 401.
+    // issued by POST /api/devices, not the identity token. The resolver enforces
+    // [RequireTokenType(TokenType.Device)] on those routes, so sending the
+    // identity access_token there returns 401.
     final token = _isDeviceScoped(options.path)
         ? await _storage.read(key: 'ohpp_device_token')
         : await _getValidToken();
@@ -47,7 +48,7 @@ class AuthInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     if (err.response?.statusCode == 401) {
-      // Device-scoped 401s are not fixable by a Keycloak refresh (they use the
+      // Device-scoped 401s are not fixable by an identity refresh (they use the
       // device token). Surface them rather than looping through refresh.
       if (_isDeviceScoped(err.requestOptions.path)) {
         handler.next(err);
@@ -107,26 +108,24 @@ class AuthInterceptor extends Interceptor {
 
       final dio = Dio();
       final response = await dio.post<Map<String, dynamic>>(
-        keycloakTokenUrl,
-        options: Options(contentType: 'application/x-www-form-urlencoded'),
-        data: {
-          'grant_type': 'refresh_token',
-          'refresh_token': refreshToken,
-          'client_id': clientId,
-        },
+        refreshUrl,
+        options: Options(contentType: 'application/json'),
+        data: {'refreshToken': refreshToken},
       );
 
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data!;
-        final newAccessToken = data['access_token'] as String;
-        final newRefreshToken = data['refresh_token'] as String;
-        final expiresIn = data['expires_in'] as int;
+        final newAccessToken = data['accessToken'] as String;
+        final newRefreshToken = data['refreshToken'] as String?;
+        final expiresIn = (data['expiresInSeconds'] as num?)?.toInt() ?? 300;
 
         final expiresAt =
             DateTime.now().toUtc().add(Duration(seconds: expiresIn));
 
         await _storage.write(key: 'access_token', value: newAccessToken);
-        await _storage.write(key: 'refresh_token', value: newRefreshToken);
+        if (newRefreshToken != null) {
+          await _storage.write(key: 'refresh_token', value: newRefreshToken);
+        }
         await _storage.write(
           key: 'token_expires_at',
           value: expiresAt.toIso8601String(),

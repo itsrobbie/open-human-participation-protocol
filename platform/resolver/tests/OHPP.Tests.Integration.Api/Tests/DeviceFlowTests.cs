@@ -112,4 +112,80 @@ public sealed class DeviceFlowTests : IntegrationTestBase
         var body = await pendingResponse.Content.ReadAsStringAsync();
         body.Should().Contain("Pending for device");
     }
+
+    // 3.1 gap: duplicate-install dedup. The same physical device (same stable
+    // DeviceIdentifier) re-registering must reactivate the SAME device row, not
+    // create a second one.
+    [Fact]
+    public async Task CreateDevice_SameIdentifier_DedupsToSameDeviceRow()
+    {
+        var (userClient, _) = await CreateAuthenticatedUserAsync();
+        const string installId = "install-dedup-abc123";
+
+        var first = await userClient.PostAsJsonAsync("/api/devices",
+            new { name = "Phone", deviceType = "ios", deviceIdentifier = installId });
+        first.StatusCode.Should().Be(HttpStatusCode.Created);
+        var firstId = System.Text.Json.JsonDocument.Parse(await first.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("id").GetString();
+
+        var second = await userClient.PostAsJsonAsync("/api/devices",
+            new { name = "Phone (reinstalled)", deviceType = "ios", deviceIdentifier = installId });
+        second.StatusCode.Should().Be(HttpStatusCode.Created);
+        var secondId = System.Text.Json.JsonDocument.Parse(await second.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("id").GetString();
+
+        secondId.Should().Be(firstId,
+            because: "re-registering the same install id must reuse the device row, not duplicate it");
+
+        // And the user has exactly one active device, not two.
+        var list = await userClient.GetAsync("/api/devices");
+        var listBody = await list.Content.ReadAsStringAsync();
+        System.Text.Json.JsonDocument.Parse(listBody).RootElement.GetArrayLength()
+            .Should().Be(1, because: "a reinstall must not leave two device rows");
+    }
+
+    // 3.1 gap: stale-token re-registration. Re-registering the same install id
+    // rotates the device token; the OLD token must stop working and the NEW one
+    // must work (the ensureRegistered / reactivate path).
+    [Fact]
+    public async Task CreateDevice_Reregister_RotatesToken_OldTokenRejected()
+    {
+        var (userClient, _) = await CreateAuthenticatedUserAsync();
+        const string installId = "install-rotate-xyz789";
+
+        var first = await userClient.PostAsJsonAsync("/api/devices",
+            new { name = "Phone", deviceType = "ios", deviceIdentifier = installId });
+        var oldToken = System.Text.Json.JsonDocument.Parse(await first.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("deviceToken").GetString()!;
+
+        // Old token works before re-registration.
+        var oldClientBefore = Factory.CreateClient();
+        oldClientBefore.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", oldToken);
+        (await oldClientBefore.GetAsync("/api/devices/me/pending")).StatusCode
+            .Should().Be(HttpStatusCode.OK);
+
+        // Re-register the same install id: token rotates.
+        var second = await userClient.PostAsJsonAsync("/api/devices",
+            new { name = "Phone", deviceType = "ios", deviceIdentifier = installId });
+        var newToken = System.Text.Json.JsonDocument.Parse(await second.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("deviceToken").GetString()!;
+
+        newToken.Should().NotBe(oldToken, because: "re-registration rotates the device token");
+
+        // Old (stale) token is now rejected.
+        var oldClientAfter = Factory.CreateClient();
+        oldClientAfter.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", oldToken);
+        (await oldClientAfter.GetAsync("/api/devices/me/pending")).StatusCode
+            .Should().Be(HttpStatusCode.Unauthorized,
+                because: "the rotated-out token must no longer authenticate");
+
+        // New token works.
+        var newClient = Factory.CreateClient();
+        newClient.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", newToken);
+        (await newClient.GetAsync("/api/devices/me/pending")).StatusCode
+            .Should().Be(HttpStatusCode.OK, because: "the freshly rotated token must authenticate");
+    }
 }

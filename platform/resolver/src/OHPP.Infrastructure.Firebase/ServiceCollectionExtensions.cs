@@ -24,6 +24,10 @@ public static class ServiceCollectionExtensions
             var firebaseApp = FirebaseApp.Create(new AppOptions { Credential = credential });
             services.AddSingleton(firebaseApp);
             services.AddScoped<IIdentityTokenValidator, FirebaseIdentityTokenValidator>();
+            // Symmetric with Keycloak: the account-creation + token-issuance
+            // broker behind the Resolver's /api/auth endpoints. Firebase token
+            // issuance is a production-config step (see FirebaseIdentityBroker).
+            services.AddScoped<IIdentityBroker, FirebaseIdentityBroker>();
             // Production push dispatcher. This authoritative registration is what
             // AddOhppInfrastructure's TryAddScoped defers to; when credentials are
             // absent (dev/test) FCM is never registered and the no-op default wins.

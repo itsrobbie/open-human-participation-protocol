@@ -321,6 +321,7 @@ class ConfirmationDialog extends StatelessWidget {
           child: const Text('Cancel'),
         ),
         TextButton(
+      key: const Key('ohpp.shared.text-action'),
           onPressed: () {
             Navigator.pop(context);
             onConfirm();

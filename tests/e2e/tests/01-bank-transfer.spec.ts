@@ -1,124 +1,90 @@
-import { test, expect } from '@playwright/test'
-import { BANK_URL } from '../test-urls'
+import { expect, test } from '@playwright/test'
+import { BankUiPage } from '../pages/bank-ui'
 
+/**
+ * Bank transfers without OHPP — converted to BankUiPage (Phase 4.1).
+ */
 test.describe.serial('Bank — Transfer without OHPP', () => {
   test('8. transfer without OHPP completes immediately', async ({ page }) => {
-    await page.goto(BANK_URL)
-
-    // Wait for account to load
-    await expect(page.locator('#balance')).not.toHaveText('Loading...')
-    await page.getByTestId('nav-payments').click()
-
-    // Select a payee and enter amount
-    await page.selectOption('#payee-select', { index: 0 })
-    await page.fill('#amount', '25.00')
-    await page.fill('#reference', 'E2E test transfer')
-
-    // Submit
-    await page.click('#transfer-form button[type="submit"]')
-    await expect(page.locator('#transfer-review')).toContainText('E2E test transfer')
-    await expect(page.locator('#transfer-review')).toContainText('£25.00')
-    await page.click('#confirm-transfer')
-
-    // Should complete immediately (no OHPP connected)
-    await expect(page.locator('#transfer-result')).toContainText('Transfer completed')
+    const bank = new BankUiPage(page)
+    await bank.gotoAndWaitLoaded()
+    await bank.gotoNav('payments')
+    await bank.makeTransfer({ amount: '25.00', reference: 'E2E test transfer' })
+    await expect(bank.reviewText()).toContainText('E2E test transfer')
+    await expect(bank.reviewText()).toContainText('£25.00')
+    await bank.confirmTransfer()
+    await bank.assertTransferResult('Transfer completed')
   })
 
   test('9. balance updates after transfer', async ({ page }) => {
-    await page.goto(BANK_URL)
-    await expect(page.locator('#balance')).not.toHaveText('Loading...')
-    await page.getByTestId('nav-payments').click()
-
-    // Get initial balance
-    const balanceBefore = await page.locator('#balance').textContent()
-    const amountBefore = parseFloat(balanceBefore!.replace('£', '').replace(',', ''))
-
-    // Transfer
-    await page.selectOption('#payee-select', { index: 0 })
-    await page.fill('#amount', '10.00')
-    await page.click('#transfer-form button[type="submit"]')
-    await page.click('#confirm-transfer')
-    await expect(page.locator('#transfer-result')).toContainText('Transfer completed')
-
-    // Balance should have decreased
-    const balanceAfter = await page.locator('#balance').textContent()
-    const amountAfter = parseFloat(balanceAfter!.replace('£', '').replace(',', ''))
-    expect(amountAfter).toBeLessThan(amountBefore)
+    const bank = new BankUiPage(page)
+    await bank.gotoAndWaitLoaded()
+    await bank.gotoNav('payments')
+    const before = await bank.balanceAmount()
+    await bank.makeTransfer({ amount: '10.00' })
+    await bank.confirmTransfer()
+    await bank.assertTransferResult('Transfer completed')
+    expect(await bank.balanceAmount()).toBeLessThan(before)
   })
 
   test('account navigation, payee management, and history filters are durable', async ({ page }) => {
-    await page.goto(BANK_URL)
-    await expect(page.locator('#account-list')).toContainText('Demo Savings Account')
-    await expect(page.locator('#account-list')).toContainText('Demo Current Account')
+    const bank = new BankUiPage(page)
+    await bank.gotoAndWaitLoaded()
+    await expect(bank.accountList()).toContainText('Demo Savings Account')
+    await expect(bank.accountList()).toContainText('Demo Current Account')
 
-    await page.locator('#active-account').selectOption('demo-current')
+    await bank.selectActiveAccount('demo-current')
     await expect(page.locator('#balance')).toHaveText('£1,250.00')
-    await page.locator('#active-account').selectOption('demo-account')
+    await bank.selectActiveAccount('demo-account')
 
-    await page.getByTestId('nav-payees').click()
-    await page.getByText('Add a payee', { exact: true }).click()
-    await page.fill('#payee-name', 'Test Plumber')
-    await page.fill('#payee-sort-code', '11-22-33')
-    await page.fill('#payee-account-number', '12345678')
-    await page.click('#add-payee-form button[type="submit"]')
-    await expect(page.locator('#payee-list')).toContainText('Test Plumber')
+    await bank.gotoNav('payees')
+    await bank.addPayee('Test Plumber', '11-22-33', '12345678')
+    await expect(bank.payeeList()).toContainText('Test Plumber')
     await page.reload()
-    await page.getByTestId('nav-payees').click()
-    await expect(page.locator('#payee-list')).toContainText('Test Plumber')
+    await bank.gotoNav('payees')
+    await expect(bank.payeeList()).toContainText('Test Plumber')
 
-    await page.getByTestId('nav-transactions').click()
-    await page.fill('#transaction-search', 'E2E test transfer')
-    await expect(page.locator('#transaction-list')).toContainText('E2E test transfer')
-    await expect(page.locator('#transaction-list')).not.toContainText('No transactions match')
-    await page.locator('#transaction-status-filter').selectOption('Denied')
-    await expect(page.locator('#transaction-list')).toContainText('No transactions match')
+    await bank.gotoNav('transactions')
+    await bank.searchTransactions('E2E test transfer')
+    await expect(bank.transactionList()).toContainText('E2E test transfer')
+    await expect(bank.transactionList()).not.toContainText('No transactions match')
+    await bank.filterTransactionStatus('Denied')
+    await expect(bank.transactionList()).toContainText('No transactions match')
   })
 
   test('date and datetime transfers are scheduled without changing the balance', async ({ page }) => {
-    // Use dates in the future relative to "now" so the transfers are genuinely
-    // scheduled (not executed immediately). Computing them dynamically keeps the
-    // test correct regardless of the calendar date it runs on.
+    const bank = new BankUiPage(page)
     const pad = (n: number) => String(n).padStart(2, '0')
     const future = (daysAhead: number) => {
       const d = new Date()
       d.setDate(d.getDate() + daysAhead)
       return { y: d.getFullYear(), m: d.getMonth() + 1, day: d.getDate() }
     }
-    // Match the reviewed date in either M/D/YYYY or D/M/YYYY locale ordering.
     const dateRegex = ({ y, m, day }: { y: number; m: number; day: number }) =>
       new RegExp(`${m}\\/${day}\\/${y}|${day}\\/${m}\\/${y}`)
-
+    const isoDate = (d: { y: number; m: number; day: number }) => `${d.y}-${pad(d.m)}-${pad(d.day)}`
     const d1 = future(14)
     const d2 = future(15)
-    const isoDate = (d: { y: number; m: number; day: number }) => `${d.y}-${pad(d.m)}-${pad(d.day)}`
 
-    await page.goto(BANK_URL)
-    await expect(page.locator('#balance')).not.toHaveText('Loading...')
-    const balanceBefore = await page.locator('#balance').textContent()
+    await bank.gotoAndWaitLoaded()
+    const before = await bank.readBalance()
 
-    await page.getByTestId('nav-payments').click()
-    await page.selectOption('#payee-select', { index: 0 })
-    await page.fill('#amount', '15.00')
-    await page.selectOption('#schedule-mode', 'date')
-    await page.fill('#schedule-date', isoDate(d1))
-    await page.click('#transfer-form button[type="submit"]')
-    await expect(page.locator('#review-schedule')).toContainText(dateRegex(d1))
-    await page.click('#confirm-transfer')
-    await expect(page.locator('#transfer-result')).toContainText('Transfer scheduled')
+    await bank.gotoNav('payments')
+    await bank.makeTransfer({ amount: '15.00', schedule: { mode: 'date', date: isoDate(d1) } })
+    await expect(bank.reviewScheduleText()).toContainText(dateRegex(d1))
+    await bank.confirmTransfer()
+    await bank.assertTransferResult('Transfer scheduled')
 
-    await page.fill('#amount', '20.00')
-    await page.selectOption('#schedule-mode', 'datetime')
-    await page.fill('#schedule-datetime', `${isoDate(d2)}T14:30`)
-    await page.click('#transfer-form button[type="submit"]')
-    await expect(page.locator('#review-schedule')).toContainText(dateRegex(d2))
-    await page.click('#confirm-transfer')
-    await expect(page.locator('#transfer-result')).toContainText('Transfer scheduled')
+    await bank.makeTransfer({ amount: '20.00', schedule: { mode: 'datetime', datetime: `${isoDate(d2)}T14:30` } })
+    await expect(bank.reviewScheduleText()).toContainText(dateRegex(d2))
+    await bank.confirmTransfer()
+    await bank.assertTransferResult('Transfer scheduled')
 
-    await expect(page.locator('#balance')).toHaveText(balanceBefore!)
-    await page.getByTestId('nav-transactions').click()
-    await page.locator('#transaction-status-filter').selectOption('Scheduled')
-    await expect(page.locator('#transaction-list')).toContainText('Scheduled')
-    await expect(page.locator('#transaction-list')).toContainText('£15.00')
-    await expect(page.locator('#transaction-list')).toContainText('£20.00')
+    await expect(page.locator('#balance')).toHaveText(before)
+    await bank.gotoNav('transactions')
+    await bank.filterTransactionStatus('Scheduled')
+    await expect(bank.transactionList()).toContainText('Scheduled')
+    await expect(bank.transactionList()).toContainText('£15.00')
+    await expect(bank.transactionList()).toContainText('£20.00')
   })
 })

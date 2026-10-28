@@ -736,10 +736,15 @@ void main() {
           await registerApp(token, 'e2e-lifecycle.test', 'Lifecycle App');
 
       if (app == null) {
-        // Registration ceremony not available via direct API in dev stack.
-        // Verify device can poll pending (proves device setup works).
+        // Registration ceremony not reachable via direct API in this dev stack.
+        // Still prove the device can poll pending (device setup works), then
+        // mark the lifecycle portion skipped so this never reports as a full
+        // pass while asserting nothing.
         final pending = await getPendingRequests(device.deviceToken);
         expect(pending, isA<List>());
+        markTestSkipped(
+            'app registration ceremony not reachable via direct API; '
+            'lifecycle assertions skipped (device-poll verified)');
         return;
       }
 
@@ -752,7 +757,10 @@ void main() {
       );
 
       if (requestId == null) {
-        // Participation request seeding not available
+        // Participation request seeding not reachable via direct API here.
+        markTestSkipped(
+            'participation request seeding not reachable via direct API; '
+            'lifecycle assertions skipped');
         return;
       }
 
@@ -859,6 +867,21 @@ class _RulesSource implements RulesDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> updateRule(
+      String id, Map<String, dynamic> data) async {
+    final client = HttpClient();
+    final request = await client.putUrl(Uri.parse('$_baseUrl/api/rules/$id'));
+    request.headers.set('Authorization', 'Bearer $_token');
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode(data));
+    final response = await request.close();
+    final body = await response.transform(utf8.decoder).join();
+    client.close();
+    if (response.statusCode == 200) return jsonDecode(body) as Map<String, dynamic>;
+    return {...data, 'id': id};
+  }
+
+  @override
   Future<void> deleteRule(String id) async {
     final client = HttpClient();
     final request = await client.deleteUrl(Uri.parse('$_baseUrl/api/rules/$id'));
@@ -897,4 +920,10 @@ class _AppsSource implements AppsDataSource {
     await request.close();
     client.close();
   }
+
+  @override
+  Future<void> setNotificationPreference(String appId, bool enabled) async {}
+
+  @override
+  Future<Map<String, dynamic>> processChallenge(String base64Payload) async => {};
 }

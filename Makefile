@@ -1,4 +1,4 @@
-.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android ci-image ci-flutter ci-flutter-goldens
+.PHONY: help help-all check dev dev-analytics verify-analytics urls dev-build dev-down dev-backing-up dev-backing-down dev-apps-up dev-apps-down ca-issue ca-verify dev-logs dev-logs-resolver dev-logs-bank dev-logs-insurance dev-logs-pizza dev-logs-marketplace backing-db-init tenant-db-init tenant-up tenant-down tenant-list cli cli-reset test test-node-e2e test-ui test-file test-contracts validate test-unit test-unit-sdk test-unit-resolver test-unit-bank test-unit-insurance test-unit-cli test-unit-portal test-unit-node-sdk test-unit-pizza test-unit-marketplace test-integration build build-resolver build-bank build-insurance build-cli build-portal build-node-sdk build-pizza build-marketplace clean clean-cache clean-all test-backing-up test-backing-down test-apps-up test-apps-down test-stack-up test-stack-rebuild test-stack-down test-stack-logs test-stack-logs-pizza test-stack-logs-marketplace test-stack-ps flutter-test flutter-test-unit flutter-test-golden flutter-golden-update flutter-test-e2e flutter-verify-pinning verify-observability verify-landing verify-flutter-telemetry flutter-run-device flutter-lint flutter-build-ios flutter-build-android ci-image ci-flutter ci-flutter-goldens coverage-floors coverage coverage-portal coverage-node-sdk coverage-resolver-unit coverage-flutter
 
 # Developer-local overrides (git-ignored). Put machine-specific values here, e.g.
 # the iOS simulator to run the Flutter E2E on:
@@ -39,6 +39,7 @@ help: ## Show the getting-started guide and common commands
 	@printf '    make cli              \033[2mRun the terminal attester simulator\033[0m\n'
 	@printf '\n'
 	@printf '  \033[1mTEST\033[0m\n'
+	@printf '    make validate         \033[2mFull layered gate: contracts, unit, integration, web E2E\033[0m\n'
 	@printf '    make test             \033[2mBrowser E2E suite (isolated stack, auto-teardown)\033[0m\n'
 	@printf '    make test-unit        \033[2mAll unit tests (fast)\033[0m\n'
 	@printf '    make test-integration \033[2mResolver integration tests (Docker)\033[0m\n'
@@ -340,6 +341,25 @@ attest-smoke: ## HTTP-only smoke of the device attestation chain (bank transfer 
 
 # ─── Unit Tests ──────────────────────────────────────────────────────────────
 
+validate: ## Run the layered validation suite in pyramid order (contracts, unit, integration, web whole-case). Docker required for integration + e2e.
+	@echo ""
+	@echo "═══ validate: layer 1/4 — contracts (lint: Makefile + Compose surfaces, P1 testid scheme) ═══"
+	$(MAKE) test-contracts
+	@echo ""
+	@echo "═══ validate: layer 2/4 — unit + component (SDKs, resolver, apps, portal) ═══"
+	$(MAKE) test-unit
+	@echo ""
+	@echo "═══ validate: layer 3/4 — integration (one service + real deps; requires Docker) ═══"
+	$(MAKE) test-integration
+	@echo ""
+	@echo "═══ validate: layer 4/4 — web whole-case E2E (isolated stack, cross-system ceremonies) ═══"
+	$(MAKE) test
+	@echo ""
+	@echo "═══ validate: coverage floors (Phase 5.1 gate — unit-floored surfaces must clear their floor) ═══"
+	$(MAKE) coverage-floors
+	@echo ""
+	@echo "═══ validate: all four layers passed. Flutter app-attester layers run separately via 'make flutter-test' (see coverage matrix). ═══"
+
 test-contracts: ## Validate Makefile and Compose developer surfaces
 	node --test --test-reporter=dot tests/contracts/*.test.mjs
 
@@ -389,6 +409,30 @@ test-unit-marketplace: ## Run Marketplace app unit + integration tests
 test-integration: ## Run resolver integration tests (requires Docker postgres)
 	dotnet build platform/resolver/tests/OHPP.Tests.Integration.Api/OHPP.Tests.Integration.Api.csproj --configuration Release --maxcpucount:1
 	dotnet test platform/resolver/tests/OHPP.Tests.Integration.Api/OHPP.Tests.Integration.Api.csproj --configuration Release --no-build --filter "Category=RequiresDocker" --logger "console;verbosity=detailed"
+
+# ─── Coverage (production-lifecycle plan, Phase 0.2 / 5.1) ───────────────────
+# Each emits a machine-readable coverage report for one production surface.
+# Floors are enforced in Phase 5.1; these targets just produce the numbers.
+
+coverage-portal: ## Portal coverage (vitest v8 -> platform/portal/coverage)
+	npm --prefix platform/portal run test:coverage
+
+coverage-node-sdk: ## Node SDK coverage (vitest v8)
+	npm --prefix sdks/node run test:coverage
+
+coverage-resolver-unit: ## Resolver unit coverage (coverlet cobertura, no Docker)
+	for p in platform/resolver/tests/OHPP.Tests.Unit.*/; do \
+		dotnet test "$$p" --collect:"XPlat Code Coverage" --results-directory coverage/resolver || exit 1; \
+	done
+
+coverage-flutter: ## Flutter coverage (lcov -> platform/client-app/coverage/lcov.info)
+	cd platform/client-app && flutter test --coverage
+
+coverage: coverage-portal coverage-node-sdk coverage-resolver-unit coverage-flutter ## All production-surface coverage reports
+
+coverage-floors: ## Enforce per-surface coverage floors (Phase 5.1 GATE). Fails if a unit-floored surface is below its floor.
+	$(MAKE) coverage-node-sdk
+	node scripts/check-coverage-floors.mjs
 
 # ─── Flutter Client App ──────────────────────────────────────────────────────
 
@@ -494,7 +538,9 @@ FLUTTER_DEVICE_DEFINES = \
 FLUTTER_DEVICE_E2E_DEFINES = \
 	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_KEYCLOAK_URL=http://$(FLUTTER_DEVICE_HOST):8080,) \
 	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_RESOLVER_URL=http://$(FLUTTER_DEVICE_HOST):5050,) \
-	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_BANK_URL=http://$(FLUTTER_DEVICE_HOST):5010,)
+	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_BANK_URL=http://$(FLUTTER_DEVICE_HOST):5010,) \
+	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_PIZZA_URL=http://$(FLUTTER_DEVICE_HOST):5030,) \
+	$(if $(FLUTTER_DEVICE_HOST),--dart-define=E2E_MARKETPLACE_URL=http://$(FLUTTER_DEVICE_HOST):5040,)
 
 flutter-test-e2e: ## Run Flutter E2E on a booted iOS simulator against the dev stack (set FLUTTER_E2E_DEVICE in .env.local; run 'make dev' first)
 	@echo "Checking dev stack is running..."
@@ -506,6 +552,8 @@ flutter-test-e2e: ## Run Flutter E2E on a booted iOS simulator against the dev s
 		--dart-define=OHPP_ANTI_AGENT_MODE=test \
 		--dart-define=OTEL_ENDPOINT=$(if $(OTEL_ENDPOINT),$(OTEL_ENDPOINT),http://localhost:4318) \
 		--dart-define=CRASH_DSN=$(if $(CRASH_DSN),$(CRASH_DSN),$(SEEDED_CRASH_DSN)) \
+		--dart-define=E2E_PIZZA_URL=$(if $(E2E_PIZZA_URL),$(E2E_PIZZA_URL),http://localhost:5030) \
+		--dart-define=E2E_MARKETPLACE_URL=$(if $(E2E_MARKETPLACE_URL),$(E2E_MARKETPLACE_URL),http://localhost:5040) \
 		$(if $(ANALYTICS_HOST),--dart-define=ANALYTICS_HOST=$(ANALYTICS_HOST),) \
 		$(if $(ANALYTICS_KEY),--dart-define=ANALYTICS_KEY=$(ANALYTICS_KEY),)
 	@echo "✓ E2E tests passed"

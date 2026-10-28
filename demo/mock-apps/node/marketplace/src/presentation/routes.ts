@@ -63,6 +63,13 @@ export function createApiRoutes(deps: RoutesDeps): Router {
   });
 
   router.get('/purchases/:id', async (req, res: Response) => {
+    // Reconcile a pending OHPP outcome before returning, so opening/polling the
+    // purchase reflects a decision made on any surface (portal, device, CLI).
+    // The detail page polls THIS route while pending_confirmation, so the
+    // reconciliation must happen here, not only on /purchases/:id/status (which
+    // the UI never calls). resolvePurchase is a no-op once the purchase has
+    // settled. Mirrors the Pizza app's reconcile-on-read (GET /orders/:id).
+    await deps.purchaseService.resolvePurchase(req.params.id, getUserId(req));
     const purchase = await deps.purchaseService.getById(req.params.id, getUserId(req));
     if (!purchase) {
       res.status(404).json({ error: 'Purchase not found' });

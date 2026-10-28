@@ -171,7 +171,7 @@ export function ProtocolLab() {
         <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-lg p-4 text-sm">
           <p className="font-medium">Enable browser approvals</p>
           <p className="mt-1">The Resolver requires an active approval device before it accepts requests.</p>
-          <button onClick={() => void enableBrowserApprovals()} className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded text-sm">Enable browser approvals</button>
+          <button data-testid="ohpp.protocollab.enable-approvals" onClick={() => void enableBrowserApprovals()} className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded text-sm">Enable browser approvals</button>
         </div>
       )}
 
@@ -201,7 +201,7 @@ export function ProtocolLab() {
               <p className="text-gray-600 dark:text-slate-400 mt-1"><code>{LAB_APP_ID}</code></p>
             </div>
             <label className="text-sm">Request type
-              <select aria-label="Request type" value={type} onChange={(event) => {
+              <select data-testid="ohpp.protocollab.request-type" aria-label="Request type" value={type} onChange={(event) => {
                 const nextType = event.target.value as RequestType
                 setType(nextType)
                 setPayload(createPreset(nextType, userId))
@@ -214,14 +214,14 @@ export function ProtocolLab() {
             <textarea data-testid="protocol-payload" aria-label="Protocol JSON" value={payload} onChange={(event) => setPayload(event.target.value)} rows={18} className="mt-1 w-full border rounded px-3 py-2 font-mono text-xs dark:bg-slate-700" />
           </label>
           <div className="flex gap-3">
-            <button onClick={() => setPayload(createPreset(type, userId))} className="px-4 py-2 border rounded text-sm">Load {type} preset</button>
-            <button onClick={() => void sendRequest()} disabled={!payload} className="px-4 py-2 bg-indigo-600 text-white rounded text-sm disabled:opacity-50">Send over protocol</button>
+            <button data-testid="ohpp.protocollab.load-preset" onClick={() => setPayload(createPreset(type, userId))} className="px-4 py-2 border rounded text-sm">Load {type} preset</button>
+            <button data-testid="ohpp.protocollab.send" onClick={() => void sendRequest()} disabled={!payload} className="px-4 py-2 bg-indigo-600 text-white rounded text-sm disabled:opacity-50">Send over protocol</button>
           </div>
         </section>
       )}
 
-      {message && <div className="bg-green-50 border border-green-200 text-green-800 rounded p-3 text-sm" role="status">{message}</div>}
-      {error && <div className="bg-red-50 border border-red-200 text-red-800 rounded p-3 text-sm" role="alert">{error}</div>}
+      {message && <div className="bg-green-50 border border-green-200 text-green-800 rounded p-3 text-sm" role="status" data-testid="ohpp.protocollab.status-message">{message}</div>}
+      {error && <div className="bg-red-50 border border-red-200 text-red-800 rounded p-3 text-sm" role="alert" data-testid="ohpp.protocollab.alert">{error}</div>}
 
       {lastRequest && status && (
         <section className="bg-white dark:bg-slate-800 rounded-lg p-5 border border-gray-200 dark:border-slate-700" data-testid="protocol-status">

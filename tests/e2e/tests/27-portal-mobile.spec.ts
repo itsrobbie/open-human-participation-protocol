@@ -1,18 +1,27 @@
 import { expect, test } from '@playwright/test'
-import { PORTAL_URL } from '../test-urls'
+import { PortalPage } from '../pages/portal'
 
+/**
+ * Portal mobile navigation at 375px — converted to PortalPage (Phase 4.1).
+ * Every page reachable via the keyed mobile menu, keyed heading present, and no
+ * horizontal overflow.
+ */
 test('Portal_MobileNavigation_375ViewportHasNoHorizontalOverflowAndAllPagesAreReachable', async ({ page }) => {
-  await page.goto(`${PORTAL_URL}/login`)
-  await page.fill('input[placeholder="demo"]', 'demo')
-  await page.fill('input[type="password"]', 'demo')
-  await page.click('button[type="submit"]')
-  await expect(page).toHaveURL(PORTAL_URL + '/')
+  const portal = new PortalPage(page)
+  await portal.login()
+  await portal.assertOnDashboard()
 
-  for (const pageName of ['Pending', 'History', 'Devices', 'Apps', 'Connect App']) {
-    await page.getByRole('button', { name: 'Open menu' }).click()
-    await page.getByRole('navigation').getByRole('link', { name: pageName, exact: true }).click()
-    await expect(page.locator('h1')).toBeVisible()
-    const hasOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
-    expect(hasOverflow, `${pageName} has horizontal overflow at 375px`).toBe(false)
+  const pages: { to: string; area: string }[] = [
+    { to: '/pending', area: 'pending' },
+    { to: '/history', area: 'history' },
+    { to: '/devices', area: 'devices' },
+    { to: '/apps', area: 'apps' },
+    { to: '/register-app', area: 'registerapp' },
+  ]
+
+  for (const { to, area } of pages) {
+    await portal.gotoNavMobile(to)
+    await portal.assertHeading(area)
+    expect(await portal.hasHorizontalOverflow(), `${to} has horizontal overflow at 375px`).toBe(false)
   }
 })

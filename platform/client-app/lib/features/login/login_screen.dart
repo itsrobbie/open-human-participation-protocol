@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:ohpp_client/core/theme/app_colors.dart';
 
 /// Login callback interface (injected for testability).
 typedef LoginCallback = Future<bool> Function(String username, String password);
+
+/// Register callback: create a new account then land authenticated.
+typedef RegisterCallback = Future<bool> Function(
+    String username, String email, String password);
 
 /// State for the login form.
 class LoginState {
@@ -16,9 +21,11 @@ class LoginState {
 
 class LoginNotifier extends StateNotifier<LoginState> {
   final LoginCallback _onLogin;
+  final RegisterCallback? _onRegister;
 
-  LoginNotifier({required LoginCallback onLogin})
+  LoginNotifier({required LoginCallback onLogin, RegisterCallback? onRegister})
       : _onLogin = onLogin,
+        _onRegister = onRegister,
         super(const LoginState());
 
   Future<bool> login(String username, String password) async {
@@ -32,6 +39,28 @@ class LoginNotifier extends StateNotifier<LoginState> {
         state = const LoginState(error: 'Invalid username or password');
         return false;
       }
+    } catch (e) {
+      state = LoginState(error: e.toString());
+      return false;
+    }
+  }
+
+  /// Create a new account and land authenticated. Fails if registration is not
+  /// wired (no onRegister) or the resolver rejects the details.
+  Future<bool> register(String username, String email, String password) async {
+    if (_onRegister == null) {
+      state = const LoginState(error: 'Registration is not available.');
+      return false;
+    }
+    state = const LoginState(isLoading: true);
+    try {
+      final success = await _onRegister(username, email, password);
+      if (success) {
+        state = const LoginState();
+        return true;
+      }
+      state = const LoginState(error: 'Could not create the account.');
+      return false;
     } catch (e) {
       state = LoginState(error: e.toString());
       return false;
@@ -164,6 +193,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 )
                               : const Text('Sign In'),
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        key: const Key('login-register-link'),
+                        onPressed: state.isLoading
+                            ? null
+                            : () => context.go('/register'),
+                        child: const Text("Don't have an account? Create one"),
                       ),
                     ],
                   ),

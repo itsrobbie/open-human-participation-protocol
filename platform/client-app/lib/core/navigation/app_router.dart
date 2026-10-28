@@ -8,6 +8,7 @@ import 'package:ohpp_client/features/apps/qr_scanner_screen.dart';
 import 'package:ohpp_client/features/history/history_detail_screen.dart';
 import 'package:ohpp_client/features/history/history_screen.dart';
 import 'package:ohpp_client/features/login/login_screen.dart';
+import 'package:ohpp_client/features/login/register_screen.dart';
 import 'package:ohpp_client/features/onboarding/onboarding_flow.dart';
 import 'package:ohpp_client/features/pending/pending_screen.dart';
 import 'package:ohpp_client/features/profile/profile_screen.dart';
@@ -20,12 +21,27 @@ import 'package:ohpp_client/features/settings/security_screen.dart';
 import 'package:ohpp_client/features/settings/settings_screen.dart';
 import 'package:ohpp_client/features/shell/main_shell.dart';
 import 'package:ohpp_client/shared/providers/auth_provider.dart';
+import 'package:ohpp_client/shared/providers/apps_provider.dart';
+import 'package:ohpp_client/shared/providers/user_profile_provider.dart';
 import 'package:ohpp_client/shared/providers/rules_provider.dart';
+
+/// Anti-agent test mode flag (software signer + keyed test seams), set by
+/// --dart-define=OHPP_ANTI_AGENT_MODE=test on the e2e-device runs.
+const bool _kAntiAgentTestMode =
+    String.fromEnvironment('OHPP_ANTI_AGENT_MODE', defaultValue: 'real') ==
+        'test';
+
+/// The scan value the QR scanner's P7 test seam emits when
+/// 'scanner-simulate-detect' is tapped. The e2e QR connect whole-case sets this
+/// (via its notifier) to the real minted `ohpp://register?challenge=` URI after
+/// sign-up, so the scan path is driven without a camera. Null in production.
+final qrTestScanValueProvider = StateProvider<String?>((ref) => null);
 
 /// Route path constants.
 abstract class AppRoutes {
   static const onboarding = '/onboarding';
   static const login = '/login';
+  static const register = '/register';
   static const pending = '/pending';
   static const history = '/history';
   static const historyDetail = '/history/:id';
@@ -67,14 +83,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthenticated = auth.state == AuthState.authenticated;
       final isOnLogin = state.matchedLocation == AppRoutes.login;
       final isOnOnboarding = state.matchedLocation == AppRoutes.onboarding;
+      final isOnRegister = state.matchedLocation == AppRoutes.register;
 
-      // Not authenticated: redirect to login (unless already there or onboarding)
-      if (!isAuthenticated && !isOnLogin && !isOnOnboarding) {
+      // Not authenticated: redirect to login (unless already on an
+      // unauthenticated route: login, register, or onboarding).
+      if (!isAuthenticated && !isOnLogin && !isOnOnboarding && !isOnRegister) {
         return AppRoutes.login;
       }
 
-      // Authenticated but on login page: redirect to home
-      if (isAuthenticated && isOnLogin) {
+      // Authenticated but on login/register page: redirect to home
+      if (isAuthenticated && (isOnLogin || isOnRegister)) {
         return AppRoutes.pending;
       }
 
@@ -91,6 +109,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.register,
+        builder: (context, state) => const RegisterScreen(),
       ),
 
       // --- Authenticated routes (shell with bottom nav) ---
@@ -127,23 +149,38 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: AppRoutes.apps,
             pageBuilder: (context, state) => NoTransitionPage(
               child: AppsScreen(
-                onQrScan: (_) => context.push(AppRoutes.qrScanner),
-                onPaste: (_) => _showPasteDialog(context),
+                onQrScan: (_) async {
+                  // The scanner pops the scanned value; process it to actually
+                  // connect the app (push alone does not register).
+                  final scanned = await context.push<String>(AppRoutes.qrScanner);
+                  if (scanned == null || scanned.isEmpty || !context.mounted) return;
+                  final result = ChallengeParser().parse(scanned);
+                  if (!result.isSuccess) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Invalid QR code. Not a valid registration link.'),
+                      behavior: SnackBarBehavior.floating,
+                    ));
+                    return;
+                  }
+                  final ok = await ref
+                      .read(appsProvider.notifier)
+                      .connectViaChallenge(result.challenge!.base64Payload);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(ok
+                        ? 'Connected ${result.challenge!.appId}'
+                        : 'Could not connect. The link may be invalid or expired.'),
+                    behavior: SnackBarBehavior.floating,
+                  ));
+                },
+                onPaste: (_) => _showPasteDialog(context, ref),
               ),
             ),
           ),
           GoRoute(
             path: AppRoutes.profile,
-            pageBuilder: (context, state) => NoTransitionPage(
-              child: ProfileScreen(
-                user: const {
-                  'username': '',
-                  'email': '',
-                  'resolverUrl': '',
-                },
-                devices: const [],
-                onOpenSettings: () => context.push(AppRoutes.settings),
-              ),
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: _ProfilePage(),
             ),
           ),
         ],
@@ -160,6 +197,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.qrScanner,
         builder: (context, state) => QrScannerScreen(
+          // P7 seam: in anti-agent test mode, render the keyed
+          // 'scanner-simulate-detect' button that feeds [qrTestScanValueProvider]
+          // (the harness injects the minted ohpp://register URI) through the real
+          // detection path. In real mode the camera runs unchanged.
+          testMode: _kAntiAgentTestMode,
+          testScanValue: ref.read(qrTestScanValueProvider),
           onResult: (value) {
             // Process registration challenge via ChallengeParser
             context.pop(value);
@@ -231,7 +274,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, ref, _) => RuleEditorScreen(
               existingRule: rule,
               onSave: (updated) {
-                ref.read(rulesProvider.notifier).create(updated);
+                final id = updated['id'] as String?;
+                if (id != null) {
+                  ref.read(rulesProvider.notifier).update(id, updated);
+                } else {
+                  ref.read(rulesProvider.notifier).create(updated);
+                }
                 context.pop();
               },
             ),
@@ -253,7 +301,7 @@ int _indexFromLocation(String location) {
 
 
 /// Show a dialog for pasting a registration link.
-void _showPasteDialog(BuildContext context) {
+void _showPasteDialog(BuildContext context, Ref ref) {
   final controller = TextEditingController();
   final parser = ChallengeParser();
 
@@ -286,12 +334,22 @@ void _showPasteDialog(BuildContext context) {
             Navigator.pop(ctx);
 
             if (result.isSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Registered with ${result.challenge!.appId}'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
+              // Actually connect the app: process the challenge against the
+              // Resolver, then refresh. (Parsing alone does not register.)
+              ref
+                  .read(appsProvider.notifier)
+                  .connectViaChallenge(result.challenge!.base64Payload)
+                  .then((ok) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(ok
+                        ? 'Connected ${result.challenge!.appId}'
+                        : 'Could not connect. The link may be invalid or expired.'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              });
             } else {
               String errorMsg;
               switch (result.error!) {
@@ -315,4 +373,36 @@ void _showPasteDialog(BuildContext context) {
       ],
     ),
   );
+}
+
+
+/// Profile tab page. Refreshes the profile/device data each time it is shown
+/// (the Profile tab is reached post-enrollment, so a one-shot early cache would
+/// be empty) and renders reactively as the fetch resolves.
+class _ProfilePage extends ConsumerStatefulWidget {
+  const _ProfilePage();
+
+  @override
+  ConsumerState<_ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<_ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(profileDataProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final data = ref.watch(profileDataProvider).valueOrNull;
+    return ProfileScreen(
+      user: data?.user ??
+          const {'username': '', 'email': '', 'resolverUrl': ''},
+      devices: data?.devices ?? const [],
+      onOpenSettings: () => context.push(AppRoutes.settings),
+    );
+  }
 }

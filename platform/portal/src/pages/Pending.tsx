@@ -128,8 +128,8 @@ export function Pending() {
   if (!status?.enabled) {
     return (
       <div>
-        <h1 className="text-2xl font-bold mb-6">Pending Requests</h1>
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6">
+        <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.pending.heading">Pending Requests</h1>
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6" data-testid="ohpp.pending.disabled-notice">
           <h2 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Web approvals disabled</h2>
           <p className="text-yellow-700 dark:text-yellow-300 text-sm">
             You have a registered device with a key. Respond to requests from your device instead.
@@ -145,7 +145,7 @@ export function Pending() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Pending Requests</h1>
+      <h1 className="text-2xl font-bold mb-4" data-testid="ohpp.pending.heading">Pending Requests</h1>
       <p className="text-gray-600 dark:text-slate-400 text-sm mb-6">
         Respond to participation requests directly in the browser.
       </p>
@@ -153,11 +153,13 @@ export function Pending() {
       {pendingLoading && <PendingSkeleton />}
 
       {pending?.length === 0 && (
-        <EmptyState
-          icon="pending"
-          title="No pending requests"
-          description="Requests will appear here when apps need your participation."
-        />
+        <div data-testid="ohpp.pending.empty">
+          <EmptyState
+            icon="pending"
+            title="No pending requests"
+            description="Requests will appear here when apps need your participation."
+          />
+        </div>
       )}
 
       <div className="space-y-4" aria-live="polite" aria-relevant="additions removals">
@@ -187,7 +189,7 @@ function RequestCard({
 }) {
   return (
     <div
-      data-testid={`pending-${request.type.toLowerCase()}`}
+      data-testid={`ohpp.pending.card.${request.id}`}
       className="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm dark:shadow-slate-900/20 border border-gray-200 dark:border-slate-700"
     >
       <div className="flex justify-between items-start mb-3">
@@ -284,6 +286,7 @@ function SelectResponse({
       {request.options!.map((option) => (
         <button
           key={option.key}
+          data-testid={`ohpp.pending.option.${option.key}`}
           onClick={() => onResolve({ requestId: request.id, selectedOption: option.key })}
           disabled={isResolving}
           className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
@@ -319,6 +322,7 @@ function MultiselectResponse({
           <label key={option.key} className="flex items-center gap-2 text-sm cursor-pointer">
             <input
               type="checkbox"
+              data-testid={`ohpp.pending.multioption.${option.key}`}
               checked={selected.includes(option.key)}
               onChange={() => toggle(option.key)}
               className="rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
@@ -328,6 +332,7 @@ function MultiselectResponse({
         ))}
       </div>
       <button
+        data-testid="ohpp.pending.multiselect.submit"
         onClick={() => onResolve({ requestId: request.id, selectedOptions: selected })}
         disabled={isResolving || selected.length === 0}
         className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
@@ -358,12 +363,14 @@ function InputResponse({
     <div className="flex gap-2">
       <input
         type={inputType}
+        data-testid="ohpp.pending.input.field"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={request.placeholder ?? 'Your response...'}
         className="flex-1 border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-slate-800 dark:text-slate-100"
       />
       <button
+        data-testid="ohpp.pending.input.submit"
         onClick={() => onResolve({ requestId: request.id, value })}
         disabled={isResolving || !value.trim()}
         className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
@@ -385,6 +392,7 @@ function SignatureResponse({
 }) {
   return (
     <button
+      data-testid="ohpp.pending.signature.submit"
       onClick={() => onResolve({ requestId: request.id, value: 'acknowledged' })}
       disabled={isResolving}
       className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"

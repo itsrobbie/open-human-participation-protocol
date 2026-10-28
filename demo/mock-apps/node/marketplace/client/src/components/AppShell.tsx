@@ -129,6 +129,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     }`
                   }
                   onClick={() => setMobileMenuOpen(false)}
+                  data-testid="ohpp.marketplace.nav-item"
                 >
                   <item.icon size={18} />
                   {item.label}

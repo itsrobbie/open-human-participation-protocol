@@ -41,6 +41,7 @@ import 'shared/providers/crash_reporter_provider.dart';
 import 'shared/providers/developer_settings_provider.dart';
 import 'shared/providers/history_provider.dart';
 import 'shared/providers/pending_provider.dart';
+import 'shared/providers/user_profile_provider.dart';
 import 'shared/providers/rules_provider.dart';
 import 'shared/providers/telemetry_service_provider.dart';
 
@@ -48,18 +49,6 @@ import 'shared/providers/telemetry_service_provider.dart';
 const _resolverBaseUrl = String.fromEnvironment(
   'RESOLVER_URL',
   defaultValue: 'http://localhost:5050',
-);
-
-/// Keycloak token endpoint.
-const _keycloakTokenUrl = String.fromEnvironment(
-  'KEYCLOAK_TOKEN_URL',
-  defaultValue: 'http://localhost:8080/realms/ohpp/protocol/openid-connect/token',
-);
-
-/// Keycloak client ID for the mobile app.
-const _keycloakClientId = String.fromEnvironment(
-  'KEYCLOAK_CLIENT_ID',
-  defaultValue: 'ohpp-portal',
 );
 
 // --- Observability config (U7.1) - all empty by default => the app runs with
@@ -126,8 +115,7 @@ Future<void> main() async {
   // Auth interceptor with token refresh via Keycloak
   final authInterceptor = AuthInterceptor(
     storage: storage,
-    keycloakTokenUrl: _keycloakTokenUrl,
-    clientId: _keycloakClientId,
+    refreshUrl: '$_resolverBaseUrl/api/auth/refresh',
     onSessionExpired: () {
       // Will be handled by the auth provider listener in the widget tree
     },
@@ -188,88 +176,103 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         loginProvider.overrideWith((ref) {
-          return LoginNotifier(onLogin: (username, password) async {
-            // Real Keycloak resource owner password grant
-            final loginDio = Dio();
-            try {
-              final response = await loginDio.post<Map<String, dynamic>>(
-                _keycloakTokenUrl,
-                options: Options(
-                  contentType: 'application/x-www-form-urlencoded',
-                ),
-                data: {
-                  'grant_type': 'password',
-                  'client_id': _keycloakClientId,
-                  'username': username,
-                  'password': password,
-                },
-              );
+          // Auth goes through the RESOLVER's /api/auth, never the identity
+          // provider directly: the provider stays hidden and swappable, and the
+          // app names no IdP. Shared post-auth step (store tokens -> enroll
+          // device -> publish key -> set auth state) is reused by register too.
+          Future<bool> afterAuth(Map<String, dynamic> data, String username) async {
+            final accessToken = data['accessToken'] as String;
+            final refreshToken = data['refreshToken'] as String?;
+            final expiresIn = (data['expiresInSeconds'] as num?)?.toInt() ?? 300;
+            final expiresAt =
+                DateTime.now().toUtc().add(Duration(seconds: expiresIn));
 
-              if (response.statusCode == 200 && response.data != null) {
-                final data = response.data!;
-                final accessToken = data['access_token'] as String;
-                final refreshToken = data['refresh_token'] as String;
-                final expiresIn = data['expires_in'] as int;
-                final expiresAt = DateTime.now()
-                    .toUtc()
-                    .add(Duration(seconds: expiresIn));
+            await storage.write(key: 'access_token', value: accessToken);
+            if (refreshToken != null) {
+              await storage.write(key: 'refresh_token', value: refreshToken);
+            }
+            await storage.write(
+                key: 'token_expires_at', value: expiresAt.toIso8601String());
 
-                DevLog.instance.info('auth',
-                    'Keycloak login OK for "$username" (token expires in ${expiresIn}s)');
+            DevLog.instance.info('device', 'ensureRegistered() starting');
+            final deviceId =
+                await deviceService.ensureRegistered(identityToken: accessToken);
+            if (deviceId == null) {
+              DevLog.instance.error('device',
+                  'Device registration FAILED (no deviceId/deviceToken stored). '
+                  'Device-scoped calls will 401.');
+            } else {
+              DevLog.instance.info('device', 'Device registered: $deviceId');
+              try {
+                final pub = await cryptoService.ensurePublicKey();
+                final keyOk = await deviceService.registerPublicKey(
+                  publicKeyPem: pub.publicKeyPem,
+                  algorithm: pub.algorithm,
+                );
+                DevLog.instance.info('device',
+                    'Public key registration ${keyOk ? 'OK' : 'FAILED'} (${pub.algorithm})');
+              } catch (e) {
+                DevLog.instance.error('device',
+                    'Public key registration threw', detail: e.toString());
+              }
+            }
 
-                // Store tokens in secure storage
-                await storage.write(key: 'access_token', value: accessToken);
-                await storage.write(
-                    key: 'refresh_token', value: refreshToken);
-                await storage.write(
-                    key: 'token_expires_at',
-                    value: expiresAt.toIso8601String());
-
-                // Ensure device is registered with Resolver
-                DevLog.instance.info('device', 'ensureRegistered() starting');
-                final deviceId = await deviceService.ensureRegistered(
-                    identityToken: accessToken);
-                if (deviceId == null) {
-                  DevLog.instance.error('device',
-                      'Device registration FAILED (no deviceId/deviceToken stored). '
-                      'Device-scoped calls will 401.');
-                } else {
-                  DevLog.instance.info('device', 'Device registered: $deviceId');
-
-                  // Publish the device's signing public key so the resolver can
-                  // verify attestation signatures. Without this every submit
-                  // fails with "Device signature verification failed".
-                  try {
-                    final pub = await cryptoService.ensurePublicKey();
-                    final keyOk = await deviceService.registerPublicKey(
-                      publicKeyPem: pub.publicKeyPem,
-                      algorithm: pub.algorithm,
-                    );
-                    DevLog.instance.info('device',
-                        'Public key registration ${keyOk ? 'OK' : 'FAILED'} (${pub.algorithm})');
-                  } catch (e) {
-                    DevLog.instance.error('device',
-                        'Public key registration threw', detail: e.toString());
-                  }
-                }
-
-                // Update auth provider
-                ref.read(authProvider.notifier).login(
+            ref.read(authProvider.notifier).login(
                   userId: username,
                   accessToken: accessToken,
                 );
-                return true;
+            return true;
+          }
+
+          return LoginNotifier(
+            onLogin: (username, password) async {
+              final authDio = Dio();
+              try {
+                final response = await authDio.post<Map<String, dynamic>>(
+                  '$_resolverBaseUrl/api/auth/login',
+                  options: Options(contentType: 'application/json'),
+                  data: {'username': username, 'password': password},
+                );
+                if (response.statusCode == 200 && response.data != null) {
+                  DevLog.instance.info('auth', 'Login OK for "$username"');
+                  return await afterAuth(response.data!, username);
+                }
+                DevLog.instance
+                    .warning('auth', 'Login returned ${response.statusCode}');
+                return false;
+              } on DioException catch (e) {
+                DevLog.instance.error('auth', 'Login threw ${e.type.name}',
+                    detail: 'status=${e.response?.statusCode} message=${e.message}');
+                return false;
               }
-              DevLog.instance.warning('auth',
-                  'Keycloak login returned ${response.statusCode} (no token)');
-              return false;
-            } on DioException catch (e) {
-              DevLog.instance.error('auth',
-                  'Keycloak login threw ${e.type.name}',
-                  detail: 'status=${e.response?.statusCode} message=${e.message}');
-              return false;
-            }
-          });
+            },
+            onRegister: (username, email, password) async {
+              final authDio = Dio();
+              try {
+                final response = await authDio.post<Map<String, dynamic>>(
+                  '$_resolverBaseUrl/api/auth/register',
+                  options: Options(contentType: 'application/json'),
+                  data: {
+                    'username': username,
+                    'email': email,
+                    'password': password,
+                  },
+                );
+                if ((response.statusCode == 200 || response.statusCode == 201) &&
+                    response.data != null) {
+                  DevLog.instance.info('auth', 'Register OK for "$username"');
+                  return await afterAuth(response.data!, username);
+                }
+                DevLog.instance
+                    .warning('auth', 'Register returned ${response.statusCode}');
+                return false;
+              } on DioException catch (e) {
+                DevLog.instance.error('auth', 'Register threw ${e.type.name}',
+                    detail: 'status=${e.response?.statusCode} message=${e.message}');
+                return false;
+              }
+            },
+          );
         }),
         pendingProvider.overrideWith((ref) {
           return PendingNotifier(dataSource: pendingSource, analytics: analytics);
@@ -283,6 +286,23 @@ Future<void> main() async {
         appsProvider.overrideWith((ref) {
           return AppsNotifier(dataSource: appsSource);
         }),
+        profileDataLoaderProvider.overrideWith((ref) => () async {
+              final auth = ref.read(authProvider);
+              final currentId = await deviceService.getDeviceId();
+              List<Map<String, dynamic>> devices = const [];
+              try {
+                final raw = await typedApi.getDevices();
+                devices = raw
+                    .map((d) => {...d, 'isCurrent': d['id'] == currentId})
+                    .toList();
+              } catch (_) {
+                // Fail-open: an empty device list beats a crashed Profile.
+              }
+              return ProfileData(
+                user: {'userId': auth.userId ?? ''},
+                devices: devices,
+              );
+            }),
         attestationServiceProvider.overrideWithValue(
           AttestationService(
             ruleEngine: RuleEngine(),

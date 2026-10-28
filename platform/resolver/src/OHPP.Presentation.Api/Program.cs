@@ -121,7 +121,8 @@ var appIdOverrides = builder.Configuration.GetSection("Resolver:AppIdOverrides")
 builder.Services.AddOhppInfrastructure(
     resolverBaseUrl: builder.Configuration["Resolver:BaseUrl"] ?? "http://localhost:5000",
     encryptionKey: builder.Configuration["Resolver:EncryptionKey"] ?? "",
-    appIdOverrides: appIdOverrides);
+    appIdOverrides: appIdOverrides,
+    maxRegistrationsPerHour: builder.Configuration.GetValue<int?>("Resolver:MaxRegistrationsPerHour") ?? 10);
 builder.Services.AddOhppProtocolValidation();
 
 // --- Services ---

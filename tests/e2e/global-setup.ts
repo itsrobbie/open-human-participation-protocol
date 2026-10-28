@@ -49,6 +49,17 @@ const TENANT_DB = process.env.OHPP_DB_NAME ?? 'ohpp_0'
 export default async function globalSetup() {
   console.log(`Starting tenant test stack (${OHPP_PROJECT})...`)
 
+  // The E2E suite resets the DB only once and never restarts the resolver
+  // mid-run, so the single demo user packs a whole suite's worth of app
+  // registrations into minutes. The resolver's per-user hourly registration
+  // cap (default 10) would then reject the later connect-heavy specs
+  // (pizza/marketplace + the device/CLI specs) with "rate limit exceeded",
+  // and the portal connect shows "Registration failed" instead of "App
+  // registered". Raise the cap for the test stack only; dev/prod keep the
+  // default. docker-compose.apps.yml reads this via OHPP_MAX_REGISTRATIONS_PER_HOUR.
+  process.env.OHPP_MAX_REGISTRATIONS_PER_HOUR =
+    process.env.OHPP_MAX_REGISTRATIONS_PER_HOUR ?? '1000'
+
   const run = (cmd: string, timeout: number) =>
     execSync(cmd, { cwd: REPO_ROOT, stdio: 'inherit', timeout })
 
@@ -117,7 +128,9 @@ function resetDatabase() {
   const sqlFile = resolve(__dirname, 'reset-db.sql')
   execSync(
     `${BACKING} exec -T postgres psql -U ohpp -d ${TENANT_DB} -f /dev/stdin < "${sqlFile}"`,
-    { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/zsh' }
+    // bash (not zsh): present on both macOS and the Linux CI runner. zsh is
+    // macOS-only — a hardcoded /bin/zsh here failed CI with spawnSync ENOENT.
+    { cwd: REPO_ROOT, stdio: 'pipe', shell: '/bin/bash' }
   )
 }
 

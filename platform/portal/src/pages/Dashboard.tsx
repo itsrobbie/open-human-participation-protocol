@@ -32,7 +32,7 @@ export function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.dashboard.heading">Dashboard</h1>
 
       {/* Onboarding guide — shows until user dismisses it */}
       {!dismissed && (
@@ -42,6 +42,7 @@ export function Dashboard() {
               {allDone ? 'You\'re all set!' : 'Get started'}
             </h2>
             <button
+              data-testid="ohpp.dashboard.dismiss-onboarding"
               onClick={dismiss}
               className="text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 text-sm"
               aria-label="Dismiss getting started guide"
@@ -88,7 +89,7 @@ export function Dashboard() {
         <StatCard label="Pending Requests" value={summary!.pendingCount} />
       </div>
 
-      <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm dark:shadow-slate-900/20 border border-gray-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-lg p-6 shadow-sm dark:shadow-slate-900/20 border border-gray-200 dark:border-slate-700" data-testid="ohpp.dashboard.welcome">
         <h2 className="text-lg font-semibold mb-2">Welcome, {summary!.displayName}</h2>
         <p className="text-gray-600 dark:text-slate-400 text-sm">{summary!.email}</p>
       </div>
@@ -114,8 +115,9 @@ function StepIndicator({ done, number }: { done: boolean; number: number }) {
 }
 
 function StatCard({ label, value }: { label: string; value: number }) {
+  const slug = label.toLowerCase().replace(/\s+/g, '-')
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm dark:shadow-slate-900/20 border border-gray-200 dark:border-slate-700">
+    <div className="bg-white dark:bg-slate-800 rounded-lg p-5 shadow-sm dark:shadow-slate-900/20 border border-gray-200 dark:border-slate-700" data-testid={`ohpp.dashboard.stat.${slug}`}>
       <p className="text-sm text-gray-500 dark:text-slate-400">{label}</p>
       <p className="text-3xl font-bold mt-1">{value}</p>
     </div>

@@ -175,5 +175,8 @@ class _StaticRulesSource implements RulesDataSource {
   @override
   Future<Map<String, dynamic>> createRule(Map<String, dynamic> data) async => data;
   @override
+  Future<Map<String, dynamic>> updateRule(String id, Map<String, dynamic> data) async =>
+      {...data, 'id': id};
+  @override
   Future<void> deleteRule(String id) async {}
 }

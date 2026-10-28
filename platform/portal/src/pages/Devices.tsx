@@ -72,7 +72,7 @@ export function Devices() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">Devices</h1>
+      <h1 className="text-2xl font-bold mb-2" data-testid="ohpp.devices.heading">Devices</h1>
       <p className="text-gray-600 dark:text-slate-400 text-sm mb-6">
         Devices are where you approve participation requests. Register this browser to approve requests here, or use the CLI/mobile app on another device.
       </p>
@@ -86,6 +86,7 @@ export function Devices() {
             participation requests directly on the Pending page — no separate app needed.
           </p>
           <button
+            data-testid="ohpp.devices.enable-web-approvals"
             onClick={registerBrowser}
             disabled={createBrowserDevice.isPending}
             className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
@@ -97,7 +98,7 @@ export function Devices() {
 
       {/* Token shown after browser registration */}
       {newToken && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4 mb-6">
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4 mb-6" data-testid="ohpp.devices.registered-toast">
           <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">Browser registered</p>
           <p className="text-sm text-green-700 dark:text-green-300">
             Web approvals are now enabled. Go to the <strong>Pending</strong> page to approve requests.
@@ -186,6 +187,7 @@ function DeviceCard({
 
   return (
     <div
+      data-testid={`ohpp.devices.card.${device.id}`}
       className={`rounded-lg p-4 shadow-sm dark:shadow-slate-900/20 border flex justify-between items-center ${
         device.isActive
           ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
@@ -208,6 +210,7 @@ function DeviceCard({
       </div>
       {device.isActive && onRevoke && (
         <button
+          data-testid={`ohpp.devices.revoke.${device.id}`}
           onClick={onRevoke}
           disabled={isRevoking}
           aria-label={`Revoke ${device.name}`}

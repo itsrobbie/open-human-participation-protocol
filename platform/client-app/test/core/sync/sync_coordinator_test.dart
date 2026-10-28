@@ -122,6 +122,36 @@ void main() {
       expect(logoutCalled, isTrue);
     });
   });
+
+  // E2 (cross-system reconciliation): a request the device still shows as
+  // Pending may be resolved out-of-band (answered on another device, or
+  // expired server-side). The next sync must reconcile local cache to the
+  // server's shorter list, so the stale request disappears from Pending.
+  group('reconciliation', () {
+    test('syncAll_RemovesRequestResolvedOutOfBand', () async {
+      // Seed the cache as if two requests were previously pending locally.
+      cacheStore.data[SyncEntityType.pending] = [
+        {'requestId': 'req-keep', 'summary': 'Still pending'},
+        {'requestId': 'req-resolved', 'summary': 'Resolved elsewhere'},
+      ];
+
+      // The server now returns only the one that is still pending (the other
+      // was resolved out-of-band and the Resolver no longer lists it).
+      apiSource.responses[SyncEntityType.pending] = [
+        {'requestId': 'req-keep', 'summary': 'Still pending'},
+      ];
+
+      await coordinator.syncAll();
+
+      final pending = await cacheManager.getCached(SyncEntityType.pending);
+      final ids = pending.map((r) => r['requestId']).toList();
+      expect(ids, contains('req-keep'));
+      expect(ids, isNot(contains('req-resolved')),
+          reason: 'an out-of-band-resolved request must be reconciled out of '
+              'the cached Pending list on the next sync');
+      expect(pending.length, 1);
+    });
+  });
 }
 
 /// Fake API data source for testing sync operations.

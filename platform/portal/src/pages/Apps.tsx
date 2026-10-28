@@ -50,7 +50,7 @@ export function Apps() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Registered Apps</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.apps.heading">Registered Apps</h1>
 
       <p className="text-gray-600 dark:text-slate-400 text-sm mb-4">
         These apps have registered with your account and can send participation requests.
@@ -120,6 +120,7 @@ function AppCard({
 }) {
   return (
     <div
+      data-testid={`ohpp.apps.card.${app.appId}`}
       className={`rounded-lg p-4 shadow-sm dark:shadow-slate-900/20 border flex justify-between items-center ${
         app.isActive
           ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
@@ -138,6 +139,7 @@ function AppCard({
       </div>
       {app.isActive && onRevoke && (
         <button
+          data-testid={`ohpp.apps.revoke.${app.appId}`}
           onClick={onRevoke}
           disabled={isRevoking}
           aria-label={`Revoke ${app.appName}`}

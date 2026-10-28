@@ -58,8 +58,17 @@ class PendingScreen extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemBuilder: (context, index) {
         final requestMap = state.requests[index];
+        // P1: key by the stable requestId, not render order. In a multi-step
+        // flow the list reorders as requests resolve, so an index-based key can
+        // point at a different request between steps (the ambiguity that made
+        // the headless ceremony drive flaky). Fall back to index only if a
+        // request somehow lacks an id.
+        final requestId = (requestMap['requestId'] ?? '').toString();
+        final cardKey = requestId.isNotEmpty
+            ? Key('ohpp.pending.card.$requestId')
+            : Key('pending-card-$index');
         return _RequestCard(
-          key: Key('pending-card-$index'),
+          key: cardKey,
           request: requestMap,
           onTap: () => _openRequestDetail(context, ref, requestMap),
         );

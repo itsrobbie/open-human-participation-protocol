@@ -1,48 +1,49 @@
-import { test, expect } from '@playwright/test'
-import { PORTAL_URL } from '../test-urls'
+import { test } from '@playwright/test'
+import { PortalPage } from '../pages/portal'
 
 /**
- * Tests that all pages load without errors on a fresh account.
- * After global setup wipes DB, verifies the portal handles the clean-slate gracefully.
+ * Every portal page loads without an error state on a fresh account (Phase 4.1,
+ * converted to PortalPage). After global setup wipes the DB, the portal must
+ * handle the clean slate gracefully — keyed heading present, no ErrorState.
  */
 test.describe('Portal — Page load (no errors)', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${PORTAL_URL}/login`)
-    await page.fill('input[placeholder="demo"]', 'demo')
-    await page.fill('input[type="password"]', 'demo')
-    await page.click('button[type="submit"]')
-    await expect(page).toHaveURL(PORTAL_URL + '/')
+    const portal = new PortalPage(page)
+    await portal.login()
+    await portal.assertOnDashboard()
   })
 
   test('dashboard loads without error', async ({ page }) => {
-    // Should NOT show the "Failed to load" error
-    await expect(page.locator('text=Failed to load')).not.toBeVisible({ timeout: 5000 })
-    // Dashboard heading should appear
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
+    const portal = new PortalPage(page)
+    await portal.assertHeading('dashboard')
+    await portal.assertNoErrorState()
   })
 
   test('devices page loads without error', async ({ page }) => {
-    await page.click('nav >> text=Devices')
-    await expect(page.locator('h1')).toContainText('Devices')
-    // Should show either devices list or empty state — not an error
-    await expect(page.locator('text=Failed')).not.toBeVisible()
+    const portal = new PortalPage(page)
+    await portal.gotoNav('/devices')
+    await portal.assertHeading('devices')
+    await portal.assertNoErrorState()
   })
 
   test('apps page loads without error', async ({ page }) => {
-    await page.click('nav >> text=Apps')
-    await expect(page.locator('h1')).toContainText('Registered Apps')
-    await expect(page.locator('text=Failed')).not.toBeVisible()
+    const portal = new PortalPage(page)
+    await portal.gotoNav('/apps')
+    await portal.assertHeading('apps')
+    await portal.assertNoErrorState()
   })
 
   test('history page loads without error', async ({ page }) => {
-    await page.click('nav >> text=History')
-    await expect(page.locator('h1')).toContainText('Participation History')
-    await expect(page.locator('text=Failed')).not.toBeVisible()
+    const portal = new PortalPage(page)
+    await portal.gotoNav('/history')
+    await portal.assertHeading('history')
+    await portal.assertNoErrorState()
   })
 
   test('pending page loads without error', async ({ page }) => {
-    await page.click('nav >> text=Pending')
-    await expect(page.locator('h1')).toContainText('Pending Requests')
-    await expect(page.locator('text=Failed')).not.toBeVisible()
+    const portal = new PortalPage(page)
+    await portal.gotoNav('/pending')
+    await portal.assertHeading('pending')
+    await portal.assertNoErrorState()
   })
 })

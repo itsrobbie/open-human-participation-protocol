@@ -17,10 +17,27 @@ services:
       Resolver__InternalBaseUrl: "http://resolver:8080"
       Resolver__Name: "OHPP Demo Resolver"
       Resolver__EncryptionKey: ${RESOLVER_ENCRYPTION_KEY:-dev-encryption-key-min-32-chars!!}
+      # Registration rate limit per user per rolling hour. Production/dev default
+      # is 10. The E2E suite resets the DB only once and never restarts the
+      # resolver mid-run, so the single demo user accumulates a whole suite's
+      # worth of registrations in minutes - global-setup raises this so the
+      # connect-heavy specs (bank/insurance/pizza/marketplace + the device/CLI
+      # specs) are not rate-limited by each other. Default keeps prod behaviour.
+      Resolver__MaxRegistrationsPerHour: ${OHPP_MAX_REGISTRATIONS_PER_HOUR:-10}
       Auth__Provider: "Keycloak"
       # Internal JWKS/metadata fetch over HTTPS (U7.1). Browser-issued tokens carry
       # the localhost issuer; the validator accepts both (see KeycloakIdentityTokenValidator).
       Auth__Keycloak__Authority: "https://keycloak:8443/realms/ohpp"
+      # Broker (account creation + token issuance behind /api/auth). Dev admin
+      # creds match the Keycloak bootstrap admin (admin/admin) in the backing
+      # compose; the client never sees any of this. Uses the HTTP internal URL
+      # (server-to-server inside the compose net), matching the token validator's
+      # own Keycloak authority default and avoiding a dev-CA TLS handshake here.
+      Auth__Keycloak__ServerBaseUrl: "http://keycloak:8080"
+      Auth__Keycloak__Realm: "ohpp"
+      Auth__Keycloak__TokenClientId: "ohpp-portal"
+      Auth__Keycloak__AdminUsername: "admin"
+      Auth__Keycloak__AdminPassword: "admin"
       Features__ProtocolLab: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
       OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"

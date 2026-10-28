@@ -28,7 +28,7 @@ export function MenuPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Menu</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.pizza.menu.heading">Menu</h1>
 
       {/* Category Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto" data-testid="category-tabs">

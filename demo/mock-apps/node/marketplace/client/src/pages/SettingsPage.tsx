@@ -44,7 +44,7 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">Settings</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.marketplace.settings.heading">Settings</h1>
 
       {/* OHPP Connection */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">

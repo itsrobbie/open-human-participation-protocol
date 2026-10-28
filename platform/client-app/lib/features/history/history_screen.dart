@@ -25,6 +25,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _searchController.addListener(_onSearchChanged);
+    // Load (or refresh) the first page when the screen is shown. Nothing else
+    // triggers the initial fetch, so without this History renders empty until a
+    // scroll-driven loadMore. Post-frame so we don't mutate a provider in build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.read(historyProvider.notifier).fetchFirstPage();
+    });
   }
 
   @override

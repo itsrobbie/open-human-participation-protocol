@@ -99,6 +99,15 @@ class TypedApiClient {
     return (response.data as List).cast<Map<String, dynamic>>();
   }
 
+  /// The current user's registered (active) devices. Identity-token scoped
+  /// (/api/devices, not /api/devices/me). The resolver cannot know which device
+  /// is asking, so it returns no 'current' flag; the caller marks current by
+  /// matching the locally-stored device id.
+  Future<List<Map<String, dynamic>>> getDevices() async {
+    final response = await _call(() => _dio.get<dynamic>('/api/devices'));
+    return (response.data as List).cast<Map<String, dynamic>>();
+  }
+
   Future<Map<String, dynamic>> createRule(Map<String, dynamic> ruleData) async {
     final response = await _call(() => _dio.post<dynamic>('/api/rules', data: ruleData));
     return response.data as Map<String, dynamic>;

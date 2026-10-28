@@ -19,7 +19,7 @@ export function Settings() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-2xl font-bold">Developer Settings</h1>
+        <h1 className="text-2xl font-bold" data-testid="ohpp.settings.heading">Developer Settings</h1>
         <span className="text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-0.5 rounded-full">Dev only</span>
       </div>
 
@@ -37,6 +37,7 @@ export function Settings() {
 
         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Bearer Token</label>
         <textarea
+          data-testid="ohpp.settings.token"
           value={token}
           onChange={(e) => setToken(e.target.value)}
           rows={4}
@@ -46,16 +47,17 @@ export function Settings() {
 
         <div className="flex items-center gap-3 mt-4">
           <button
+            data-testid="ohpp.settings.save"
             onClick={handleSave}
             className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700"
           >
             Save
           </button>
-          {saved && <span className="text-green-600 text-sm">Saved.</span>}
+          {saved && <span className="text-green-600 text-sm" data-testid="ohpp.settings.saved">Saved.</span>}
         </div>
 
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-slate-700">
-          <h3 className="font-medium text-sm mb-2">Resolver Info</h3>
+          <h3 className="font-medium text-sm mb-2" data-testid="ohpp.settings.resolver-info">Resolver Info</h3>
           <p className="text-xs text-gray-500 dark:text-slate-400">
             The Portal connects to the Resolver API at the same origin. In the Docker demo, both run behind the same host.
           </p>

@@ -1,65 +1,75 @@
-import { test, expect } from '@playwright/test'
-import { BANK_URL, INSURANCE_URL, PORTAL_URL } from '../test-urls'
+import { expect, test } from '@playwright/test'
+import { BANK_URL } from '../test-urls'
+import { InsuranceUiPage } from '../pages/insurance-ui'
+import { PortalPage } from '../pages/portal'
+import { PortalAttester, type StepAnswer } from '../pages/portal-attester'
+import { BankUiPage } from '../pages/bank-ui'
 
+/**
+ * Insurance Claims browser journey — converted to page objects (Phase 4.1).
+ * Insurance UI via InsuranceUiPage (keyed testids + stable #id state
+ * containers); portal setup + participation via PortalPage / PortalAttester.
+ * Cross-realm token checks keep their sessionStorage/localStorage evals (test
+ * infra, not UI logic).
+ */
 test.describe.serial('Insurance Claims — browser journey', () => {
   test('valid login opens the claims workspace', async ({ page }) => {
-    await page.goto(INSURANCE_URL)
-    await page.fill('#username', 'demo')
-    await page.fill('#password', 'demo')
-    await page.click('#login-form button[type="submit"]')
+    const ins = new InsuranceUiPage(page)
+    await ins.login()
 
-    await expect(page.locator('#app')).toBeVisible()
-    await expect(page.locator('#app h1').filter({ hasText: 'Insurance Claims' })).toBeVisible()
-    await expect(page.locator('#claim-summary')).toContainText('0 total claims')
-    await expect(page.locator('#policy-summary')).toContainText('POL-0001')
-    await expect(page.locator('#policy-summary')).toContainText('£10,000.00 coverage')
-    await expect(page.getByRole('navigation', { name: 'Insurance Claims' })).toContainText('OHPP settings')
+    await expect(ins.appShell()).toBeVisible()
+    await expect(ins.claimSummary()).toContainText('0 total claims')
+    await expect(ins.policySummary()).toContainText('POL-0001')
+    await expect(ins.policySummary()).toContainText('£10,000.00 coverage')
   })
 
   test('invalid login remains on the sign-in surface', async ({ page }) => {
-    await page.goto(INSURANCE_URL)
-    await page.fill('#username', 'demo')
-    await page.fill('#password', 'wrong-password')
-    await page.click('#login-form button[type="submit"]')
+    const ins = new InsuranceUiPage(page)
+    await ins.submitLogin('demo', 'wrong-password')
 
-    await expect(page.locator('#login')).toBeVisible()
-    await expect(page.locator('#login-result')).toContainText('Invalid demo credentials')
+    await expect(ins.loginScreen()).toBeVisible()
+    await expect(ins.loginResult()).toContainText('Invalid demo credentials')
   })
 
   test('logout clears the Insurance Claims session', async ({ page }) => {
-    await signIn(page)
-    await page.click('#logout-button')
+    const ins = new InsuranceUiPage(page)
+    await ins.login()
+    await ins.logout()
 
-    await expect(page.locator('#login')).toBeVisible()
-    await expect(page.locator('#app')).toBeHidden()
-    await expect(page.evaluate(() => sessionStorage.getItem('ohpp-insurance-token'))).resolves.toBeNull()
+    await expect(ins.loginScreen()).toBeVisible()
+    await expect(ins.appShell()).toBeHidden()
+    await expect(ins.getToken()).resolves.toBeNull()
   })
 
   test('expired session returns to sign-in', async ({ page }) => {
-    await signIn(page)
-    await page.evaluate(() => sessionStorage.setItem('ohpp-insurance-token', 'expired.invalid.token'))
+    const ins = new InsuranceUiPage(page)
+    await ins.login()
+    await ins.setToken('expired.invalid.token')
     await page.reload()
 
-    await expect(page.locator('#login')).toBeVisible()
-    await expect(page.locator('#login-result')).toContainText('session has expired')
+    await expect(ins.loginScreen()).toBeVisible()
+    await expect(ins.loginResult()).toContainText('session has expired')
   })
 
   test('Bank realm token is rejected by Insurance Claims', async ({ page }) => {
-    await page.goto(BANK_URL)
+    const bank = new BankUiPage(page)
+    await bank.gotoAndWaitLoaded()
     const bankToken = await page.evaluate(() => localStorage.getItem('ohpp-bank-access-token'))
     expect(bankToken).toBeTruthy()
 
-    await page.goto(INSURANCE_URL)
-    await page.evaluate((value) => sessionStorage.setItem('ohpp-insurance-token', value!), bankToken)
+    const ins = new InsuranceUiPage(page)
+    await ins.goto()
+    await ins.setToken(bankToken!)
     await page.reload()
 
-    await expect(page.locator('#login')).toBeVisible()
-    await expect(page.locator('#login-result')).toContainText('session has expired')
+    await expect(ins.loginScreen()).toBeVisible()
+    await expect(ins.loginResult()).toContainText('session has expired')
   })
 
   test('Insurance Claims realm token is rejected by Bank', async ({ page }) => {
-    await signIn(page)
-    const insuranceToken = await page.evaluate(() => sessionStorage.getItem('ohpp-insurance-token'))
+    const ins = new InsuranceUiPage(page)
+    await ins.login()
+    const insuranceToken = await ins.getToken()
     expect(insuranceToken).toBeTruthy()
 
     await page.goto(BANK_URL)
@@ -71,221 +81,175 @@ test.describe.serial('Insurance Claims — browser journey', () => {
   })
 
   test('future incident date is rejected visibly', async ({ page }) => {
-    await signIn(page)
-    await page.click('[data-testid="nav-new-claim"]')
-    await page.fill('#date', '2099-01-01')
-    await page.fill('#description', 'Future incident should be rejected')
-    await page.fill('#amount', '100')
-    await page.click('#claim-form button[type="submit"]')
-
-    await expect(page.locator('#claim-result')).toContainText('future')
+    const ins = new InsuranceUiPage(page)
+    await ins.login()
+    await ins.createClaim({
+      incidentDate: '2099-01-01',
+      description: 'Future incident should be rejected',
+      amount: '100',
+    })
+    await expect(ins.claimResult()).toContainText('future')
   })
 
   test('valid claim is submitted and survives reload', async ({ page }) => {
-    await signIn(page)
-    await page.click('[data-testid="nav-new-claim"]')
-    await page.fill('#date', '2026-07-30')
-    await page.fill('#description', 'Water damage in the kitchen')
-    await page.fill('#amount', '1250')
-    await page.click('#claim-form button[type="submit"]')
+    const ins = new InsuranceUiPage(page)
+    await ins.login()
+    await ins.createClaim({
+      incidentDate: '2026-07-30',
+      description: 'Water damage in the kitchen',
+      amount: '1250',
+    })
 
-    await expect(page.locator('#claim-result')).toContainText('submitted')
+    await expect(ins.claimResult()).toContainText('submitted')
     await page.reload()
-    await expect(page.locator('#app')).toBeVisible()
-    await page.click('[data-testid="nav-claim-history"]')
-    const claim = page.locator('.claim-card', { hasText: 'Water damage in the kitchen' })
-    await expect(claim).toContainText('Demo User')
-    await expect(claim).toContainText('POL-0001')
-    await expect(claim).toContainText('30 July 2026')
-    await expect(claim).toContainText('£1,250.00')
-    await expect(claim).toContainText('Timeline')
-    await page.click('[data-testid="nav-dashboard"]')
-    await expect(page.locator('#claim-summary')).toContainText('1 total claim')
+    await expect(ins.appShell()).toBeVisible()
+    await ins.nav('claim-history')
+    const { card } = await ins.cardByReference('Water damage in the kitchen')
+    await expect(card).toContainText('Demo User')
+    await expect(card).toContainText('POL-0001')
+    await expect(card).toContainText('30 July 2026')
+    await expect(card).toContainText('£1,250.00')
+    await expect(card).toContainText('Timeline')
+    await ins.nav('dashboard')
+    await expect(ins.claimSummary()).toContainText('1 total claim')
 
-    await page.click('[data-testid="nav-claim-history"]')
-    await page.locator('#claim-status-filter').selectOption('Submitted')
-    await expect(claim).toBeVisible()
-    await page.locator('#claim-status-filter').selectOption('Expired')
-    await expect(claim).toBeHidden()
-    await expect(page.locator('#claims-empty')).toContainText('No claims match this filter')
-    await page.locator('#claim-status-filter').selectOption('All')
+    await ins.nav('claim-history')
+    await ins.filterBy('Submitted')
+    await expect(card).toBeVisible()
+    await ins.filterBy('Expired')
+    await expect(card).toBeHidden()
+    await expect(ins.claimsEmpty()).toContainText('No claims match this filter')
+    await ins.filterBy('All')
   })
 
   test('complete claim entry can be saved as a draft and submitted separately', async ({ page }) => {
-    await signIn(page)
-    await page.click('[data-testid="nav-new-claim"]')
-    await page.locator('[data-testid="claim-policy"]').selectOption('policy-1')
-    await page.locator('[data-testid="claim-incident-date"]').fill('2026-07-29')
-    await page.locator('[data-testid="claim-incident-at"]').fill('2026-07-29T08:45')
-    await page.locator('[data-testid="claim-description"]').fill('Draft kitchen water damage')
-    await page.locator('[data-testid="claim-note"]').fill('Stopcock isolated before arrival.')
-    await page.locator('[data-testid="claim-affected-building"]').check()
-    await page.locator('[data-testid="claim-affected-contents"]').check()
-    await page.locator('[data-testid="claim-amount"]').fill('875')
-    await page.locator('[data-testid="save-claim-draft"]').click()
+    const ins = new InsuranceUiPage(page)
+    await ins.login()
+    await ins.nav('new-claim')
+    await ins.fillClaim({
+      policy: 'policy-1',
+      incidentDate: '2026-07-29',
+      incidentAt: '2026-07-29T08:45',
+      description: 'Draft kitchen water damage',
+      note: 'Stopcock isolated before arrival.',
+      affected: ['building', 'contents'],
+      amount: '875',
+    })
+    await ins.saveDraft()
 
-    await expect(page.locator('#claim-result')).toContainText('Draft saved')
-    await page.click('[data-testid="nav-claim-history"]')
-    const draft = page.locator('.claim-card', { hasText: 'Draft kitchen water damage' })
-    await expect(draft).toContainText('Status: Draft')
-    await expect(draft).toContainText('29 Jul 2026, 08:45')
-    await expect(draft).toContainText('Stopcock isolated before arrival.')
-    await expect(draft).toContainText('Building, Contents')
-    await draft.getByRole('button', { name: 'Submit draft' }).click()
-    await expect(draft).toContainText('Status: Submitted')
+    await expect(ins.claimResult()).toContainText('Draft saved')
+    await ins.nav('claim-history')
+    const draft = await ins.cardByReference('Draft kitchen water damage')
+    await expect(draft.card).toContainText('Status: Draft')
+    await expect(draft.card).toContainText('29 Jul 2026, 08:45')
+    await expect(draft.card).toContainText('Stopcock isolated before arrival.')
+    await expect(draft.card).toContainText('Building, Contents')
+    await draft.submitDraft()
+    await expect(draft.card).toContainText('Status: Submitted')
   })
 
   test('claim registration and participation complete through the Portal UI', async ({ page, context }) => {
-    await signIn(page)
-    await page.click('[data-testid="nav-ohpp-settings"]')
-    await page.click('#generate-challenge')
-    await expect(page.locator('#challenge-uri')).toHaveValue(/ohpp:\/\/register\?challenge=/)
-    const challenge = await page.locator('#challenge-uri').inputValue()
+    const ins = new InsuranceUiPage(page)
+    await ins.login()
+    const challenge = await ins.generateChallenge()
 
-    const portal = await context.newPage()
-    await portal.goto(`${PORTAL_URL}/login`)
-    await portal.fill('input[placeholder="demo"]', 'demo')
-    await portal.fill('input[type="password"]', 'demo')
-    await portal.click('button[type="submit"]')
-    await expect(portal).toHaveURL(PORTAL_URL + '/')
+    const portalPage = await context.newPage()
+    const portal = new PortalPage(portalPage)
+    const attester = new PortalAttester(portalPage)
+    await portal.login()
+    await portal.enableWebApprovals()
+    await portal.connectApp(challenge)
 
-    await portal.click('nav >> text=Devices')
-    const enable = portal.getByRole('button', { name: 'Enable web approvals' })
-    const activeBrowser = portal.getByRole('button', { name: 'Revoke This browser' })
-    await expect(enable.or(activeBrowser)).toBeVisible()
-    if (await enable.isVisible()) {
-      await enable.click()
-      await expect(portal.getByText('Browser registered', { exact: true })).toBeVisible({ timeout: 10000 })
-    } else {
-      await expect(activeBrowser).toBeVisible()
-    }
+    await ins.assertConnected()
 
-    await portal.click('nav >> text=Connect App')
-    await portal.fill('textarea', challenge)
-    await portal.click('button:has-text("Connect app")')
-    await expect(portal.locator('.bg-green-50')).toContainText('App registered', { timeout: 15000 })
+    await attester.openPending()
+    const preExisting = await attester.pendingCardIds()
 
-    await page.click('#refresh-connection')
-    await expect(page.locator('#ohpp-status')).toContainText('Connected')
+    await ins.createClaim({
+      incidentDate: '2026-07-30',
+      description: 'Participation workflow claim',
+      amount: '500',
+    })
+    await ins.nav('claim-history')
+    const claim = await ins.cardByReference('Participation workflow claim')
+    await claim.selectScenario('SelectDisposition')
+    await claim.requestParticipation()
+    await expect(claim.card).toContainText('AwaitingParticipation')
 
-    await page.click('[data-testid="nav-new-claim"]')
-    await page.fill('#date', '2026-07-30')
-    await page.fill('#description', 'Participation workflow claim')
-    await page.fill('#amount', '500')
-    await page.click('#claim-form button[type="submit"]')
-    await page.click('[data-testid="nav-claim-history"]')
-    const claimCard = page.locator('.claim-card', { hasText: 'Participation workflow claim' })
-    await expect(claimCard).toBeVisible()
-    await claimCard.locator('select').selectOption('SelectDisposition')
-    await claimCard.getByRole('button', { name: 'Request human participation' }).click()
-    await expect(claimCard).toContainText('AwaitingParticipation')
+    await attester.openPending()
+    await expect
+      .poll(async () => (await attester.pendingCardIds()).filter((id) => !preExisting.includes(id)).length, {
+        timeout: 20_000,
+        intervals: [500, 1_000, 2_000],
+      })
+      .toBeGreaterThanOrEqual(1)
+    const myId = (await attester.pendingCardIds()).filter((id) => !preExisting.includes(id))[0]
+    await attester.answerCard(myId, { kind: 'select', option: 'continue' })
 
-    await portal.click('nav >> text=Pending')
-    await expect(portal.getByText(/^Insurance claim CLM-/)).toBeVisible({ timeout: 15000 })
-    await portal.getByRole('button', { name: 'Continue', exact: true }).click()
-
-    const refreshedCard = page.locator('.claim-card', { hasText: 'Participation workflow claim' })
-    await refreshedCard.getByRole('button', { name: 'Refresh participation status' }).click()
-    await expect(refreshedCard).toContainText('ApprovedForNextStep', { timeout: 15000 })
-    await expect(refreshedCard).toContainText('Answer: continue')
-    await portal.close()
+    const resolved = await ins.assertCardStatus('Participation workflow claim', 'ApprovedForNextStep')
+    await expect(resolved).toContainText('Answer: continue')
+    await portalPage.close()
   })
 
   test('all remaining protocol types are interpreted by the Insurance Claims app', async ({ page, context }) => {
     test.setTimeout(120_000)
-    await signIn(page)
+    const ins = new InsuranceUiPage(page)
+    await ins.login()
 
-    const portal = await context.newPage()
-    await portal.goto(`${PORTAL_URL}/login`)
-    await portal.fill('input[placeholder="demo"]', 'demo')
-    await portal.fill('input[type="password"]', 'demo')
-    await portal.click('button[type="submit"]')
-    await ensureCurrentBrowserApprovals(portal)
+    const portalPage = await context.newPage()
+    const portal = new PortalPage(portalPage)
+    const attester = new PortalAttester(portalPage)
+    await portal.login()
+    await portal.enableWebApprovals()
 
-    const scenarios = [
-      { scenario: 'AffectedItems', prompt: 'Select each item involved in the claim.', expectedStatus: 'InReview', kind: 'multiselect', value: 'building, contents' },
-      { scenario: 'ClaimantNote', prompt: 'Provide any additional information for the claim reviewer.', expectedStatus: 'MoreInformationRequired', kind: 'value', value: 'Additional claimant detail' },
-      { scenario: 'EstimatedAmount', prompt: 'Enter the current estimated amount for the claim.', expectedStatus: 'InReview', kind: 'value', value: '800' },
-      { scenario: 'IncidentDate', prompt: 'Enter the date on which the incident occurred.', expectedStatus: 'InReview', kind: 'value', value: '2026-07-29' },
-      { scenario: 'AdjusterAppointment', prompt: 'Select a date and time for the adjuster appointment.', expectedStatus: 'InReview', kind: 'value', value: '2026-08-01T10:30' },
-      { scenario: 'ClaimantDeclaration', prompt: 'Confirm the claimant declaration for this claim.', expectedStatus: 'ApprovedForNextStep', kind: 'signature', value: 'acknowledged' },
-    ] as const
+    const scenarios: {
+      scenario: string
+      expectedStatus: string
+      answer: StepAnswer
+      interpreted: string
+    }[] = [
+      { scenario: 'AffectedItems', expectedStatus: 'InReview', answer: { kind: 'multiselect', options: ['building', 'contents'] }, interpreted: 'building, contents' },
+      { scenario: 'ClaimantNote', expectedStatus: 'MoreInformationRequired', answer: { kind: 'input', value: 'Additional claimant detail' }, interpreted: 'Additional claimant detail' },
+      { scenario: 'EstimatedAmount', expectedStatus: 'InReview', answer: { kind: 'input', value: '800' }, interpreted: '800' },
+      { scenario: 'IncidentDate', expectedStatus: 'InReview', answer: { kind: 'input', value: '2026-07-29' }, interpreted: '2026-07-29' },
+      { scenario: 'AdjusterAppointment', expectedStatus: 'InReview', answer: { kind: 'input', value: '2026-08-01T10:30' }, interpreted: '2026-08-01T10:30' },
+      { scenario: 'ClaimantDeclaration', expectedStatus: 'ApprovedForNextStep', answer: { kind: 'signature' }, interpreted: 'acknowledged' },
+    ]
 
     for (const item of scenarios) {
       const description = `Browser interpretation ${item.scenario}`
-      await page.click('[data-testid="nav-new-claim"]')
-      await page.fill('#date', '2026-07-30')
-      await page.fill('#description', description)
-      await page.fill('#amount', '500')
-      await page.click('#claim-form button[type="submit"]')
-      await page.click('[data-testid="nav-claim-history"]')
-      const card = page.locator('.claim-card', { hasText: description })
-      await card.locator('select').selectOption(item.scenario)
-      await card.getByRole('button', { name: 'Request human participation' }).click()
+      await attester.openPending()
+      const preExisting = await attester.pendingCardIds()
 
-      await portal.click('nav >> text=Pending')
-      const prompt = portal.getByText(item.prompt, { exact: true })
-      await expect(prompt).toBeVisible({ timeout: 15_000 })
-      const pendingCard = prompt.locator('xpath=ancestor::div[contains(@class,"rounded-lg")][1]')
-      if (item.kind === 'multiselect') {
-        await pendingCard.locator('input[type="checkbox"]').nth(0).check()
-        await pendingCard.locator('input[type="checkbox"]').nth(1).check()
-        await pendingCard.getByRole('button', { name: 'Submit', exact: true }).click()
-      } else if (item.kind === 'signature') {
-        await pendingCard.getByRole('button', { name: 'I acknowledge' }).click()
-      } else {
-        await pendingCard.locator('input').fill(item.value)
-        await pendingCard.getByRole('button', { name: 'Submit', exact: true }).click()
-      }
-      await expect(prompt).toBeHidden({ timeout: 10_000 })
+      await ins.createClaim({ incidentDate: '2026-07-30', description, amount: '500' })
+      await ins.nav('claim-history')
+      const card = await ins.cardByReference(description)
+      await card.selectScenario(item.scenario)
+      await card.requestParticipation()
 
-      await card.getByRole('button', { name: 'Refresh participation status' }).click()
-      await expect(card).toContainText(item.expectedStatus, { timeout: 15_000 })
-      await expect(card).toContainText(item.value)
+      await attester.openPending()
+      await expect
+        .poll(async () => (await attester.pendingCardIds()).filter((id) => !preExisting.includes(id)).length, {
+          timeout: 20_000,
+          intervals: [500, 1_000, 2_000],
+        })
+        .toBeGreaterThanOrEqual(1)
+      const myId = (await attester.pendingCardIds()).filter((id) => !preExisting.includes(id))[0]
+      await attester.answerCard(myId, item.answer)
+
+      const resolved = await ins.assertCardStatus(description, item.expectedStatus)
+      await expect(resolved).toContainText(item.interpreted)
     }
 
-    await page.click('[data-testid="nav-ohpp-settings"]')
-    await page.getByTestId('disconnect-ohpp').click()
-    await expect(page.locator('#ohpp-status')).toContainText('Not connected')
-    await expect(page.locator('#ohpp-result')).toContainText('credentials revoked')
-    await page.getByTestId('generate-challenge').click()
-    await expect(page.getByTestId('challenge-uri')).toHaveValue(/ohpp:\/\/register\?challenge=/)
-    const reconnectChallenge = await page.getByTestId('challenge-uri').inputValue()
-    await portal.click('nav >> text=Connect App')
-    await portal.fill('textarea', reconnectChallenge)
-    await portal.click('button:has-text("Connect app")')
-    await expect(portal.locator('.bg-green-50')).toContainText('App registered', { timeout: 15_000 })
-    await page.getByTestId('refresh-connection').click()
-    await expect(page.locator('#ohpp-status')).toContainText('Connected')
+    // Disconnect then reconnect through the UI to prove the OHPP settings panel.
+    await ins.nav('ohpp-settings')
+    await ins.disconnectOhpp()
+    await expect(ins.ohppStatus()).toContainText('Not connected')
+    await expect(ins.ohppResult()).toContainText('credentials revoked')
+    const reconnectChallenge = await ins.generateChallenge()
+    await portal.connectApp(reconnectChallenge)
+    await ins.assertConnected()
 
-    await portal.close()
+    await portalPage.close()
   })
-
 })
-
-async function signIn(page: import('@playwright/test').Page) {
-  await page.goto(INSURANCE_URL)
-  await page.fill('#username', 'demo')
-  await page.fill('#password', 'demo')
-  await page.click('#login-form button[type="submit"]')
-  await expect(page.locator('#app')).toBeVisible()
-}
-
-async function ensureCurrentBrowserApprovals(page: import('@playwright/test').Page) {
-  await page.click('nav >> text=Devices')
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const revoke = page.getByRole('button', { name: /^Revoke/ }).first()
-    if (!(await revoke.isVisible())) break
-    await revoke.click()
-    await page.locator('[role="dialog"]').getByRole('button', { name: 'Revoke' }).click()
-    await expect(page.locator('[role="dialog"]')).toBeHidden()
-    await page.waitForTimeout(300)
-  }
-  const enable = page.getByRole('button', { name: 'Enable web approvals' })
-  const activeBrowser = page.getByRole('button', { name: 'Revoke This browser' })
-  await expect(enable.or(activeBrowser)).toBeVisible()
-  if (await enable.isVisible()) {
-    await enable.click()
-    await expect(page.getByText('Browser registered', { exact: true })).toBeVisible({ timeout: 10_000 })
-  }
-}

@@ -18,10 +18,16 @@ class ParsedChallenge {
   final String id;
   final DateTime expiry;
 
+  /// The base64url challenge payload (the `{challenge}` param, or the raw input
+  /// when the input was already a bare payload). This is what the Resolver's
+  /// POST /api/registrations/process-challenge expects as `challengePayload`.
+  final String base64Payload;
+
   const ParsedChallenge({
     required this.appId,
     required this.id,
     required this.expiry,
+    required this.base64Payload,
   });
 }
 
@@ -83,10 +89,15 @@ class ChallengeParser {
       return const ChallengeParseResult.failure(ChallengeError.format);
     }
 
-    // Validate required fields
-    final appId = json['appId'] as String?;
-    final id = json['id'] as String?;
-    final expiryStr = json['expiry'] as String?;
+    // Validate required fields. The canonical RegistrationChallenge wire format
+    // (emitted by the SDK's ChallengeGenerator and the resolver) uses
+    // challengeId / requesterAppId / expiresAt. Older/alternate payloads used
+    // id / appId / expiry, so accept either for backward compatibility.
+    final appId =
+        (json['requesterAppId'] ?? json['appId']) as String?;
+    final id = (json['challengeId'] ?? json['id']) as String?;
+    final expiryStr =
+        (json['expiresAt'] ?? json['expiry']) as String?;
 
     if (appId == null || appId.isEmpty) {
       return const ChallengeParseResult.failure(ChallengeError.invalid);
@@ -117,6 +128,7 @@ class ChallengeParser {
       appId: appId,
       id: id,
       expiry: expiry,
+      base64Payload: base64Payload,
     ));
   }
 

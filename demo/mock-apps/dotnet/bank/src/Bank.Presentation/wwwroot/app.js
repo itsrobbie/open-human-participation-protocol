@@ -507,6 +507,7 @@ async function loadAccount() {
   if (account.ohppRegistration) {
     const badge = document.createElement("span");
     badge.className = "ohpp-badge";
+    badge.dataset.testid = "ohpp.bank.connected-badge";
     badge.textContent = "OHPP Connected";
     ohppStatusEl.append(badge, " Transfers require approval");
     generateBtn.textContent = "Generate new connection link";
@@ -514,6 +515,7 @@ async function loadAccount() {
   } else {
     const disconnected = document.createElement("span");
     disconnected.style.color = "#666";
+    disconnected.dataset.testid = "ohpp.bank.disconnected-notice";
     disconnected.textContent = "OHPP not connected. Transfers execute immediately.";
     ohppStatusEl.append(disconnected);
     document.getElementById("ohpp-connect-section").removeAttribute("hidden");

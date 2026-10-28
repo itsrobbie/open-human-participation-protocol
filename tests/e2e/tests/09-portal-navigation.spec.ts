@@ -1,56 +1,57 @@
 import { test, expect } from '@playwright/test'
-import { PORTAL_URL } from '../test-urls'
+import { PortalPage } from '../pages/portal'
 
+/**
+ * Portal navigation — converted to PortalPage (Phase 4.1). Nav links and page
+ * headings are addressed by keyed testids, never 'nav >> text='.
+ */
 test.describe('Portal — Navigation', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${PORTAL_URL}/login`)
-    await page.fill('input[placeholder="demo"]', 'demo')
-    await page.fill('input[type="password"]', 'demo')
-    await page.click('button[type="submit"]')
-    await expect(page).toHaveURL(PORTAL_URL + '/')
+    const portal = new PortalPage(page)
+    await portal.login()
+    await portal.assertOnDashboard()
   })
 
   test('all navigation links are visible', async ({ page }) => {
-    await expect(page.locator('nav')).toBeVisible()
-    await expect(page.locator('nav >> text=Dashboard')).toBeVisible()
-    await expect(page.locator('nav >> text=Pending')).toBeVisible()
-    await expect(page.locator('nav >> text=History')).toBeVisible()
-    await expect(page.locator('nav >> text=Devices')).toBeVisible()
-    await expect(page.locator('nav >> text=Apps')).toBeVisible()
-    await expect(page.locator('nav >> text=Connect App')).toBeVisible()
+    await new PortalPage(page).assertAllNavLinksVisible()
   })
 
   test('navigate to Pending page', async ({ page }) => {
-    await page.click('nav >> text=Pending')
-    await expect(page.locator('h1')).toContainText('Pending Requests')
+    const portal = new PortalPage(page)
+    await portal.gotoNav('/pending')
+    await portal.assertHeading('pending')
   })
 
   test('navigate to History page', async ({ page }) => {
-    await page.click('nav >> text=History')
-    await expect(page.locator('h1')).toContainText('Participation History')
+    const portal = new PortalPage(page)
+    await portal.gotoNav('/history')
+    await portal.assertHeading('history')
   })
 
   test('navigate to Devices page', async ({ page }) => {
-    await page.click('nav >> text=Devices')
-    await expect(page.locator('h1')).toContainText('Devices')
+    const portal = new PortalPage(page)
+    await portal.gotoNav('/devices')
+    await portal.assertHeading('devices')
   })
 
   test('navigate to Apps page', async ({ page }) => {
-    await page.click('nav >> text=Apps')
-    await expect(page.locator('h1')).toContainText('Registered Apps')
+    const portal = new PortalPage(page)
+    await portal.gotoNav('/apps')
+    await portal.assertHeading('apps')
   })
 
   test('navigate to Connect App page', async ({ page }) => {
-    await page.click('nav >> text=Connect App')
-    await expect(page.locator('h1')).toContainText('Connect an app')
+    const portal = new PortalPage(page)
+    await portal.gotoNav('/register-app')
+    await portal.assertHeading('registerapp')
   })
 
   test('navigate to Settings page via direct URL', async ({ page }) => {
-    await page.goto(`${PORTAL_URL}/settings`)
-    await expect(page.locator('h1')).toContainText('Developer Settings')
+    await new PortalPage(page).gotoSettings()
   })
 
   test('sign out button visible in nav', async ({ page }) => {
-    await expect(page.locator('text=Sign out')).toBeVisible()
+    const portal = new PortalPage(page)
+    await expect(portal.testid('ohpp.nav.logout')).toBeVisible()
   })
 })

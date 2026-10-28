@@ -37,13 +37,13 @@ test.describe.serial('Pizza — Auth, Navigation & Standard Orders', () => {
     await signIn(page)
 
     await page.getByTestId('nav-menu').click()
-    await expect(page.locator('h1')).toContainText('Menu')
+    await expect(page.getByTestId('ohpp.pizza.menu.heading')).toBeVisible()
 
     await page.getByTestId('nav-orders').click()
-    await expect(page.locator('h1')).toContainText('Orders')
+    await expect(page.getByTestId('ohpp.pizza.orders.heading')).toBeVisible()
 
     await page.getByTestId('nav-settings').click()
-    await expect(page.locator('h1')).toContainText('Settings')
+    await expect(page.getByTestId('ohpp.pizza.settings.heading')).toBeVisible()
 
     await page.getByTestId('nav-dashboard').click()
     await expect(page.getByTestId('order-mode-standard')).toBeVisible()
@@ -88,14 +88,14 @@ test.describe.serial('Pizza — Auth, Navigation & Standard Orders', () => {
     await page.getByTestId('place-order-button').click()
 
     // Should navigate to order detail or show confirmation
-    await expect(page.locator('text=Confirmed').first().or(page.getByTestId('status-timeline'))).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('status-badge-confirmed').first().or(page.getByTestId('status-timeline'))).toBeVisible({ timeout: 10000 })
   })
 
   test('orders page shows order history', async ({ page }) => {
     await signIn(page)
     await page.getByTestId('nav-orders').click()
     // Should show orders list or empty state
-    await expect(page.getByTestId('orders-list').or(page.locator('text=No orders'))).toBeVisible({ timeout: 5000 })
+    await expect(page.getByTestId('orders-list').or(page.getByTestId('ohpp.pizza.orders.empty'))).toBeVisible({ timeout: 5000 })
   })
 
   test('logout clears session and redirects', async ({ page }) => {

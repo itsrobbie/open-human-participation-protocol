@@ -23,15 +23,21 @@ test.describe.serial('CLI attester simulator', () => {
       cwd: resolve(__dirname, '../../..'), stdio: 'pipe', timeout: 30_000
     })
 
-    // Clear any leftover pending requests from prior tests so the CLI doesn't block on them
-    execSync(`${composeCmd} exec -T postgres psql -U ohpp -d ohpp -c "DELETE FROM pending_requests WHERE \\"Status\\" = 'Pending';"`, {
-      cwd: resolve(__dirname, '../../..'), stdio: 'pipe', timeout: 10_000
-    })
+    // Pending state is already cleared by global-setup's DB reset (P6
+    // isolation: every run starts from a truncated tenant). No per-spec DELETE
+    // is needed — and the old one targeted a non-existent `pending_requests`
+    // table, which failed the whole spec on the Linux CI runner.
 
     // --- Start the CLI as a long-running process with piped stdin ---
+    // Use the SAME project + compose file as the build/reset above. A prior
+    // version hardcoded '-p ohpp-test' here while build/reset used OHPP_PROJECT
+    // (ohpp-0), so the config reset cleared a DIFFERENT cli_config volume than
+    // the spawned CLI mounted — leaving a stale device token that sent the CLI
+    // straight to "Listening..." and never printed the "Username" prompt the
+    // test waits for (the CI timeout at this step).
     const cli = spawn('docker', [
-      'compose', '-p', 'ohpp-test', '-f', composeFile,
-      '--profile', 'backing', '--profile', 'apps', '--profile', 'tools',
+      'compose', '-p', OHPP_PROJECT, '-f', composeFile,
+      '--profile', 'apps', '--profile', 'tools',
       'run', '--rm', '-T', 'cli'
     ], { cwd: resolve(__dirname, '../../..') })
 

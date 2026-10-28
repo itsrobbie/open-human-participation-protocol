@@ -32,8 +32,8 @@ void main() {
       ]));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('pending-card-0')), findsOneWidget);
-      expect(find.byKey(const Key('pending-card-1')), findsOneWidget);
+      expect(find.byKey(const Key('ohpp.pending.card.r1')), findsOneWidget);
+      expect(find.byKey(const Key('ohpp.pending.card.r2')), findsOneWidget);
       expect(find.text('Approve order'), findsOneWidget);
       expect(find.text('Transfer \$100'), findsOneWidget);
     });

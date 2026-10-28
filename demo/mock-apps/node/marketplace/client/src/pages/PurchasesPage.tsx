@@ -32,12 +32,12 @@ export function PurchasesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Purchases</h1>
+      <h1 className="text-2xl font-bold mb-6" data-testid="ohpp.marketplace.purchases.heading">Purchases</h1>
 
       {(!purchases || purchases.length === 0) ? (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-12 text-center">
           <ShoppingBag size={40} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-          <p className="text-slate-500 dark:text-slate-400 mb-4">No purchases yet</p>
+          <p className="text-slate-500 dark:text-slate-400 mb-4" data-testid="ohpp.marketplace.purchases.empty">No purchases yet</p>
           <button
             onClick={() => navigate('/products')}
             className="text-sm text-cyan-600 hover:text-cyan-700 font-medium"

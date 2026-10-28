@@ -289,6 +289,25 @@ public class RegistrationCeremonyOrchestratorTests
     }
 
     [Fact]
+    public async Task ProcessChallenge_UsesConfiguredMaxRegistrationsPerHour()
+    {
+        // The per-user hourly registration cap is configuration-driven (default
+        // 10, raised in the E2E stack so the once-reset suite's single demo user
+        // is not rate-limited by its own earlier connects). Prove the orchestrator
+        // passes the configured value, not a hard-coded constant, to the limiter.
+        _resolverConfig.MaxRegistrationsPerHour.Returns(1000);
+        SetupValidChallengeAndMetadata();
+        _callbackSender.SendAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<RegistrationResponseData>(), Arg.Any<CancellationToken>()).Returns(true);
+        _registrationRepo.CreateAsync(Arg.Any<AppRegistration>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<AppRegistration>());
+
+        await _sut.ProcessChallengeAsync(Guid.NewGuid(), "validPayload");
+
+        await _rateLimitStore.Received(1).IsRateLimitedAsync(
+            Arg.Any<string>(), 1000, TimeSpan.FromHours(1), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task RevokeApp_ActiveApp_SetsRevokedAt()
     {
         var userId = Guid.NewGuid();
